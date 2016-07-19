@@ -443,8 +443,8 @@ Then we can calculate maximum wait-time $\calwait(l, c)$ as $n_0$ times the sum 
 
 Let $L_1.\primt := \acq \mapsto \spec_{\acq\_\mathsf{low}}
 \oplus \rel \mapsto \spec_{\rel\_\mathsf{low}}$
- and  $M_0 := \acq \mapsto \code_{\acq}
-\oplus \rel \mapsto \code_{\rel}$,
+ and  $M_0 := \acq \mapsto \module_{\acq}
+\oplus \rel \mapsto \module_{\rel}$,
 we can build the concurrent layers as below:
 \begin{small}
 \[
@@ -648,21 +648,21 @@ and releases the lock.
 \ignore{Suppose the underlying layer interface is:
 $$L_1.P = \acq \mapsto \spec_{\acq}
 	\oplus \rel \mapsto \spec_{\rel}$$}
-Instead of directly verifying the function $\code_{\deq}$
+Instead of directly verifying the function $\module_{\deq}$
 with fine-grained locking in one shot, we do it over
 multiple layers.
 We first introduce an intermediate function
-$\code_{\deq\comm{\_t}}$ (\cf Fig.~\ref{fig:exp:dequeue}), which contains
+$\module_{\deq\comm{\_t}}$ (\cf Fig.~\ref{fig:exp:dequeue}), which contains
 the code that performs the local dequeue operation but assumes that
 the corresponding lock is held.
-Verification of the function $\code_{\deq\comm{\_t}}$ is now much
+Verification of the function $\module_{\deq\comm{\_t}}$ is now much
 simpler because it can be treated as a sequential program.
 For this purpose, we introduce a new layer interface $L_3$ as follows:
 (1) introduce abstract states $abs_\comm{tcbp}$ and $abs_\comm{tdqp}$;
 (2) define a simulation relation $R_{2}$ between the new abstract states
 and the concrete doubly-linked list in memory;
 and (3) prove the simulation between
-$\code_{\deq\comm{\_t}}$ and its specification
+$\module_{\deq\comm{\_t}}$ and its specification
 $\spec_{\deq\comm{\_t}}$.
 
 The newly introduced $(abs_\comm{tdqp}: \integer \partf 
@@ -737,7 +737,7 @@ we can prove that $f_{l2} (\oracle(l, c, b)) =f_{l2} (\oracle(l', c, b))$. There
 
 Let $L_3.\primt := L_2.\primt \oplus \deq\comm{\_t} \mapsto \spec_{\deq\comm{\_t}}$ 
 and
-$M_2 :=  \deq\comm{\_t} \mapsto \code_{\deq\comm{\_t}}$.
+$M_2 :=  \deq\comm{\_t} \mapsto \module_{\deq\comm{\_t}}$.
 We build the concurrent abstraction layer:
 \begin{small}
 \[
@@ -760,8 +760,8 @@ and that $f_{l2}(s_2.l) = s_3.l$ always holds.
 \end{figure}
 
 \noindent\textbf{Step 2 (atomic specification $L_4$)}
-Next we verify the actual function $\code_{\deq}$ that wraps
-$\code_{\deq\comm{\_t}}$ with the lock primitives.
+Next we verify the actual function $\module_{\deq}$ that wraps
+$\module_{\deq\comm{\_t}}$ with the lock primitives.
 We build a new layer interface $L_4$ that merges the two lock events
 $\acq$ and $\rel$ into a single event $\deq$,
 by showing that the dequeue operation, protected with spinlocks,
@@ -810,7 +810,7 @@ the ticket lock example.
 \ignore{Therefore, we can define the function $f_{\oracle 1}$ for environment context:}}
 Let $L_4.\primt := L_3.\primt \oplus \deq \mapsto \spec_{\deq}$ 
 and
-$M_3 :=  \deq \mapsto \code_{\deq}$.
+$M_3 :=  \deq \mapsto \module_{\deq}$.
 We build the concurrent abstraction layer:
 \begin{small}
 \[

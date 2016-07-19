@@ -2,6 +2,62 @@
 
 \begin{abstract}
 
+Operating System (OS) kernels form the backbone of all system
+software. They can have the greatest impact on the resilience,
+extensibility, and security of today's computing hosts. 
+However, modern OS kernels are complex and consist of a multitude of abstraction layers,
+which have mostly been treated as a system
+concept.
+Despite their obvious
+importance, abstraction layers have almost never been formally specified or
+verified. This makes it difficult to establish strong correctness
+properties, and to scale program verification across multiple layers.
+What's more, concurrent abstraction layers are ubiquitous in OS kernels because of the pervasiveness of multi-threaded programming and
+multi-core hardware. This severely limits the applicability of
+layer-based techniques and makes it difficult to scale formal
+verification across multiple concurrent layers.
+
+
+Recent efforts
+have demonstrated the feasibility of building large scale
+formal proofs of functional correctness for simplegeneral-purpose
+kernels, but the cost of such verification is still prohibitive,
+and it is unclear how to use their verified kernels to reason about
+user-level programs and other kernel extensions.
+Furthermore, they
+have ignored the issues of concurrency, which include not
+just user- and I/O concurrency on a single core, but also
+multicore parallelism with fine-grained locking.
+
+This thesis presents \CTOS{}, an extensible architecture
+for building certified sequential and concurrent OS kernels.
+\CTOS{} proposes a novel language-based account of concurrent
+abstraction layers and show that they correspond to a strong form of
+abstraction over a particularly rich class of specifications, which are
+called {\em deep specifications}.
+To formally specify, program, verify, and compose
+concurrent abstraction layers,
+\CTOS{} provides a new layer
+calculus. 
+This thesis shows how to instantiate the layer calculus in
+realistic programming languages such as C and assembly, and how to
+adapt the CompCert verified compiler to compile certified C layers
+such that they can be linked with assembly layers. 
+
+To evaluate \CTOS{}, we  have successfully developed multiple
+practical sequential and concurrent OS kernels.
+The most realistic sequential hypervisor kernel is written in 6000 lines of C and x86
+assembly, and can boot a version of Linux as a guest. 
+The general-purpose concurrent OS kernel 
+with fine-grained locking
+can boot on a quad-core hardware.
+For all the certified kernels,
+their abstraction layers
+and (contextual)
+functional correctness properties are specified and verified in the Coq proof assistant. 
+
+\ignore{
+\paragraph{POPL15}
 Modern computer systems consist of a multitude of abstraction layers
 (\eg, OS kernels, hypervisors, device drivers, network protocols),
 each of which defines an interface that hides the implementation
@@ -31,5 +87,95 @@ languages and tools, we have successfully developed multiple certified
 OS kernels in the Coq proof assistant, the most realistic of which
 consists of 37 abstraction layers, took less than one person year to
 develop, and can boot a version of Linux as a guest.
+
+\paragraph{POPL17}
+Concurrent abstraction layers are ubiquitous in modern computer
+systems because of the pervasiveness of multithreaded programming and
+multicore hardware.  Abstraction layers are used to hide the
+implementation details (e.g., fine-grained locking for building
+concurrent atomic objects) and reduce the complex dependencies among
+components at different levels of abstraction. Despite their obvious
+importance, concurrent abstraction layers have almost never been
+treated formally.  This severely limits the applicability of
+layer-based techniques and makes it difficult to scale formal
+verification across multiple concurrent layers.
+
+In this paper, we present a formal language-based account of
+concurrent abstraction layers and show that complex concurrent
+software can indeed be decomposed into layers of simple concurrent
+atomic objects while still supporting thread-modular reasoning. We
+present a new layer framework showing how to formally specify,
+program, verify, and compose concurrent layers. We show how to build
+layered concurrent machine models and support layered concurrent
+programming in C and assembly. We have built a thread-safe version of
+CompCert that can compile certified C layers and link them with other
+concurrent assembly layers.  Using these new languages and tools, we have
+successfully developed a certified concurrent OS kernel in the Coq
+proof assistant. As far as we know, this is the first proof of
+functional correctness of a complete, general-purpose concurrent OS
+kernel with fine-grained locking.
+
+\paragraph{OSDI16}
+Operating System (OS) kernels form the backbone of all system
+software. They can have a significant impact on the resilience
+and security of today's computers. Recent efforts
+have demonstrated the feasibility of building formal proofs of
+functional correctness for simple general-purpose kernels, but they
+have ignored the important issues of concurrency, which include not
+just user- and I/O concurrency on a single core, but also
+multicore parallelism with fine-grained locking.  Many 
+researchers believe that building a certified concurrent kernel is
+very challenging, and even if it is possible, its cost would far
+exceed that of verifying a single-core sequential kernel.
+
+In this paper, we present a new compositional approach for building
+certified concurrent OS kernels. Concurrency allows interleaved
+execution of kernel/user modules across different layers of
+abstraction. Each such layer can have a different set of observable
+events. We insist on formally specifying these layers and their
+observable events, and then verifying each kernel module at its proper
+abstraction level. To support certified linking with other CPUs,
+threads, or processes, we prove a strong contextual refinement
+property for every kernel function, which states that the
+implementation of each such function will behave like its
+specification under any kernel/user context with any valid
+interleaving. We have successfully developed a
+practical concurrent OS kernel and verified its (contextual)
+functional correctness property in the Coq proof assistant. Our
+certified hypervisor kernel is written in 6000 lines of C and x86
+assembly, can boot a version of Linux as a guest. To our knowledge,
+this is the first proof of functional correctness of a complete,
+general-purpose concurrent OS kernel with fine-grained locking.
+
+\paragraph{SOSP15}
+Operating System (OS) kernels form the backbone of all system
+software. They can have the greatest impact on the resilience,
+extensibility, and security of today's computing hosts. Recent effort
+on seL4 has demonstrated the feasibility of building large scale
+formal proofs of functional correctness for a general-purpose
+microkernel, but the cost of such verification is still prohibitive,
+and it is unclear how to use such a verified kernel to reason about
+user-level programs and other kernel extensions.
+
+In this paper, we present a new compositional approach for building
+certified OS kernels.  Because the very purpose of an OS kernel is to
+build layers of abstraction over hardware resources, we insist on
+uncovering and specifying these layers formally, and then verifying
+each kernel module at its proper abstraction level. To support
+reasoning about user-level programs and linking with other certified
+kernel extensions, we prove a strong contextual refinement property
+for every kernel function, which states that the implementation of
+each such function will behave like its specification under any
+kernel/user (or host/guest) context. To demonstrate the effectiveness
+of our new approach, we have successfully implemented and specified a
+practical OS kernel and verified its (contextual) functional
+correctness property in the Coq proof assistant. We show how to extend
+our base kernel with new features such as virtualization and ring-0
+processes and how to quickly adapt existing verified layers to build
+new certified kernels for different domains. Our certified hypervisor
+OS kernel is written in 5500 lines of C and x86 assembly, and can
+successfully boot a version of Linux as a guest. The entire
+specification and proof effort took less than 1.5 person years.
+}
 
 \end{abstract}
