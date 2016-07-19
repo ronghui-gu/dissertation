@@ -1,0 +1,184 @@
+\hyphenation{CompCert}
+\hyphenation{CompCertX}
+\hyphenation{Clight}
+\hyphenation{ClightX}
+\hyphenation{CertiKOS}
+\hyphenation{mCertiKOS}
+\hyphenation{mCTOS}
+\hyphenation{CTOS}
+\hyphenation{mCTOS-hyp}
+\hyphenation{mCTOS-rz}
+\hyphenation{mCTOS-emb}
+\hyphenation{Cos-tan-zo}
+
+\newcommand\CTOS{CertiKOS}
+
+\newcommand\raw{x86}
+\newcommand\sys{ker}
+\newcommand\layer[3]{(#1,#2,#3)}
+
+\newcommand\pCTOS{p\CTOS}
+\newcommand\mCTOS{m\CTOS}
+\newcommand\mCTOSbase{\mCTOS{}}
+\newcommand\mCTOShyper{\mCTOS{}-hyp}
+\newcommand\mCTOSringz{\mCTOS{}-rz}
+\newcommand\mCTOSembed{\mCTOS{}-emb}
+\newcommand\cCTOS{c\CTOS}
+
+\newcommand\sem[2]{[\![#2]\!]_{#1}}
+\newcommand\join{\!\bowtie\!}
+\newcommand\Refrel{\sqsubseteq}
+\newcommand\LSem[1]{\textrm{LSem(}#1\textrm{)}}
+\newcommand\ClightX[1]{\textrm{ClightX(}#1\textrm{)}}
+\newcommand\CompCertX[1]{\textrm{CompCertX(}#1\textrm{)}}
+\usepackage{multirow}
+\newtheorem{invariant}{Invariant}
+\newcommand\ignore[1]{}
+%\newcommand{\code}[1]{{\texttt{#1}}}
+
+\newcommand{\zhong}[1]{\textbf{\textcolor{red}{[ #1 --Zhong]}}}
+\newcommand{\ronghui}[1]{\textbf{\textcolor{blue}{[ #1 --Ronghui]}}}
+
+%% END COMMENTS
+
+% Orders on layers and behaviors: \lsim and \lle correspond to QuiverSim,
+% whereas \lpath corresponds to CategorySim.
+\newcommand{\lle}{\preceq}
+\newcommand{\lsim}[1]{\prec_{#1}}
+\newcommand{\lpath}[1]{\le_{#1}}
+%\newcommand{\lhtap}[1]{\ge_{#1}}
+\newcommand{\id}{\textbf{id}}
+
+% Typing judgements
+\usepackage{relsize}
+\newcommand{\ltyp}[4]{#1 \vdash_{#2} #3 : #4}
+\newcommand{\lltyp}[5]{#2 \vdash^{#1}_{#3} #4 : #5}
+\newcommand{\rulename}[1]{\textsc{\smaller{}#1}}
+
+% Useful shorthands used in layer.tex
+\usepackage{scalerel}
+\DeclareMathOperator*{\bigJoin}{\scalerel*{\Join}{\sum}}
+\newcommand{\kw}[1]{{\mathsf{#1}}} % render as a keyword
+\newcommand{\pset}[1]{{\mathcal{P}({#1})}}
+\newcommand{\Beh}{\mathsf{Beh}} % the set of behaviors
+\newcommand{\Ev}{\mathbb{E}} % the set of events
+\newcommand{\Prog}{\mathbb{P}} % a set of programs
+\newcommand{\Lang}{\mathbb{L}} % a language with log
+\newcommand{\Mach}{\mathcal{M}} % a machine
+\newcommand{\Env}{\mathcal{E}} % an environment context
+\newcommand{\refines}{\sqsubseteq} % refinement relation
+\newcommand{\EC}[1]{{\kw{EC}({#1})}} % encironment contexts of a partial machine
+
+%------------------------ Added by Ronghui Gu
+\newcommand{\eg}{{\em e.g.\xspace}}
+\newcommand{\ie}{{\em i.e.\xspace}}
+\newcommand{\cf}{{\em cf. }}
+\newcommand{\etal}{{\em et al.\xspace}}
+\newcommand\step[1]{\overset{#1}{\rightarrow}}
+\newcommand\emptye{\epsilon}
+\newcommand\model{\models}
+\newcommand\opsem[3]{l,ge\model #2 \step{#1} #3}
+\newcommand\opsems[3]{l,ge\model #2 \overset{#1}{\rightarrow^*} #3}
+\newcommand\partialf{\rightharpoonup}
+\newcommand\intp{\medtriangleright}
+\newcommand\CAS{\text{CAS}}
+\newcommand\XADD{\text{XADD}}
+\newcommand\XCHL{\text{XCHL}}
+\newcommand\FAA{\text{FAA}}
+\newcommand\FAI{\text{FAI}}
+\newcommand\regs{\rho}
+\newcommand\oracle{\mathcal{E}}
+\newcommand\state{s}
+\newcommand\push{\mathsf{push}}
+\newcommand\pull{\mathsf{pull}}
+\newcommand\abst{\mathcal{A}}
+\newcommand\primt{\mathcal{P}}
+
+\newcommand\incticket{\mathsf{inc\_t}}
+\newcommand\incnow{\mathsf{inc\_n}}
+\newcommand\getnow{\mathsf{get\_n}}
+\newcommand\tshared{\mathsf{tshared}}
+\newcommand\holdlock{\mathsf{hold}}
+\newcommand\lockstatus{\mathsf{lock\_status}}
+\newcommand\true{\mathsf{true}}
+\newcommand\false{\mathsf{false}}
+
+\newcommand\waitlock{\mathsf{wait}}
+\newcommand\releaselock{\mathsf{rel}}
+
+\newcommand*{\LargerCdot}{\raisebox{0.25ex}{\scalebox{0.7}{$\bullet$}}}
+\newcommand\cons{\LargerCdot}
+\newcommand\comm[1]{\mathsf{#1}}
+%\newcommand\mtext[1]{\mathit{#1}}
+\newcommand\set[1]{\{#1\}}
+\newcommand\replay{\mathbb{R}}
+\newcommand\calwait{\mathbb{B}}
+\newcommand\any{\cdot}
+\newcommand\spec{\sigma}
+\newcommand\integer{\mathbb{N}}
+
+
+\newcommand\code{\kappa}
+%\newcommand\acq{\mathsf{acq}}
+\newcommand\rel{\mathsf{rel}}
+\newcommand\deq{\mathsf{deq}}
+\newcommand\enq{\mathsf{enq}}
+\newcommand\reach{\mathsf{reachable}}
+\newcommand\now{\mathsf{now}}
+\newcommand\ticket{\mathsf{ticket}}
+\newcommand{\partf}{\rightharpoonup}
+\newcommand\bytelist{\comm{bl}}
+\newcommand\yield{\mathsf{yield}}
+\newcommand\cyield{\mathsf{cyield}}
+\newcommand\sleep{\mathsf{sleep}}
+\newcommand\wakeup{\mathsf{wakeup}}
+%\newcommand\tid{\mathsf{tid}}
+\newcommand\tid{t}
+\newcommand\eempty{\mathsf{empty}}
+\newcommand\qloc{\mathsf{q\_loc}}
+\newcommand\perm[1]{\mathsf{perm}(#1)}
+\newcommand\LAsm{\mathsf{LAsm}}
+\newcommand\TAsm{\mathsf{TAsm}}
+\newcommand\boot{\mathsf{boot}}
+
+%\newcommand\sem[1]{\llbracket{} #1 \rrbracket{}}
+
+\newcommand{\strat}[1]{\varphi_{#1}}
+\newcommand{\stratp}[1]{\varphi'_{#1}}
+
+%% BEGIN CompCert memory model and extensions
+\newcommand{\nextblockOP}[0]{\mathsf{nb}}
+\newcommand{\nextblock}[1]{\nextblockOP({#1})}
+\newcommand{\liftnextblockOP}[0]{\mathsf{liftnb}}
+\newcommand{\liftnextblock}[2]{\liftnextblockOP({#1}, {#2})}
+\newcommand{\extends}[2]{{#1} \subseteq {#2}}
+\newcommand{\inject}[3]{{#2} \stackrel{#1}{\hookrightarrow} {#3}}
+\newcommand{\alloc}[3]{\mathsf{alloc}({#1}, {#2}, {#3})}
+\newcommand{\store}[3]{\mathsf{store}({#1}, {#2}, {#3})}
+\newcommand{\load}[2]{\mathsf{load}({#1}, {#2})}
+\newcommand{\some}[1]{\left\lfloor {#1} \right\rfloor}
+
+\newcommand{\disjointunionOP}[0]{\circledast}
+\newcommand{\disjointunion}[3]{{#1} \disjointunionOP {#2} \simeq {#3}}
+
+\newcommand\efrom[1]{(#1\intp)}
+\newcommand\eto[1]{(\intp#1)}
+\newcommand\ssame{\odot}
+\newcommand\sdiff{\filledmedtriangleright}
+\newcommand\switch{\hookrightarrow}
+\newcommand\mysout[1]{\text{\sout{$#1$}}}
+
+%\newcommand{\disjointunionOP}[0]{\mathsf{disjoint\_union}}
+%\newcommand{\disjointunion}[3]{\disjointunionOP({#1}, {#2}, {#3})}
+%% END CompCert memory model and extensions
+
+
+\newcommand\machx{\Pi}
+\newcommand\mach[1]{\machx_{\text{#1}}}
+\newcommand\machrel{\Refrel}
+\newcommand{\event}[1]{{\tiny \mathtt{#1}}}
+\newcommand\hardoracle{\oracle_{hs}}
+\newcommand\intptext{\text{switch point}}
+\newcommand\ectxt[1]{{\rm{}EC}({#1})}
+\newcommand\ectxtc{{\rm{}EC}}
+\newcommand\inv{\texttt{INV}}

@@ -1,0 +1,542 @@
+\section{A calculus of abstraction layers}
+\label{sec:layer}
+
+\paragraph{Motivation}
+
+A user of an abstraction layer $\layer{L_1}{M}{L_2}$ wants to know
+that its implementation $M$ (on top of the underlay interface $L_1$)
+can be used to run any program $P$ written against the overlay
+interface $L_2$.
+If we consider $L_1, L_2$ as abstract machines
+and $M$ as a program transformation (which transforms
+a program $P$ into $M(P)$), 
+then for some notion of refinement $\sqsubseteq$,
+this property can be stated as
+$\forall P \,.\, M(P) @ L_1 \sqsubseteq P @ L_2$,
+meaning that the behavior of $M(P)$ executing
+on top of the underlay specification $L_1$
+refines that of the program $P$
+executing on top of the overlay specification $L_2$.
+
+This view of abstraction layers captures a wide variety of situations.
+Furthermore, two layers $\layer{L_1}{M}{L_2}$ and
+$\layer{L_2}{N}{L_3}$ can be composed as $\layer{L_1}{M \circ
+  N}{L_3}$, and the correctness of the layer implementation $M \circ
+N$ follows from that of $M$ and $N$.  
+%This gives us a way to decompose
+%layer implementations into a succession of smaller and
+%easier-to-verify components.
+
+However, 
+% this paradigm is ill-suited for implementation purposes.
+% An unrestricted program transformation is often too
+% general to describe what is actually going on: 
+the layer interfaces
+are often not arbitrary abstract machines, but simply instances of a base
+language, specialized to provide layer-specific primitives and
+abstract state.  The implementation is not an arbitrary
+transformation, but instead consists of some library code to be linked
+with the client program.  In order to prove this transformation correct,
+we will verify the implementation of each primitive
+separately, and then use these proofs in conjunction with a
+general template for the instrumented language.
+
+Abstract machines and program transformations are too general to
+capture this redundant structure.  The layer calculus
+presented in this section provides fine-grained notions of layer
+interfaces and implementations.  It allows us to describe what varies
+from one layer to the next and to assemble such layers 
+%from their components 
+in a generic way.
+
+\subsection{Prerequisites}
+
+To keep the formalism general and simple,
+we initially take the syntax and behavior of the programs
+under consideration to be abstract parameters.
+Specifically,
+in the remainder of this section we will assume that
+the following are given:
+\begin{itemize}\itemsep 0pt %[noitemsep,nolistsep]
+\item a set of identifiers $i \in \mathbb{I}$
+    which will be used to name variables, functions, and primitives
+    (e.g., \textsf{dequeue} and \textsf{tcbp} in Fig.~\ref{fig:queue});
+\item sets of function definitions $\kappa \in \mathrm{K}$, and
+    variable definitions $\nu \in \mathrm{T}$,
+    as specified by the language
+    (e.g., $\kappa_\textsf{dequeue}$ and $\nu_\textsf{tcbp}$ in Fig.~\ref{fig:queue});
+% XXX: identifiers?
+\item a set of behaviors $\sigma \in \Sigma$
+    for the individual primitives of layers,
+    and the individual functions of programs
+    (e.g., the step relation $\sigma_\textsf{dequeue}$ 
+    	derived from the Coq function 
+    	$\hat{\sigma}_\textsf{dequeue}$ in Fig.~\ref{fig:queue}).
+\end{itemize}
+More examples can be found in Sec.~\ref{sec:prog}.
+\ignore{For example, in the model given in Sec.~\ref{sec:prog},
+we will use step relations as the behaviors.
+Function definitions will include the functions' formal parameters and bodies
+(but not their names),
+whereas definitions of variables
+will specify their types and initialization data.}
+% XXX: but for now completely abstract
+
+We also need to define how the behaviors
+refine one another.
+This is particularly important because
+our layer interfaces bundle primitive specifications,
+and because a relation between layer interfaces is defined pointwise
+over these primitives. Ultimately, we wish to use these
+fine-grained layers and refinements to build complete abstract
+machines and whole-machine simulations. 
+%FIXME: improve:
+%Yet, ultimately we wish to use these
+%fine-grained layers and refinements
+%to build complete abstract machines and whole-machine simulations.
+This can only be done
+if the refinements of individual primitives are consistent;
+for example, if they are given in terms of the same simulation relation.
+
+Hence, we index behavior refinement by
+the elements of a partial monoid $(\mathbb{R}, \circ, \id)$.
+We will refer to the elements $R \in \mathbb{R}$ of this monoid
+as \emph{simulation relations}.
+However, note that at this stage,
+the elements of $\mathbb{R}$ are entirely abstract,
+and we require only that the composition operator $\circ$
+and identity element $\id$ satisfy the monoid laws
+$R \circ (S \circ T) = (R \circ S) \circ T$ and
+$R \circ \id = \id \circ R = R$.
+
+Finally,
+we need to interpret these abstract simulation relations
+as refinement relations between behaviors.
+That is,
+for each $R \in \mathbb{R}$, we require
+a relation $\lpath{R}$ on $\Sigma$.
+For instance,
+if the behaviors $\sigma_1, \sigma_2 \in \Sigma$
+are taken to be step relations over some sets of states,
+$\sigma_1 \le_R \sigma_2$ may be interpreted
+as the following simulation diagram:
+\[ 
+    \xymatrix{
+        s_1 \ar[rr]^{\sigma_1} \ar@{-}[d]_R & & s'_1 \ar@{.}[d]^R \\
+        s_2 \ar@{.>}[rr]_{\sigma_2} & & s'_2
+    }
+\]
+That is, whenever two states $s_1, s_2$
+are related by $R$ in some sense,
+and $\sigma_1$ takes $s_1$ to $s_1'$ in one step, then
+there exists $s_2'$ such that 
+$\sigma_2$ takes $s_2$ to $s_2'$ in zero or more steps,
+and $s_2'$ and $s_1'$ are also related by $R$.
+The relations $\le_-$ should respect the monoid structure of $\mathbb{R}$,
+so that for any $\sigma \in \Sigma$ we have $\sigma \lpath{\id} \sigma$,
+and so that whenever $R, S \in \mathbb{R}$
+and $\sigma_1, \sigma_2, \sigma_3 \in \Sigma$
+such that $\sigma_1 \lpath{R} \sigma_2$ and $\sigma_2 \lpath{S} \sigma_3$,
+it should be the case that $\sigma_1 \lpath{S \circ R} \sigma_3$.
+% XXX: Possibly summarize laws in a figure instead?
+
+\subsection{Layer interfaces and modules}
+
+\begin{figure}
+    \noindent
+    \fbox{$M_1 \subseteq M_2$}
+    \vspace*{-17pt}
+    \begin{align*}
+        M &\subseteq M &
+            \rulename{MLe-Refl} \\
+        \varnothing &\subseteq M &
+            \rulename{MLe-Empty} \\
+        M \oplus \varnothing &\subseteq M &
+            \rulename{MLe-Id-Right} \\
+        (M_1 \oplus M_2) \oplus M_3 &\subseteq M_1 \oplus (M_2 \oplus M_3) &
+            \rulename{MLe-Assoc} \\
+        M_2 \oplus M_1 &\subseteq M_1 \oplus M_2 &
+            \rulename{MLe-Comm} \\
+        M_1 &\subseteq M_1 \oplus M_2 &
+            \rulename{MLe-Ub-Left} \\
+        M_1 \subseteq M_2 \wedge M_2 \subseteq M_3
+            &\Rightarrow M_1 \subseteq M_3 &
+            \rulename{MLe-Trans} \\
+        M_1 \subseteq M_1' \wedge M_2 \subseteq M_2'
+            &\Rightarrow M_1 \oplus M_2 \subseteq M_1' \oplus M_2'
+            &\rulename{MLe-Mon}
+    \end{align*}
+
+    \vspace{1em}
+    \noindent
+    \fbox{$L_1 \lpath{R} L_2$}
+    \vspace*{-17pt}
+    \begin{align*}
+        L &\lpath{\id} L &
+            \rulename{LLe-Refl} \\
+        \varnothing &\lpath{R} L &
+            \rulename{LLe-Empty} \\
+        L \oplus \varnothing &\lpath{\id} L &
+            \rulename{LLe-Id-Right} \\
+        (L_1 \oplus L_2) \oplus L_3 &\lpath{\id} L_1 \oplus (L_2 \oplus L_3) &
+            \rulename{LLe-Assoc} \\
+        L_2 \oplus L_1 &\lpath{\id} L_1 \oplus L_2 &
+            \rulename{LLe-Comm} \\
+        L_1 &\lpath{\id} L_1 \oplus L_2 &
+            \rulename{LLe-Ub-Left} \\
+        L \oplus L &\lpath{\id} L &
+            \rulename{LLe-Idempotent} \\
+        L_1 \lpath{R} L_2 \wedge L_2 \lpath{S} L_3 &\,\Rightarrow\,
+            L_1 \lpath{S \circ R} L_3 &
+            \rulename{LLe-Trans} \\
+        L_1 \lpath{R} L_1' \wedge L_2 \lpath{R} L_2' &\,\Rightarrow\,
+            L_1 \oplus L_2 \lpath{R} L_1' \oplus L_2' \hspace{-2em} &
+            \rulename{LLe-Mon} \\
+        \sigma_1 \lpath{R} \sigma_2 &\,\Rightarrow\,
+            i \mapsto \sigma_1 \lpath{R} i \mapsto \sigma_2 &
+            \rulename{LLe-Intro-Prim}
+    \end{align*}
+
+    \vspace{1em}
+    \noindent
+    \fbox{$\ltyp{L_1}{R}{M}{L_2}$}
+    \vspace*{-17pt}
+    \begin{prooftree}
+        \AxiomC{}
+	\RightLabel{\rulename{Empty}}
+ 	\UnaryInfC{$\ltyp{L}{\id}{\varnothing}{L}$}
+    \end{prooftree}
+    \begin{prooftree}
+        \AxiomC{}
+        \RightLabel{\rulename{Var}}
+        \UnaryInfC{$\ltyp{L}{\id}{i \mapsto \nu}{i \mapsto \nu}$}
+    \end{prooftree}
+    \begin{prooftree}
+        \AxiomC{$\ltyp{L_1}{R}{M}{L_2}$}
+        \AxiomC{$\ltyp{L_2}{S}{N}{L_3}$}
+        \RightLabel{\rulename{Vcomp}}
+        \BinaryInfC{$\ltyp{L_1}{R \circ S}{M \oplus N}{L_3}$}
+    \end{prooftree}
+    \begin{prooftree}
+        \AxiomC{$\ltyp{L}{R}{M}{L_1}$}
+        \AxiomC{$\ltyp{L}{R}{N}{L_2}$}
+        \RightLabel{\rulename{Hcomp}}
+        \BinaryInfC{$\ltyp{L}{R}{M \oplus N}{L_1 \oplus L_2}$}
+    \end{prooftree}
+    \begin{prooftree}
+        \AxiomC{$L_1 \lpath{R} L_1'$}
+        \AxiomC{$\ltyp{L_1}{S}{M}{L_2}$}
+        \AxiomC{$L_2' \lpath{T} L_2$}
+        \RightLabel{\rulename{Conseq}}
+        \TrinaryInfC{$\ltyp{L_1'}{R \circ S \circ T}{M}{L_2'}$}
+    \end{prooftree}
+    \caption{The fine-grained layer calculus}
+    \label{fig:llang}
+\end{figure}
+
+
+\begin{figure}
+    \small
+    \begin{align*}
+        \lfloor L \rfloor \in \mathbb{L} &=
+            \mathbb{I} \rightharpoonup (\Sigma + \mathrm{T}) &
+        \lfloor M \rfloor \in \mathbb{M} &=
+            \mathbb{I} \rightharpoonup (\mathrm{K} + \mathrm{T}) \\
+        %
+        \lfloor \varnothing \rfloor &=
+            \bot &
+        \lfloor \varnothing \rfloor &=
+            \bot \\
+        %
+        \lfloor i \mapsto \sigma \rfloor &=
+            i \mapsto \iota_1(\sigma) &
+        \lfloor i \mapsto \kappa \rfloor &=
+            i \mapsto \iota_1(\kappa) \\
+        %
+        \lfloor i \mapsto \nu \rfloor &=
+            i \mapsto \iota_2(\nu) &
+        \lfloor i \mapsto \nu \rfloor &=
+            i \mapsto \iota_2(\nu) \\
+        %
+        \lfloor L_1 \oplus L_2 \rfloor &=
+            \lfloor L_1 \rfloor \cup \lfloor L_2 \rfloor &
+        \lfloor M_1 \oplus M_2 \rfloor &=
+            \lfloor M_1 \rfloor \cup \lfloor M_2 \rfloor \\
+        \lfloor L_1 \lpath{R} L_2 \rfloor &\!\Leftrightarrow
+            \lfloor L_1 \rfloor \lpath{R} \lfloor L_2 \rfloor &
+        \lfloor M_1 \subseteq M_2 \rfloor &\!\Leftrightarrow
+            \lfloor M_1 \rfloor \sqsubseteq \lfloor M_2 \rfloor
+    \end{align*}
+    \begin{center}
+    Where $\lfloor L_1 \rfloor \lpath{R} \lfloor L_2 \rfloor$ means that for all $i \in \mathbb{I}$:
+    \begin{align*}
+        \forall \sigma_1 \, . \quad
+            \lfloor L_1 \rfloor (i) &= \iota_1(\sigma_1) &\Rightarrow\quad
+        \exists \sigma_2 \, . \,
+            \lfloor L_2 \rfloor (i) &= \iota_1(\sigma_2) \wedge
+            \sigma_1 \lpath{R} \sigma_2 \\
+        \forall \nu \, . \quad
+             \lfloor L_1 \rfloor (i) &= \iota_2(\nu) &\Rightarrow\quad
+             \lfloor L_2 \rfloor (i) &= \iota_2(\nu),
+    \end{align*}
+    and both orders hold when the right-hand side is undefined.
+    \end{center}
+    \caption{Interpretation of layers and modules as finite maps}
+    \label{fig:fmap-layers}
+\end{figure}
+
+
+The syntax of the calculus is defined as follows:
+
+\begin{small}
+\vspace*{-2ex}
+\begin{align*}
+    L &::= \varnothing
+            \ |\ i \mapsto \sigma
+            \ |\ i \mapsto \nu
+            \ |\ L_1 \oplus L_2 \\
+    M &::= \varnothing
+            \ |\ i \mapsto \kappa
+            \ |\ i \mapsto \nu
+            \ |\ M_1 \oplus M_2
+\end{align*}
+\vspace*{-2ex}
+\end{small}
+
+\noindent{}The layer interfaces $L$ and modules $M$
+are essentially finite maps;
+constructions of the form $i \mapsto \_$
+are elementary single-binding objects,
+and $\oplus$ computes
+the union of two layers or modules.
+This is illustrated by the proof-of-concept
+interpretation given in 
+Fig.~\ref{fig:fmap-layers}.
+For example, the thread queue module, shown in Fig.~\ref{fig:queue},
+can be defined as 
+$M_\textsf{thread\_queue}:=\textsf{tcbp}\mapsto \nu_\textsf{tcbp} 
+\oplus \textsf{tdqp}\mapsto \nu_\textsf{tdqp}
+\oplus \textsf{dequeue}\mapsto \kappa_\textsf{dequeue}$,
+while the overlay interface can be defined as 
+$L_\textsf{thread\_queue}:= \textsf{dequeue}\mapsto \sigma_\textsf{dequeue}$ .
+
+The rules are presented in Fig.~\ref{fig:llang}.
+The inclusion preorder defined on modules
+corresponds to the intuition that when $M \subseteq N$,
+any definition present in $M$ must be present in $N$ as well.
+The composition operator $\oplus$
+behaves like a join operator.
+However, while $M \oplus N$ is an upper bound of $M$ and $N$,
+we do not require it to be the \emph{least} upper bound.
+The order on layer interfaces
+extends the underlying simulation preorder $\lpath{R}$ on behaviors.
+Compared to $\subseteq$, it should satisfy
+the additional property \rulename{LLe-Idempotent}.
+
+The judgment $\ltyp{L_1}{R}{M}{L_2}$ is akin to a typing judgment for
+modules. It asserts that, using the simulation relation $R$, the
+module $M$---running on top of $L_1$---faithfully implements $L_2$.
+Because modules consist of code ultimately intended to be linked
+with a client program, the empty module $\varnothing$ acts as a
+unit, and can implement any layer interface $L$ 
+(\rulename{Empty}).  Moreover, appending first $N$, then $M$ to a
+client program is akin to appending $M \oplus N$ in one step
+(\rulename{Vcomp}).  These rules correspond to the identity and
+composition properties already present in the framework of abstract
+machines and program transformations.  However, the fine-grained
+calculus also provides a way to split refinements (\rulename{Hcomp}):
+when two different layer interfaces are implemented \emph{in a
+  compatible way} by two different modules on top of a common underlay
+interface, then the union of the two modules implements the union of
+the two interfaces.
+
+This allows us to break down the problem of verifying a layer
+implementation in smaller pieces, but ultimately, we need to handle
+individual functions and primitives.  The consequence rule
+(\rulename{Conseq}) can be used to tie our notion of behavior
+refinement into the calculus.  However, to make the introduction of
+certified code possible, we need a semantics of the underlying
+language.
+
+\subsection{Language semantics}
+\label{ssec:layer-langsem}
+
+\begin{figure}
+\begin{align*}%
+\llbracket - \rrbracket &\ \,:\ \,\mathbb{M} \rightarrow (\mathbb{L} \rightarrow \mathbb{L}) \\
+        i \mapsto \nu &\lpath{\id}
+            \llbracket i \mapsto \nu \rrbracket L &
+            \rulename{Sem-Var} \\
+        \llbracket M \rrbracket (L \oplus \llbracket N \rrbracket L)
+            &\lpath{\id}
+            \llbracket M \oplus N \rrbracket L &
+            \rulename{Sem-Comp} \\
+        M_1 \subseteq M_2 \wedge L_1 \lpath{R} L_2 &\,\Rightarrow\,
+            \llbracket M_1 \rrbracket L_1 \lpath{R}
+            \llbracket M_2 \rrbracket L_2 &
+            \rulename{Sem-Mon}%
+\end{align*}
+\caption{Semantics of modules}
+\label{fig:msem}
+\end{figure}
+
+Assume that layers and modules are interpreted in the respective sets
+$\mathbb{L}$ and $\mathbb{M}$.  The semantics of a module can be
+understood as the effect of its code has on the underlay
+interface, as specified by a function $\llbracket - \rrbracket :
+\mathbb{M} \rightarrow \mathbb{L} \rightarrow \mathbb{L}$.  Given such
+a function, we can interpret the typing judgment as:
+
+\vspace*{-1.5ex}
+\begin{small}
+\[ \ltyp{L_1}{R}{M}{L_2} \quad \Leftrightarrow \quad
+   L_2 \lpath{R} L_1 \oplus \llbracket M \rrbracket L_1. \]
+\end{small}%
+
+\noindent{}Then the properties in Fig.~\ref{fig:msem}
+are sufficient to ensure the soundness of the typing rules
+with respect to this interpretation.
+
+Here, surprisingly, we require that the specification refine the
+implementation!  This is because our proof technique involves turning
+such a \emph{downward} simulation into the converse \emph{upward}
+simulation, as detailed in Sec.~\ref{sec:lasm}
+(Theorem~\ref{thm:sound}) and Sec.~\ref{sec:clightx-prog}.  Also, we
+included $L_1$ on the right-hand side of $\lpath{R}$ to support
+pass-through of primitives in the underlay $L_1$ into the overlay
+$L_2$.
+
+The property \rulename{Sem-Comp} can be understood intuitively as
+follows.  In $\llbracket M \rrbracket (L \oplus \llbracket N
+\rrbracket L)$, the code of $M$ is able to use the functions defined
+in $N$ in addition to the primitives of the underlay interface $L$,
+but conversely the code of $N$ cannot access the functions of $M$.
+However, in $\llbracket M \oplus N \rrbracket L$, the functions of $M$
+and $N$ can call each other freely, and therefore the result should be
+more defined.  The property \rulename{Sem-Mon} states that making the
+module and underlay larger should also result in a more defined
+semantics.
+
+The soundness of the rules
+follow from these properties:
+\begin{itemize}
+
+\item First,
+    under our interpretation of the typing judgment,
+    \rulename{Empty} corresponds directly to \rulename{LLe-Ub-Left}.
+    In fact, the judgment $\ltyp{L}{\id}{M}{L}$
+    holds for any module $M$.
+
+\item The soundness of \rulename{Conseq} is
+    straightforward to establish as well:
+    by the monotonicity of  $\oplus$ and $\llbracket - \rrbracket$,
+    $L_1 \lpath{R} L_1'$ entails:
+    \[ L_1  \oplus \llbracket M \rrbracket L_1 \lpath{R}
+       L_1' \oplus \llbracket M \rrbracket L_1', \]
+    which combined with the other premises gives us:
+    \[ L_2' \lpath{T} L_2 \lpath{S}
+       L_1  \oplus \llbracket M \rrbracket L_1 \lpath{R}
+       L_1' \oplus \llbracket M \rrbracket L_1'. \]
+    Hence, by \rulename{LLe-Trans}:
+    \[ L_2' \lpath{R \circ S \circ T} L_1' \oplus \llbracket M \rrbracket L_1'. \]
+
+\item The property \rulename{Sem-Comp} can be used to prove
+    the soundness of \rulename{Vcomp}.
+    If $L_3 \lpath{S} L_2 \oplus \llbracket N \rrbracket L_2$ and
+    $L_2 \lpath{R} L_1 \oplus \llbracket N \rrbracket L_1$,
+    then by monotonicity we get:
+    \[ L_3 \lpath{R \circ S} L_1 \oplus \llbracket N \rrbracket L_1 \oplus
+      \llbracket M \rrbracket (L_1 \oplus \llbracket N \rrbracket L_1). \]
+    Applying \rulename{Sem-Comp}
+    on the right-hand side of $\oplus$, we get:
+    \[ L_3 \lpath{R \circ S} L_1 \oplus \llbracket N \rrbracket L_1
+                           \oplus \llbracket M \oplus N \rrbracket L_1. \]
+    This can be further rewritten by exploiting the fact that
+    $\llbracket N \rrbracket L_1 \lpath{\id}
+     \llbracket M \oplus N \rrbracket L_1$
+    together with \rulename{LLe-Idempotent},
+    which allows us to conclude:
+    \[ L_3 \lpath{R \circ S} L_1 \oplus \llbracket M \oplus N \rrbracket L_1. \]
+
+\item Finally, the soundness of \rulename{Hcomp} can be demonstrated as follows.
+    If we know that $L_1 \lpath{R} L \oplus \llbracket M \rrbracket L$
+    and that $L_2 \lpath{R} L \oplus \llbracket N \rrbracket L$,
+    then by the monotonicity of $\oplus$ we get:
+    \[ L_1 \oplus L_2 \lpath{R} (L \oplus \llbracket N \rrbracket L)
+                         \oplus (L \oplus \llbracket M \rrbracket L). \]
+    Since $M \lpath{\id} M \oplus N$
+    and $N \lpath{\id} M \oplus N$,
+    this can be further rearranged as:
+    \[ L_1 \oplus L_2 \lpath{R} (L \oplus L) \oplus
+        (\llbracket M \oplus N \rrbracket L \oplus
+         \llbracket M \oplus N \rrbracket L). \]
+    We can conclude using \rulename{LLe-Idempotent}:
+    \[ L_1 \oplus L_2 \lpath{R} L \oplus \llbracket M \oplus N \rrbracket L. \]
+\end{itemize}
+
+Once a language semantics is given, we introduce a
+language-specific rule to prove the correctness of individual functions: 
+
+\vspace*{-1.5ex}
+\begin{small}
+%\begin{prooftree}
+    \AxiomC{$\text{VC}(L, \kappa, \sigma)$}
+    \RightLabel{\rulename{Fun}}
+    \UnaryInfC{$\ltyp{L}{\id}{i \mapsto \kappa}{i \mapsto \sigma}$}
+    \[ \DisplayProof \]
+%\end{prooftree}
+\end{small}%
+
+\noindent{}where the language-specific predicate $\text{VC}(L, \kappa, \sigma)$
+asserts that the function body $\kappa$ faithfully implements the
+primitive behavior $\sigma$ on top of $L$.  
+This rule can be combined with the rules of the calculus to build up
+complete certified layer implementations.
+
+Similarly, given a concrete language semantics, we will want to tie
+the calculus back into the framework of abstract machines and program
+transformations.  For a layer interface $L$, we will define a
+corresponding abstract machine meant to execute programs written in a
+version of the language augmented with the primitives specified in
+$L$.  The program transformation associated with a module $M$ will
+simply concatenate the code of $M$ to the client program.  Then, for a
+particular notion of refinement $\sqsubseteq$, we will want to prove
+that the typing judgments entail the contextual refinement property:
+
+\vspace*{-1.5ex}
+\begin{small}
+%\begin{prooftree}
+    \AxiomC{$\ltyp{L_1}{R}{M}{L_2}$}
+    %\RightLabel{\rulename{xxx}}
+    \UnaryInfC{$\forall P \,.\,
+        (P \oplus M)@L_1 \sqsubseteq P@L_2$}
+    \[ \DisplayProof \]
+%\end{prooftree}
+\end{small}%
+
+\noindent{}Informally, if $M$ faithfully implements $L_2$ on top of
+$L_1$, then invocations in $P$ of a primitive $i$ with behavior
+$\sigma$ in $L_2$, can be satisfied by calling the corresponding
+function $\kappa$ in $M$.
+
+Indeed in Sec.~\ref{sec:prog} and Sec.~\ref{sec:lasm}, the primitive
+specifications in $\llbracket M \rrbracket L$, based on step
+relations, are defined to reflect the possible executions of the
+function definitions in $M$.  Therefore, $L_2 \le_R L_1 \oplus
+\llbracket M \rrbracket L_1$ implies that, for any primitive
+implementation in $M$, the corresponding deep specification in $L_2$
+refines the execution of that function definition.  Hence the
+execution of program $P$ with underlay $L_2$ refines that of $P \oplus
+M$ with underlay $L_1$ (the properties enumerated in
+Fig.~\ref{fig:msem} hold for a similar reason).  Properties of the
+language (i.e., being determinate and receptive) can then be used to
+reverse this refinement into the desired $(P \oplus M)@L_1 \sqsubseteq
+P@L_2$.
+
+% FIXME: uniform notation?
+
+%\subsection{Deriving abstract machines and simulations}
+%
+%[Even though we remain totally abstract in this section,
+%probably we can already give an idea of what's involved,
+%independent of the actual language used.]

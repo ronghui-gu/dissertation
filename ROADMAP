@@ -1,0 +1,25 @@
+
+- 1. Introduction
+  * 1.3 Contributions
+  * 1.4 Roadmap
+
+- 2. Background and Motivations
+  * 
+
+- 2. Architecture Overview
+
+- 3. Dependency Collections
+  * 3.1 
+  * 3.1 Network-level 
+  * 3.2 Hardware-level 
+  * 3.3 Software-level
+  * 3.4 Failure probability
+
+- 4. Structural Independence Auditing
+  * 4.1 Generating Dependency Graph
+  * 4.2 Determining Risk Groups
+  * 4.3 Ranking Risk Groups
+
+- 5. Privacy-Preserving Independence Auditing
+  * 5.1 Trust Assumptions
+  * 

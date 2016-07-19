@@ -1,0 +1,343 @@
+
+\section{Certified Compilation and Linking}
+\label{sec:comp}
+
+In our approach, interaction between threads happens only through the 
+abstract log, and concrete memory is always thread-local.
+In Sec.~\ref{sec:prog} we already saw how this yields a big
+improvement over the previous state of the art, because it lets us
+give a \emph{C level} specification to primitives that handle
+communication between threads. In particular, we can write the
+implementation of the $\yield$ primitive in assembly, and because the
+behavior is deterministic (given the log in the abstract state) we can
+write a sequential-style specification in which $\yield$ immediately
+returns with the abstract state suitably modified.
+In order to take advantage of this, we also need a C compiler which
+can compile the programs that call $\yield$. 
+In this section we show how to adapt Gu et al.'s CompCertX verified
+separate compiler \cite[\S 6]{dscal15} for this task.
+
+In fact, most of the compiler can be reused as is. This is because we
+do not need to consider parallel composition of thread behaviors
+\emph{at the C level}. As the source language, we reuse Gu et al.'s
+ClightX \cite[\S 4]{dscal15}, which is the CompCert
+Clight subset of C parameterized with layer interfaces.
+Each program is compiled into a
+target program in the per-thread TAsm language, and we prove that the
+compiled code refines its source. Then our concurrent linking
+theorems (Lemmas~\ref{lemma:mono},~\ref{thread_composition}, and~\ref{thread_compose})
+state that the individual threads compose into a
+single, concurrent TAsm program. %, and that theorem can be stated entirely in terms
+% of assembly code.
+
+The final thread composition is subtle even at the assembly level,
+because each thread's stack and thread-local memory must be combined
+into a single global memory state in the CompCert memory model. To
+prove that this is possible, we have to maintain a detailed invariant
+about how the memory is partitioned, and to extend the abstract state
+with extra information to make block allocations deterministic.
+
+%%%%%%%%%%%%%%
+
+% These paragraphs are Tahina's previous section introduction, can 
+% reuse as needed.
+\ignore{
+If the specification of the primitive being implemented already
+involves any need for communication with other threads, then such need
+is recorded as events and operations on the abstract state of the
+overlay interface, which the implementation will need to refine. We
+saw in Section~\ref{sec:prog} that, if the primitive is implemented in
+assembly, then it is enough to prove refinement between this primitive
+and its assembly implementation calling primitives of the underlay
+interface where communication with other threads is also recorded as
+events and operations on the abstract state of the underlay interface.
+
+In this section, we argue that this principle is still valid if the
+primitive is implemented in C rather than assembly. Indeed, we reuse
+Gu et al.'s ClightX \cite[\S 4]{dscal15}, the formal semantics of the
+CompCert Clight subset of C parameterized with layer interfaces, in
+the same way as for sequential C code, with abstract state and
+primitives also serving to model concurrency and thread
+communication. Then, similarly to the sequential setting by Gu et al.,
+we prove that, on the one hand, each C function refines the primitive
+it claims to be implementing. Then, on the other hand, we argue that
+Gu et al.'s CompCertX verified separate compiler \cite[\S 6]{dscal15}
+can be reused in the same way here, to prove that the compiled
+assembly code refines its C source. Thus, by transitivity, the
+compiled assembly code will refine the primitive its source C code
+claims to implement.
+
+This way, just like an assembly thread, we can consider the behavior
+of a C thread as if it were running standalone sequentially, by
+abstracting other threads away through the abstract state and
+primitives (logs, etc.): the $\yield$ primitive can be called by a
+C function, and it is \emph{deterministic} (given the log in the
+abstract state) and returns with the abstract state suitably modified
+by other threads (thus allowing communication between threads.)
+
+However, contrary to assembly code, we do not need to consider any
+parallel composition of thread behaviors \emph{at the C level}, thanks
+to verified separate compilation and linking, since it is enough to
+link the behaviors of assembly threads for the purposes of refining
+our concurrent abstraction layers.
+}
+
+\paragraph{Verified separate compilation and linking with CompCertX} 
+Replacing Gu et al.'s LAsm target with our per-thread TAsm assembly
+language, we first recall Gu et al.'s CompCertX correctness statement
+pictured in Fig.~\ref{fig:compcertx}: starting from a memory state $m$
+(provided by the caller of the primitive being implemented), if the
+ClightX function $f$ runs on top of a layer $L$ and produces a
+concrete memory state $m'$, then the compiled function $f$ in TAsm
+runs and produces a memory state $m''$, introducing some \emph{memory
+  injection} $j$ between $m'$ and $m''$ (written
+$\inject{j}{m'}{m''}$). This memory injection is a memory
+transformation \cite[\S 5.4]{leroy08} due to the different handling of
+stack frames between ClightX and TAsm.
+
+
+\begin{figure}
+\[
+\xymatrix@R=3pt@C+=3pt{
+& v, m', a'
+\ar@<-3ex>@{_{(}-->}[dd]^j
+\ar@{_{(}-->}[dd]^j
+\ar@<3ex>@{==}[dd]
+\\
+\genfrac{}{}{0pt}{0}{l}{\rho}, m, a
+\ar[ur]^{\llbracket f \rrbracket_{\text{ClightX}}(L)}
+\ar@{-->}[dr]^{ \llbracket f \rrbracket_{\text{TAsm}}(L)} \\
+l \approx m(\rho(\textsf{ESP}))
+& \rho', m'', a'
+}
+\]
+\vspace{-10pt}
+\caption{CompCertX per-thread correctness statement} \label{fig:compcertx}
+\vspace{-10pt}
+\end{figure}
+
+Then, to implement the primitives of an overlay interface $L_2$ on top
+of an underlay interface $L_1$ by some ClightX module $M_C$ for some
+primitives of $L_2$ and some TAsm module $M_{\text{Asm}}$ for other
+primitives of $L_2$, for any fixed thread $t$ and environment context
+$\mathcal E$, we follow Gu et al., first splitting $L_2$ into C-style
+and assembly-style primitives by writing $L_2 = L_{2, \text{C}} \oplus
+L_{2, \text{Asm}}$ , then implementing $L_{2, \text{Asm}}$ with TAsm
+code $M_{\text{Asm}}$, and $L_{2, \text{C}}$ with ClightX code
+$M_{\text{C}}$, so as to prove per-thread refinement at the assembly
+level using forward downward simulations as described in \cite[\S
+  3.3]{dscal15} and Definition~\ref{def:popl15-layers}, $L_{2,
+  \text{Asm}} \leqslant_R \llbracket M_{\text{Asm}} \rrbracket L_1$
+(and thus $L_{1} \vdash_R M_{\text{Asm}} : L_{2, \text{Asm}}$), and at
+the C level, $L_{2, \text{C}} \leqslant_R \llbracket M_{\text{C}}
+\rrbracket L_1$. Then, we compile $M_{\text{C}}$ into TAsm using
+CompCertX, thus obtaining $\llbracket M_{\text{C}} \rrbracket L_1
+\leqslant_{j} \llbracket \text{CompCertX}(M_{\text{C}}) \rrbracket
+L_1$ for some memory injection $j$, and thus by transitivity $L_{2,
+  \text{C}} \leqslant_{j \circ R} \llbracket
+\text{CompCertX}(M_{\text{C}}) \rrbracket L_1$, which can be rewritten
+into $L_{1} \vdash_R \text{CompCertX}(M_{\text{C}}) : L_{2, \text{C}}$
+since $j \circ R = R$. Finally, by horizontal composition, we link the
+obtained assembly codes to obtain per-thread layer refinement, for any
+fixed thread $t$ and environment context $\mathcal E$: $L_1 \vdash_R
+M_{\text{Asm}} \oplus \text{CompCertX}(M_{\text{C}}) : L_2$.
+
+\paragraph{Thread-safety of CompCertX: parallel composition and concrete memory states}
+
+We then have to show that the output of CompCertX is compatible with
+parallel composition of threads at the TAsm level, and in particular
+that the per-thread specifications of concurrent primitives such as
+$\yield$ are compatible with verified compilation a la CompCert.  This
+might sound trivial: as we presented it so far, $\yield$ only modifies
+the abstract state, which should not interact with the compiled
+assembly code. But unfortunately, the exact semantics of primitive
+calls actually also have to modify the concrete memory state. This is because
+of a small snag which we glossed over until now: stack frames.
+
+\ignore{
+We argue that Gu et al.'s CompCertX is sound to be used for per-thread
+verified separation \vilhelm{what's ``verified separation''?} and linking, in a way compatible with parallel
+composition of threads at the TAsm level. The key reason is due to the
+fact that the per-thread specifications of concurrent primitives such
+as $\yield$ are in fact compatible with verified compilation a la
+CompCert, which we are explaining in this paragraph.
+}
+
+Modeling the $\yield$ primitives when performing parallel
+composition at the assembly level (from TAsm to LAsm, Lemma~\ref{thread_composition}) requires
+maintaining an invariant on the concrete global memory state $m$ of
+the LAsm machine and the per-thread concrete memory state $m_i$ of
+each thread $i$'s TAsm machine. The concrete memory state of a thread
+only contains thread-private memory, in particular its stack. Whenever
+a function is called, a fresh memory block has to be allocated\footnote{We use the CompCert memory model \cite{leroy08}(notations in Fig.~\ref{fig:mem}), where a memory state consists in finitely many blocks within which finitely many memory locations can be accessed in such a way that pointer arithmetics can be performed only within one memory block at a time.} in the
+concrete memory for its stack frame. This means that, at the TAsm
+level, a function called within a thread will allocate its stack frame
+into the thread-private memory state, and conversely, a thread is
+never aware of any newer memory blocks allocated by other
+threads. However, at the LAsm level, all stack frames have to be allocated
+in the global memory regardless of which thread they belong to;
+thus, in the TAsm to LAsm parallel composition proof, we need to account
+for all such stack frames.
+
+One possible way could be to consider maintaining memory injections
+from each TAsm per-thread memory state to the LAsm global memory state
+(so that per-thread $\yield$ would not modify the thread-private
+memory at all); but proofs involving memory injections are notoriously
+hard since they involve transformations of pointer values.
+
+Thus, we instead chose an easier solution \cite[\S 5.2]{leroy08}. Contrary to memory injections,
+memory extensions (written $\extends{m_1}{m_2}$, following the
+notation in \cite[\S 5.2]{leroy08}) are memory transformations that do
+not require any transformation on the values
+stored in memory states. The main issue is that if there is a memory
+extension between $m_i$ and $m$, they need to have the same number of
+memory blocks allocated, even though the actual permissions of memory
+locations within those memory blocks may differ (more permissions in
+$m$ than in $m_i$) \cite{compcert-mem-v2}. Thus, to make our parallel composition proof go
+through, we need to modify the semantics of per-thread $\yield$ so
+that it allocates enough empty memory blocks (within which no memory
+locations have any permissions) corresponding to the stack frames
+allocated by other threads. So, for each thread $i$, we only need to
+maintain memory extension between $\liftnextblock{m_i}{\nextblock{m} -
+\nextblock{m_i}}$ (the thread-local memory $m_i$ adjusted by
+allocating enough empty blocks to match the number of blocks in $m$)\footnote{for any memory state $m'$,
+$\nextblock{m'}$ is the total number of blocks allocated in $m'$, and
+$\liftnextblock{m'}{n}$ allocates $n$ empty blocks in $m'$},
+and the global memory state $m$.
+
+\ignore{
+\tahina{Here, introduce the new per-thread semantics of $\yield$ with
+  the accurate handling of $m$ with $\liftnextblockOP$. --- More
+  generally, can we try to describe the correctness proof of parallel
+  composition (TAsm to LAsm) in Sec. \ref{sec:layer} and/or
+  \ref{sec:prog}, first \emph{pretending} that $\yield$ would not
+  change the thread-private concrete memory state (and so, that no
+  further memory blocks are ever allocated either in thread-privates
+  or in the global memory), then here in this section, ``refine'' our
+  explanation by showing how that correctness proof changes
+  wrt. conveying the $\nextblockOP$ into the log events?}
+}
+
+More formally, in Fig.~\ref{fig:algmem}, we introduce a notion of \emph{algebraic memory model}
+to model the relationship $\disjointunion{m_1}{m_2}{m}$ between the private memory states $m_1, m_2$ of two disjoint
+thread sets and the global memory state $m$ after parallel composition.
+\begin{definition}[Algebraic memory model] \label{def:algmem}
+A memory model based on the CompCert memory model \cite{leroy08} is
+said to be \emph{algebraic} if, and only if, there is a \emph{disjoint
+  union} predicate $\disjointunion{m_1}{m_2}{m}$ satisfying
+the axioms of Fig.~\ref{fig:algmem}.
+\end{definition}
+
+\begin{figure}
+\begin{small}
+\begin{tabular}{ll}
+$\load{m}{\ell} = \some{x}$ & reading from location $\ell$ in memory $m$ succeeds and value $x$ is read \\
+$\store{m}{\ell}{v} = \some{m'}$ & storing value $v$ to location $\ell$ in memory $m$ succeeds and yields memory $m'$ \\
+$\alloc{m}{l}{h}$ & memory state obtained by allocating a new memory block in $m$ with permissions for offsets from $l$ to $h$ within the new block \\
+$\nextblock{m}$ & number of memory blocks already allocated in $m$ \\
+$\liftnextblock{m}{n}$ & memory state obtained by allocating $n$ empty memory blocks (satisfies $\liftnextblock{m}{n+1} = \liftnextblock{\alloc{m}{0}{0}}{n}$ and $\liftnextblock{m}{0} = m$) \\
+$\extends{m}{m'}$ & memory extension between $m$ and $m'$ \cite[\S 5.2]{leroy08} \\
+$\inject{j}{m}{m'}$ & memory injection between $m$ and $m'$ \cite[\S 5.4]{leroy08} \\
+\end{tabular}
+\end{small}
+\caption{The CompCert memory model \cite{leroy08}: notations} \label{fig:mem}
+\end{figure}
+
+\begin{figure}
+\begin{scriptsize}
+\[
+\inferrule{
+  \disjointunion{m_1}{m_2}{m}
+}{
+  \nextblock{m} = \max(\nextblock{m_1}, \nextblock{m_2})
+}(\textsc{Disj-Nb})
+~ \inferrule{
+  \disjointunion{m_1}{m_2}{m}
+}{
+  \disjointunion{m_2}{m_1}{m}
+}(\textsc{Disj-Comm})
+\]
+\begin{mathpar}
+\inferrule{
+  \disjointunion{m_1}{m_2}{m} \\
+  \nextblock{m_1} \leq \nextblock{m_2}
+}{
+  \disjointunion{m_1}{\liftnextblock{m_2}{n}}{\liftnextblock{m}{n}}
+}(\textsc{Disj-Liftnb-Right})
+\\
+\inferrule{
+  \disjointunion{m_1}{m_2}{m} \\
+  \nextblock{m_1} \leq \nextblock{m_2}
+}{
+  \disjointunion{\liftnextblock{m_1}{n}}{m_2}{\liftnextblock{m}{n - (\nextblock{m} - \nextblock{m_1})}}
+}(\textsc{Disj-Liftnb-Left})
+\\
+\inferrule{
+  \disjointunion{m_1}{m_2}{m} \\
+  \nextblock{m_1} \leq \nextblock{m_2} 
+}{
+  \disjointunion{m_1}{\alloc{m_2}{l}{h}}{\alloc{m}{l}{h}}
+}(\textsc{Disj-Alloc})
+\end{mathpar}
+\[
+\inferrule{
+  \disjointunion{m_1}{m_2}{m}
+}{
+  \disjointunion{m_1}{\store{m_2}{\ell}{v}}{\store{m}{\ell}{v}}
+}(\textsc{Disj-Store})
+\inferrule{
+  \disjointunion{m_1}{m_2}{m} \\
+  \load{m_2}{\ell} = \some{v}
+}{
+  \load{m}{\ell} = \some{v}
+}(\textsc{Disj-Load})
+\]
+\end{scriptsize}
+\vspace{-10pt}
+\caption{Algebraic memory model} \label{fig:algmem}
+\vspace{-10pt}
+\end{figure}
+
+Rules in Fig.~\ref{fig:algmem} define the notion of algebraic memory
+we use to prove the correctness of single-processor parallel
+composition: any memory operation in a per-thread memory state shall
+reflect in the corresponding global memory state. The condition
+$\nextblock{m_1} \leq \nextblock{m_2}$ ensures that a non-empty memory
+block can be allocated only in the memory state of the \emph{active}
+thread, so that if a thread calls $\yield$, then, once it regains
+control, it is guaranteed that all new memory blocks were allocated by
+other threads. Similarly to (\textsc{Disj-Store}), $\disjointunionOP$
+is compatible with $\mathsf{free}$, which only clears the permissions
+of memory locations without changing the number of memory blocks.
+
+Rule \textsc{Disj-Liftnb-Left} is critical to our parallel composition
+proof, since it allows to maintain the disjoint union invariant when a
+thread yields and gets back control, allocating empty memory blocks in
+its private memory state $m_1$ to account for blocks allocated in $m$
+by other threads.
+
+Based on our disjoint union for two memory states, we then use rule
+\textsc{Disj-Liftnb-Right} to generalize to $N$ threads by saying that
+$m$ is a disjoint union of the private memory states $m_1, \dots, m_N$
+of $N$ threads (on a single processor) if, and only if, there exists a
+memory state $m'$ such that $m'$ is a disjoint union of $m_1, \dots,
+m_{N-1}$ and $\disjointunion{m_N}{m'}{m}$ holds.
+
+\begin{lemma}
+Let $m_1, m_2$ two partial memory states containing the thread-private memories of two disjoint thread sets. Then, we say that global memory state $m$ is \emph{a disjoint union} of $m_1$ and $m_2$ (written $\disjointunion{m_1}{m_2}{m}$) if, and only if, all the following conditions hold:
+$\mathsf{nb}(m) = \max(\mathsf{nb}(m_1), \mathsf{nb}(m_2))$; $\forall i$, memory extension from $\mathsf{liftnb}(m_i, \mathsf{nb}(m) - \mathsf{nb}(m_i))$ to $m$; and no valid common memory locations in both $m_1$ and $m_2$; then we satisfy the algebraic memory model axioms of Fig.~\ref{fig:algmem}.
+\end{lemma}
+
+Remember that, similarly to CompCert, CompCertX can only compile
+ClightX code that calls primitives that are deterministic and are
+preserved by memory transformations (extensions and injections)
+introduced by compilation passes. To maintain per-thread determinism
+of $\yield$ while the exact behaviors of other threads is not
+known, it is necessary to record the number of missing blocks
+allocated by other threads in each per-thread log in its abstract
+state, so that per-thread $\yield$ can remain
+deterministic. Finally, having $\yield$ allocate a number of
+blocks only determined by the per-thread log instead of any concrete
+memory state makes it compatible with memory transformations
+introduced by CompCertX. Thus, $\yield$ is valid to be used in
+ClightX code being compiled by CompCertX.

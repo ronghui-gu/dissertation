@@ -1,0 +1,232 @@
+% !TEX root =  main.tex
+%
+% DESIGN
+%
+\chapter{Design and Semantics}
+\label{chap:domp}
+DOMP builds on OpenMP~\cite{openmp08} to offer a parallel programming model with both an expressive API and race-free, naturally deterministic semantics.  DOMP retains most OpenMP core constructs, but excludes OpenMP's few nondeterministic ones.  DOMP further extends OpenMP's API with a deterministic generalized reduction, which can replace the most common uses of its excluded nondeterministic constructs.
+
+By ``naturally deterministic,'' we mean such that program logic alone determines at what point in each thread's execution sequence it synchronizes with another thread---immune to the effects of the scheduler and hardware timing.  The program defines a function from the input to the output and behavior.  In order to support this level of determinism, DOMP follows the Working-Copies Determinism (WCD) programming model~\cite{aviram11workspace}.  Since WCD is the theoretical foundation of DOMP, we here discuss WCD and its basis in the Workspace Consistency memory consistency model.  Next we consider the rationale for implementing a deterministic version of the OpenMP API with Workspace Consistency semantics in the form of a user library.  Finally, we review the features of DOMP, pointing out how they manifest WCD semantics.
+%
+\section{Working-Copies Determinism}
+\label{sec:domp-wcd}
+%
+DOMP enforces determinism according to the Working-Copies Determinism (WCD) programming model~\cite{aviram11workspace}.  This model guarantees, not only that execution will always produce the same output and behavior on the same input, but that a program containing a data race will fail to execute to completion.  WCD provides this guarantee by limiting communications between threads to the parent-child relation and to program-specified synchronization points such as \textit{fork}, \textit{join}, and \textit{barrier}.  Synchronization is then thoroughly deterministic.  This arrangement follows the Workspace Consistency memory and programming model (WC)~\cite{aviram11workspace}.
+
+The essence of Workspace Consistency can be gleaned from a consideration of the ``swap assignment'' operation available in some languages, including Perl and JavaScript:
+\begin{small}
+\begin{verbatim}
+(x, y) := (y, x)
+\end{verbatim}
+\end{small}
+%
+This construct implies no parallelism, but its semantics require, crucially, that both $x$ and $y$ on the right side be evaluated before either $x$ or $y$ on the left side receives its new value.  Under Workspace Consistency, we get exactly the same results from a ``parallel swap,'' as illustrated in 
+Figure~\ref{subfig:design-parallel-swap}.
+%
+\begin{figure}[htpb]
+\begin{subfigure}[b]{0.35\textwidth}
+\centering
+\includegraphics[width=\textwidth]{parallel_swap.eps}
+\subcaption{Semantics}
+\label{subfig:design-parallel-swap}
+\end{subfigure}
+\hspace{1cm}
+\begin{subfigure}[b]{0.45\textwidth}
+\centering
+\includegraphics[width=\textwidth]{wc_parallel_swap.eps}
+\subcaption{Memory consistency model}
+\label{subfig:design-wc-parallel-swap}
+\end{subfigure}
+\caption{The ``parallel swap'' construct under Workspace Consistency}
+\label{fig:design-parallel-swap}
+\end{figure}
+%
+The runtime under WC ensures that $x$ sees the old value of $y$ and vice versa.
+The crucial point is that $x$ ``hands its value off,'' in effect, to $y$, and vice versa.  
+
+
+To explain 
+this model both more generally and in greater detail, we use the traditional terminology for describing memory consistency models~\cite{gharachorloo90memory, mosberger93mcm}.  Memory accesses in parallel programs fall into the two categories: \textit{shared} and \textit{private}, the former of which are the only ones requiring special treatment.  Shared accesses, in turn, are \textit{competing} if more than one thread accesses the same location and at least one such access is a write; otherwise, they are \textit{non-competing}.  Again, competing accesses are the ones of special concern, because only they could result in data races.   Then, some competing accesses are \textit{synchronizing}, while others are \textit{non-synchronizing}.  Synchronizing accesses ensure the safety of other competing accesses----generally, by using some location in memory as a means to \textit{pass a message} from one thread to another, as, for instance, when one thread sets a flag to signal that other threads may read the (data) value at location $x$. 
+
+Finally, we may classify a synchronizing access as either an \textit{acquire} or a \textit{release}.  A thread performs an acquire in order to gain (non-synchronizing) access to some other location in memory, typically storing data; in a release, a thread signals that some other location in memory is available for access by one or more other threads.  An acquire always involves a read.  In a spinlock, for instance, the thread seeking access checks a flag repeatedly in a loop until the flag's value changes (say, from set to clear).  The change in value signals the waiting thread that it has permission to access the desired memory location (holding data); this read is the acquire per se.  As soon as the thread receives this signal, it writes to the flag again so as to signal other threads that they may not have access to the data and must wait.  This write is considered non-synchronizing, since it does not signal that a memory location is available.  When the current thread finishes, it must write again, clearing the flag so that some other thread may obtain the lock; this second write is a release.   A release always involves a write.  In an even simpler, non-exclusive scenario, a team of threads spins on a synchronization variable until one thread broadcasts to all of them that the data in some location are available, by setting a flag.  The issuing thread's write to the flag is the release; each thread's read when the flag is set is its acquire.
+
+\begin{figure}[tbp]
+\begin{center}
+\includegraphics[width=0.75\textwidth]{wc_forkjoin_simple.eps}
+\caption{Pairing of releases and acquires following the Workspace Consistency model.
+The pair (\textit{thread}, \textit{event\_number}) appears to the left of each synchronization event (blue rectangle) and identifies it uniquely.  Each event has as its argument the identifier of the partnered event in another thread.}
+\label{fig:design-wc-forkjoin-simple}
+\end{center}
+\end{figure}
+
+Under Workspace Consistency, program logic pairs each release to a specific acquire, as illustrated in Figure~\ref{subfig:design-wc-parallel-swap}.  In addition, one thread's writes do not become visible to any other thread until the next synchronization event, the release-acquire pair in which the writing thread releases the data.  Synchronization accesses are \textit{sequentially consistent} (or, more precisely, processor consistent), meaning that the order of releases and acquires follows program logic and that all threads observe the same order.  Finally, if two threads perform conflicting (non-synchronizing) writes, the implementation handles this condition deterministically, e.g., by always signaling it as a data race error.
+
+Figure~\ref{fig:design-wc-forkjoin-simple} illustrates Workspace Consistency in the fork-join synchronization construct with a team of four threads.  The master thread (Thread 0) signals to each other thread in turn that all shared data are accessible at the same time that it creates those threads by calling \texttt{fork}.  At the join, each thread in turn signals to the master that its version of shared data is ready for the master to read.  In practice, for efficiency, we implemented the join in a binary tree pattern to increase parallelism (see~\ref{sec:impl-features}).  Figure~\ref{fig:design-wc-barrier} shows the corresponding synchronization pattern for a barrier, where the master's releases are not combined with the \texttt{fork} call.
+
+\begin{figure}[tbp]
+\begin{center}
+\includegraphics[width=0.75\textwidth]{wc_barrier.eps}
+\caption{Pairing of releases and acquires in a barrier.}
+\label{fig:design-wc-barrier}
+\end{center}
+\end{figure}
+%
+Because synchronization in Workspace Consistency controls the visibility of data updates, this model constrains the flow of data to follow a strictly deterministic pattern.  Returning to our example of the ``parallel swap'' (Figure~\ref{subfig:design-wc-parallel-swap}), before the barrier, Thread 0 sees the previous, not updated, value of $y$ (say, $0$), and Thread 1 does the same for $x$.  After the barrier, $x$ has the value $42$ and $y$ has the value $33$ for \textit{both} threads.  Then, when each makes its respective assignment, the swap is complete.
+
+Workspace Consistency gives us, in effect, both the convenience of shared-memory parallelism and the determinism of a message-passing system that takes the form of a Kahn process network~\cite{kahn74semantics}.  The key feature of a Kahn network that makes it deterministic is that, at any given time, no node (processor, thread) is allowed to receive data from more than one communication channel.  Whereas a system with shared channels (Figure~\ref{fig:design-nondet-network}) requires mutex locks to prevent data races and allows data to flow nondeterministically, a Kahn process network (Figure~\ref{fig:design-kahn-network}) constrains communication in such a way that the order in which data flows over time is always the same from one run to the next.  Figure~\ref{fig:design-kahn-network} shows nodes sending on only one channel at a time, but this is not strictly necessary.  In fact, a single-producer, multiple-consumer data propagation pattern is compatible both with Kahn networks and with Workspace Determinism~\cite{aviram11workspace}.
+
+\begin{figure}[htpb]
+\centering
+\includegraphics[width=0.75\textwidth]{nondet_network.eps}
+\caption{Nondeterministic network}
+\label{fig:design-nondet-network}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.75\textwidth]{kahn_network.eps}
+\caption{Kahn process network}
+\label{fig:design-kahn-network}
+\end{figure}
+
+Working Copies Determinism then isolates data for each thread between synchronization events, in order to comply with Workspace Consistency's data visibility requirements.  Every concurrent thread receives its own, private logical copy of shared state at the fork, and the restriction on communication prevents read-write conflicts.  At the fork, the DOMP runtime also creates an additional \textit{reference copy} of shared state, to remain untouched until a barrier or the join.  At the barrier or join, the parent thread compares and merges its own and its children's versions of shared state with the reference copy, signaling any conflicting write as an error.  
+A barrier is effectively a join followed by a new fork, with the same number of threads resuming execution immediately after the barrier.  
+
+Figure~\ref{fig:wcd} illustrates this sequence of events and its consequences on the visibility of data to threads.   
+\begin{figure}[tbp]
+\begin{center}
+\includegraphics[width=0.75\textwidth]{wcd_2.eps}
+\caption{Working-copies determinism with 2 threads}
+\label{fig:wcd}
+\end{center}
+\end{figure}
+
+DOMP, then, implements Working Copies Determinism while supporting most of the OpenMP API.  In order to detect changes between synchronization points and to check for data races while merging updated versions of shared state, DOMP creates, not only a logical copy for each concurrent thread, but an extra \textit{reference copy}.
+Figure~\ref{fig:design-comp-sequence} illustrates the role of these data versions in forking and merging.
+
+\begin{figure}[tbp]
+\begin{center}
+\includegraphics[width=0.75\textwidth]{domp_sequence.eps}
+\caption{Sequence of events in a DOMP team of threads}
+\label{fig:design-comp-sequence}
+\end{center}
+\end{figure}
+
+DOMP's treatment of race conditions as errors is not the only possibility within a deterministic system.  Alternatively, one may choose a scheme for resolving write conflicts in some known order, perhaps requiring programmer annotations, as in Revisions~\cite{burckhardt10revisions}.  In the WCD model, however, a write-write conflict is likely a sign of an error in program logic, which should not be silently resolved.
+
+Because DOMP follows WCD, a programmer can retrofit legacy code, whether a sequential program to be parallelized or a standard OpenMP application, and uncover hidden data races that may be ``benign'' on test inputs but lead to incorrect results or heisenbugs when the code is deployed and encounters different inputs, or when it undergoes further development.
+
+The WCD mechanism as described presupposes a particular \textit{granularity} of comparison and merging.  At the join, the runtime may compare and merge the various threads' copies of shared state by byte, by word, etc.  Any choice of granularity will risks some false positives as well as false negatives.  If we choose byte granularity, for instance, a program with a shared bitfield can raise a false positive.  Meanwhile, suppose two threads share a $4$-byte integer at location $x$, where the reference copy has $0$, thread $A$ has $1$, and thread $B$ has $16$.  Ignoring this race, the runtime will merge bytes to produce $17$ silently at location $x$.  Ideally, a WCD system would be able to apply the granularity appropriate to each shared variable's type.  In our prototype, we abstract granularity to make it easy to change, and use the byte as the default.
+
+WCD's orientation toward hierarchical, fork-join parallelism makes for a convenient fit with OpenMP's general design.  With its exclusion of the few nondeterministic features defined in OpenMP and its inclusion of generalized reductions, DOMP takes advantage of this design compatibility while affording the programmer a thoroughgoing deterministic parallel programming framework.
+%
+\section{Accessible WCD}
+\label{sec:design-rationale}
+%
+Workspace Consistency and Working-Copies Determinism serve as the foundation for the Determinator operating system~\cite{ford10efficient}, which has shown acceptable performance on a number of parallel programming benchmarks.  One limitation of Determinator is in the narrowness of the API it can support---essentially, \texttt{fork}, \texttt{join}, and \texttt{barrier} only.  We could have chosen to build a deterministic version of OpenMP, then, as a library for Determinator applications, to broaden its programming options.  Such a choice would have presented us with considerable advantages, namely, that the DOMP support library would not have to manage the WCD runtime, including thread forking and joining, merging data while checking for data races, etc. (see~\ref{sec:impl-features}).  Since Determinator already implements copy-on-write at the OS level, we could have avoided the trapping, bookkeeping, and other complexities associated with user-level copy-on-write.  
+
+Implementing DOMP for Determinator remains, in our view, an important and realistic goal.  However, the primary focus of the current project is to make WCD more \textit{accessible} to programmers using familiar tools, environments, and platforms.  For this reason, we chose to implement DOMP first as a library for ordinary Linux systems, specifically as a modified version of GCC's OpenMP support library, libgomp.  In so doing, naturally, we also hope to have solved some of the core design problems sure to be encountered in the development of a Determinator-based library, such as the proper semantics for DOMP's constructs and a workable way of integrating both deterministic simple and extended reductions into the merging process (see~\ref{sec:reduction-api} and~\ref{sec:impl-features}).
+%
+\section{API}
+\label{sec:design-api}
+Building on the foundation of Working Copies Determinism, DOMP then implements most of the standard OpenMP API, including those constructs compatible with deterministic execution and excluding those that are not, while extending OpenMP with a generalized reduction construct.  We here review these features.
+
+\subsection{Retained OpenMP Constructs}
+\label{subsec:domp-included}
+DOMP retains OpenMP's \textit{parallel}, work-sharing (\textit{loop}, \textit{sections}, and \textit{barrier}), and combined \textit{parallel} work-sharing directives.  In both OpenMP and DOMP, the \textit{parallel} directive and its combined work-sharing variants represent a fork-join pair enclosing a structured block, creating and then joining a \textit{team} of concurrent threads.  Under DOMP, however, between any two synchronization points, no two concurrent threads may write a new value to the same shared variable (whether directly or through a pointer); the execution runtime treats such a data race as an error.  Moreover, each thread's writes to shared variables remain invisible to all concurrent threads until the next synchronization point---such as a \textit{barrier} or the closing \textit{join}.  These rules guarantee the controlled flow of data from thread to thread, as in a Kahn process network, which is provably deterministic~\cite{kahn74semantics}.
+
+The \textit{master} directive is naturally deterministic, since it appoints a single thread, the ``master'' (parent of the other team threads), to execute the code, and since OpenMP's implied \textit{barrier} at the end controls data transfer to the team.   Since \textit{single} allows the scheduler to appoint an arbitrary thread to execute the block, which may differ from run to run, DOMP imposes deterministic semantics on \textit{single} by making it synonymous with \textit{master}.  Moreover, if the programmer disables the implicit closing \textit{barrier} with a \textit{nowait} clause, the master's changes remain invisible to the team until the next explicit synchronization point.
+
+\subsection{Excluded OpenMP Constructs}
+\label{subsec:domp-excluded}
+
+DOMP's semantics excludes OpenMP's \textit{atomic}, \textit{critical}, and \textit{flush} constructs as naturally nondeterministic, since they imply that concurrent threads can have conflicting memory accesses.   As we have just seen in Chapter \ref{chap:analysis}, programmers often use these nondeterministic constructs as low-level components of higher-level, deterministic idioms for which the parallel environment lacks suitable abstractions.
+
+\subsection{Extending OpenMP}
+\label{subsec:new-features}
+In order to make it possible to express as many parallel programs as possible in a way compatible with strict determinism, DOMP offers a generalized reduction library function.  
+
+Standard OpenMP already has a reduction construct in the form of a \textit{clause} modifying the directive opening a parallel block, but the reduction clause only supports built-in scalar types and simple arithmetic, bitwise, and logical operations.  DOMP offers an extended reduction that accepts arbitrary types passed by reference and arbitrary, user-defined combining operations.  
+
+Since introduction of this feature accounts for the bulk of instances where we would wish to replace nondeterministic with deterministic code, we devote Section~\ref{chap:reduction} to it.
+
+The DOMP project would further benefit from two more extensions in the future:  a distinct \textit{pipeline} construct and a \textit{task object} to facilitate deterministic work queues.  Together, these extensions and the current core features would allow us to recast all OpenMP benchmarks we analyzed so as to use only deterministic constructs and to run deterministically under DOMP.
+
+A \textit{pipeline} is a sequence of repeated tasks, each dependent on the completion of a cycle of the task before it.  With each task assigned to a different thread, data pass from thread to thread deterministically as each thread waits for input, processes it, and passes the output on, repeatedly until the pipeline is empty.  Each sequence of task cycles performed on a given data item may be viewed as a single sequential operation merely divided into segments and rotated for processing from one thread to the next, and is therefore as naturally deterministic as a sequential program.  Figure~\ref{fig:design-pipeline-simple} shows a simple, ``conveyor belt''-style pipeline, which we may regard as typical or classic.  However, pipelines can have more complex structures and still retain it determinism for the same reason, as illustrated with a slightly more complex pipeline in 
+Figure~\ref{fig:design-pipeline-complex}.  For far richer examples of complex pipelines, see~\cite{edwards08programming}.
+%
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.8\textwidth]{pipeline_simple.eps}
+\caption{A simple or classic ``conveyor belt'' pipeline.}
+\label{fig:design-pipeline-simple}
+\end{center}
+\end{figure}
+%
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.8\textwidth]{pipeline_complex.eps}
+\caption{A slightly more complex pipeline.  The controlled alternation of output from Thread 0 to Threads 2 and 3 and of inputs from those to Thread 4 maintains determinism.}
+\label{fig:design-pipeline-complex}
+\end{center}
+\end{figure}
+
+The design of a pipeline construct could take one of a number of possible forms.  OpenMP already has an \texttt{ordered} construct, which, when embedded in a parallel loop, causes the \texttt{ordered} block to be executed in the order of loop iterations, as if it were in a sequential loop.  The first thread to encounter an \texttt{ordered} construct may execute it immediately, but every other thread must wait for the thread before it to finish the \texttt{ordered} block before it begins the block.  Thus we could build a naturally deterministic pipeline by enclosing a loop with an \texttt{ordered} block within a larger loop handling the data flow into and out of the pipeline.  OpenMP implies no barrier at the end of the parallel loop, so each thread is free to jump to the next iteration and wait only for the completion of the previous task on that iteration.  For this to work, however, we would need to create a special version of the outer parallel loop that implies no work sharing but simply iterates over the data set:
+%
+\begin{small}
+\begin{verbatim}
+#pragma omp parallel for pipeline ordered 
+for (i = 0; i < num_elements; i++) {
+  fetch_element(i);
+  switch(omp_get_thread_num()) {
+  #pragma omp ordered
+  case 0:
+    do_task_A();
+    break;
+  case 1:
+    do_task_B();
+    break;
+  // Etc.
+  }
+  store_element(i);
+}
+\end{verbatim}
+\end{small}
+This approach requires modifications both to the standard OpenMP outer parallel loop and the \texttt{ordered} construct itself.  OpenMP syntax requires the outer loop for an \texttt{ordered} construct, but it normally distributes iterations among threads according to either a default or a specified ``chunking'' schedule.  Here, the outer loop must iterate over the data set, but the \texttt{ordered} block must ``iterate'' over threads rather than us the outer loop's iteration variable.
+
+
+Alternatively, we could build a pipeline construct atop a modified version of OpenMP's \texttt{task} and \texttt{taskwait} constructs, which are nondeterministic in OpenMP's design.  In particular, the OpenMP standard allows the thread that encounters a \texttt{task} either to execute it or defer it for another thread, nondeterministically.  With the \texttt{taskwait} construct, whichever thread has created the task now waits for its completion.  Instead, DOMP would have a designated thread that encounters a \texttt{task} construct, such as the master, fork a new child thread in order to execute the task.  Then \texttt{task wait} would have similar semantics to those of the current standard, but the thread that waits would always be the same.
+
+A further modification could name the \textit{task object} and allow the creating thread to wait for its completion by name.  This would enable DOMP to express futures~\cite{halstead85multilisp} and other non-hierarchical dependency graphs:
+\begin{small}
+\begin{verbatim}
+omp_task my_task;
+#pragma omp task(my_task)
+  {  /* Task code ... */ }
+  // Other tasks
+#pragma imp taskwait(my_task)
+\end{verbatim}
+\end{small}
+
+Then, any node in a pipeline graph, however complex, could express the task upon which it depends through the \texttt{task} and \texttt{task wait} constructs.  This approach, while somewhat less intuitive and potentially more complex in implementation, also provides a more general solution for pipelines having arbitrary designs.
+
+For the programmer, however, the tasks of a pipeline might seem most closely to match those of \texttt{section}s in the OpenMP \texttt{sections} construct, suggesting an intuitive API along the following lines:
+\begin{small}
+\begin{verbatim}
+#pragma omp sections pipeline
+{
+  while(more_work()) {
+  #pragma omp section
+    do_task_A(); 
+  #pragma omp section
+    do_task_B();
+  // ...
+  }
+}
+\end{verbatim}
+\end{small}
+An implementation could use this API as mere syntactic sugar for one of the mechanisms discussed above, or manage low-level synchronization between \texttt{section}s directly.
+
+DOMP could implement a deterministic \textit{work queue} similarly to how it would the modified \texttt{task} and \textit{taskwait} described above.  The master thread would simply spawn a new thread for each task in the queue and would wait for each task in the same order.  This approach effectively moves the nondeterminism of assigning physical processors to tasks away from the program and over to the operating system's scheduler, where it belongs, and where it should have no effect on the program's observable execution trace.
+\parasep
+Although deterministic pipelines and work queues remain only imagined extensions to enable DOMP to accommodate as much existing OpenMP as possible, we have implemented the extended reduction, which addresses the largest missing element in the standard OpenMP API's ability to express deterministic idioms.  Hence we describe this extension in greater detail in the next chapter.

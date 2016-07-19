@@ -1,0 +1,104 @@
+
+% abstract.tex
+\com{
+Researchers agree that determinism in parallel programs is desirable, but much parallel code still follows a nondeterministic programming model, using such synchronization primitives as mutex locks and condition variables.  How difficult would it be to convert such conventional code to follow a deterministic model?  To find out, we developed Deterministic OpenMP (DOMP), which implements a strictly deterministic programming model of shared memory parallelism, in which concurrent threads work in isolation on local logical copies of shared state. The runtime merges these copies at explicit synchronization points, such as barriers or when threads join their parent.  DOMP's API excludes a handful of essentially nondeterministic constructs defined in OpenMP---\textit{atomic}, \textit{critical}, and \textit{flush}.  Yet how necessary are such constructs in real-world applications?  Our by-hand analysis of three standard parallel benchmark suites shows that programmers often use nondeterministic constructs in order to build higher-level, deterministic idioms for which defined constructs are lacking: reductions for unsupported types and operations, pipelines, and task queues.  To accommodate the majority of these cases, DOMP defines a new generalized reduction construct.   In many cases, DOMP provides a drop-in, deterministic replacement for standard OpenMP.  We also give examples of replacing nondeterministic primitives with extended reductions.  Our evaluation suggests that DOMP imposes a modest cost and scales well for important classes of applications, suggesting that a deterministic programming model can be made practical for otherwise conventional code.
+}%com
+
+
+% introduction.tex
+\com{
+The research community widely acknowledges today that determinism is a desirable trait in parallel programs~\cite{bocchino09parallel, musuvathi08heisenbugs,devietti09dmp,berger09grace}.  
+Determinism eases development by making bugs reproducible.  Moreover, it allows us to replay computations exactly for Byzantine fault tolerance~\cite{castro99practical} and accountability~\cite{haeberlen07peerreview} systems, and perhaps to address timing channel attacks~\cite{ford10determinating}.  Several solutions have been put forward that impose an artificial deterministic schedule on thread interleavings~\cite{devietti09dmp, bergan10coredet,berger09grace, liu11dthreads}.  Although this approach is promising for some purposes, it hides rather than eliminates data races, and may cause output and behavior to be unpredictably sensitive to small perturbations in input, as we show in Section~\ref{chap:background}.  The Determinator OS~\cite{ford10efficient} guarantees both deterministic execution and race freedom, but a user-level solution that runs on familiar platforms and uses conventional development tools may prove more convenient in many settings.
+}%com
+
+\com{
+We implemented DOMP in the form of a replacement for the Gnu OpenMP support
+library (\textbf{libgomp}), which comes packaged with GCC.  We also made some
+changes to GCC's own OpenMP compilation code.  We applied standard efficiency
+techniques, such as copy-on-write and parallel merging, to improve performance,
+as well as to support fixed-order reduction evaluation.  For some benchmarks,
+DOMP served as a drop-in replacement for libgomp.  In other cases, we replaced
+nondeterministic constructs expressing the reduction idiom with DOMP's extended
+reduction.
+}%com
+
+
+
+
+
+
+
+
+
+barnes &  & - & - & 1 & - & - & - & - & - & - & - \\
+fmm & & - & - & - & - & - & - & - & - & - & - \\
+ocean & & - & - & - & - & - & - & - & - & - & - \\
+radiosity & & - & - & - & - & - & - & - & - & - & - \\
+raytrace & & - & - & - & - & - & - & - & - & - & - \\
+volrend & & - & - & - & - & - & - & - & - & - & - \\
+water-nsquared & & - & - & - & - & - & - & - & - & - & - \\
+water-spatial & & - & - & - & - & - & - & - & - & - & - \\
+cholesky & & - & - & - & - & - & - & - & - & - & - \\
+fft & & - & - & - & - & - & - & - & - & - & - \\
+lu & & - & - & - & - & - & - & - & - & - & - \\
+radix & & - & - & - & - & - & - & - & - & - & - \\
+\hline
+BT & $\surd$ & 3 & 19 & - & - & 3 & 2 & 3 & - & 16 & 10 \\
+CG & $\surd$ & 3 & 40 & - & - & 2 & 4 & - & - & - & 1 \\
+DC & $\surd$ & - & - & - & - & - & - & - & - & - & - \\
+EP & $\surd$ & - & - & - & - & 1 & - & - & - & - & 9 \\
+FT & $\surd$ & - & 1 & - & - & - & 3 & - & 7 & - & 13 \\
+IS & $\surd$ & - & - & - & - & - & - & - & - & - & - \\
+LU & $\surd$ & 9 & 37 & - & - & 13 & 13 & - & 2 & 12 & 10 \\
+MG & $\surd$ & 4 & 25 & - & - & 4 & - & 1 & - & - & - \\
+SP & $\surd$ & - & - & - & - & - & - & - & - & - & - \\
+UA & $\surd$ & - & - & - & - & - & - & - & - & - & - \\
+\hline
+blackscholes & $\surd$ & 12 & - & - & - & - & - & - & - & - & - \\
+bodytrack & $\surd$ & - & - & 21 & - & - & - & - & - & - & - \\
+facesim & & - & 8 & 6 & 6 & - & - & - & - & - & - \\
+ferret  & 3 & - & 3 & 1 & - & - & - & - & - & - \\
+fluidanimate & & 20 & - & 9 & 1 & - & 1 & - & - & - & - \\
+freqmine & $\surd$ & 7 & - & 25 & - & - & 2 & - & - & - & - \\
+raytrace & & - & - & 13 & - & - & - & - & - & - & - \\
+swaptions & & - & - & 10 & - & - & - & - & - & - & - \\
+vips & & - & 3 & 18 & - & - & - & - & - & - &  \\
+x264 & & - & - & 13 & 3 & - & - & - & - & - & - \\
+canneal & & - & - & 10 & - & - & - & - & - & - & - \\
+dedup & & 11 & - & 3 & - & - & 2 & 5 & - & - & - \\
+streamcluster & & 13 & - & 23 & 2 & - & - & - & - & - & - \\
+
+
+
+
+
+Figure~\ref{subfig:design-parallel-swap}.
+%
+\begin{figure}[htpb]
+\centering
+\subfigure[Semantics]{\label{subfig:design-parallel-swap}
+\includegraphics[width=0.35\textwidth]{parallel_swap}}
+\hspace{1cm}
+\subfigure[Memory consistency model]{
+\label{subfig:design-wc-parallel-swap}
+\includegraphics[width=0.45\textwidth]{wc_parallel_swap}}
+\caption{The ``parallel swap'' construct under Workspace Consistency}
+\label{fig:design-parallel-swap}
+\end{figure}
+%
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,582 @@
+
+\section{Layered programming in LAsm}
+\label{sec:lasm}
+
+In this section, we describe LAsm, the \emph{Layered
+  Assembly language}, and the extended machine model which LAsm is based on.
+
+The reason we are interested in assembly code and behavior is
+threefold.  First of all, even though we provide ClightX to write most
+code, we are still interested in the actual assembly code running on
+the actual machine. In Section \ref{sec:comp}, we will provide a
+verified compiler to transport all proofs of code written in ClightX
+to assembly.
+
+Secondly, there are parts of software that have to be manually written
+in assembly for various reasons. For example, the standard
+implementation of kernel context switch, shown in
+Fig.~\ref{fig:contextswitch}, 
+modifies the stack pointer register
+\textsf{ESP}, which does not satisfy the C calling convention and has
+to be verified in assembly.  A linker will be defined in Section
+\ref{sec:comp} to link them with compiled C code.
+
+Last but not least, we are interested not only in the behavior of our
+code, but also in the behavior of the \emph{context} that will call
+functions defined in our code. To be as general as possible, we allow
+the context to include all valid assembly code sequences. To this end,
+it is necessary to transport per-function refinement proofs to a
+whole-machine \emph{contextual refinement} proof.
+
+
+  \subsection{LAsm and layer interfaces}
+
+We start from the syntax and formal semantics of the 32-bit x86
+assembly subset specified in CompCert.
+CompCert x86 assembly is
+modeled as a state machine with a register set and a memory state. 
+The register set
+consists of eight 32-bit general-purpose registers and eight XMM registers
+designated as scalar double-precision floating-point operands.
+The memory state is same as the one in Clight.
+In particular, each function executes with its stack frame modeled in its
+own memory block, so that the stack is not a contiguous piece of
+memory.
+Another anomaly regarding function calls in CompCert x86 assembly is that
+the return address is stored in pseudo-register $\mathsf{RA}$ instead of
+being pushed onto the stack, so
+that the callee must allocate its own stack frame and
+store the return address%
+using the \textsf{Pallocframe} and
+\textsf{Pfreeframe} pseudo-instructions.
+
+Similarly to ClightX, we extend the machine state with an abstract
+state, which will be modified by primitives. This yields LAsm, whose
+syntax is the same as that of CompCert x86 assembly, except that the
+semantics will be parameterized over the type of abstract states and
+the specifications of primitives.  Most notably, primitive calls are
+syntactically indistinguishable from normal function calls, yet depend
+on the specifications semantically.
+
+Moreover, in our Coq formalization, the semantics of LAsm is also
+equipped with memory accessors for address translation in order to handle both
+kernel memory linear mapping and user space virtual memory.
+In the latter case, plain integers can be treated
+as pointers to user memory, as opposed to kernel memory modeled as the
+CompCert-style concrete memory state. However, for the sake of
+presentation, we are going to describe a simplified version of LAsm
+where memory accesses only use the CompCert-style kernel memory.
+
+
+  \paragraph{Syntax}
+
+\[
+\begin{array}{llll}
+\mathit{ri}  & ::= & \mathsf{ESP} \, | \mathsf{EBP} \, & \text{Stack registers} \\
+& | & \mathsf{EAX} \, | \mathsf{EBX} \, | \mathsf{ECX} \, | \mathsf{EDX} & \text{Integer registers} \\
+\mathit{rf} & ::= & \mathsf{FP0} \, | \mathsf{XMM0} \, | \mathsf{XMM1} \dots | \mathsf{XMM7} & \text{Floating-point registers} \\
+r & \in & \textsf{preg} & \text{Registers} \\
+ & ::= & \mathit{ri} \, | \mathit{rf} \\
+& | & \mathsf{EIP} \, | \mathsf{RA} & \text{Prog counter, return addr} \\
+\end{array}
+\]
+\[
+\begin{array}{llll}
+\mathit{ti} & ::= & \mathit{ri} & \text{Direct integer register access} \\
+& | & (\mathit{ri})n & \text{Indirect load/store via int register} \\
+& | & x+n & \text{Load/store to global variable} \\
+\mathit{si} & ::= & \mathit{ti} & \text{Dereference} \\
+& | & \$n & \text{Constant integer} \\
+& | & \$x+n & \text{Pointer to global variable} \\
+\\
+\mathit{tf} & ::= & \mathit{rf} \, | (\mathit{ri})n \, | x+n & \text{Floating-point targets} \\
+\mathit{sf} & ::= & \mathit{tf} \, | \$q \, & \text{Floating-point sources} \\
+\\
+\mathit{I} & ::= & \mathtt{movi} ~ \mathit{si}, \mathit{ti} & \text{Integer move/load/store} \\
+& | & \mathtt{leai} ~ \mathit{si}, \mathit{ti} & \text{Integer load/store from address} \\
+& | & \mathtt{movf} ~ \mathit{sf}, \mathit{tf} & \text{Floating-point move/load/store} \\
+& | & \mathtt{addi} ~ \mathit{ri}_d, \mathit{ri}_o & \text{Arithmetics} \\
+& | & \mathtt{subi} ~ \mathit{ri}_d, \mathit{ri}_o \, | \dots \\
+& | & \mathtt{call} ~ \mathit{ti} \, | \mathtt{ret} & \text{Function call and return} \\
+& | & \mathtt{push} ~ \mathit{ri} \, | \mathtt{pop} ~ \mathit{ri} & \text{Regular register push/pop} \\
+& | & \mathsf{Pallocframe} ~ n & \text{Allocate stack frame} \\
+& | & \mathsf{Pfreeframe} ~ n & \text{Free stack frame}
+\end{array}
+\]
+
+\begin{definition}[Modules]
+A LAsm module is a finite map from identifiers to arrays of LAsm
+instructions.
+\end{definition}
+
+We define the semantics of LAsm in small-step form. The machine
+state is $(\rho, m, a)$ where $\rho$ contains the values of registers,
+$m$ is the concrete memory state and $a$ is the abstract state. Let
+$M$ be an LAsm module, which is a finite map from identifiers to arrays of LAsm
+instructions, we write $\Gamma, L, M \vdash (\rho, m, a)
+\rightarrow (\rho', m', a')$ a transition step in the LAsm machine. The full syntax and formal semantics of LAsm is described in the
+  companion technical report.
+
+
+
+\begin{figure}[t]\scriptsize
+$$
+\begin{array}{l|l}
+\begin{array}{l}
+\verb+kctxt_switch:+\\
+\verb+	leai	0(%eax,%eax,2), %eax+\\
+\verb+	leai	KCtxtP(,%eax,8), %eax+\\
+\verb+	movi	%esp, 0(%eax)+\\
+\verb+	movi	%edi, 4(%eax)+\\
+\verb+	movi	%esi, 8(%eax)+\\
+\verb+	movi	%ebx, 12(%eax)+\\
+\verb+	movi	%ebp, 16(%eax)+\\
+\verb+	pop	%ecx+\\
+\verb+	movi	%ecx, 20(%eax)+\\
+\verb+	leai	0(%edx,%edx,2), %edx+
+\end{array}
+&
+\begin{array}{l}
+\\
+\verb+	leai	KCtxtP(,%edx,8), %edx+\\
+\verb+	movi	0(%edx), %esp+\\
+\verb+	movi	4(%edx), %edi+\\
+\verb+	movi	8(%edx), %esi+\\
+\verb+	movi	12(%edx), %ebx+\\
+\verb+	movi	16(%edx), %ebp+\\
+\verb+	movi	20(%edx), %ecx+\\
+\verb+	push	%ecx+\\
+\verb+	xor	%eax, %eax+\\
+\verb+	ret+\\
+\verb+......+
+\end{array}
+\end{array}
+$$
+\caption{Kernel context switch verified in LAsm}
+\label{fig:contextswitch}
+\end{figure}
+
+
+%\vspace*{-3pt}
+\paragraph{Assembly layer interfaces}
+The semantics of LAsm is parameterized over a layer interface.
+Different from C-style primitives (see Def.~\ref{def:c-prim}), which are defined using
+argument list and return value, primitives implemented in LAsm
+often utilize their full control over the
+register set and are not restricted to a particular calling convention (e.g.\ context switch).
+Therefore, it is necessary to extend the structure of layer
+interfaces to allow assembly-style primitives modifying the register set.
+
+\begin{definition}[Assembly-style primitive]
+An assembly-style primitive specification $p$ over the abstract state type
+$A$ is a predicate on $((\textsf{preg} \rightarrow \textsf{val}) \times \textsf{mem} \times A) \times
+((\textsf{preg} \rightarrow \textsf{val}) \times \textsf{mem} \times A)$. $p(\rho, m, a,
+\rho', m', a')$ says that the primitive $p$ takes
+register set $\rho$, memory state $m$ and abstract state $a$ as
+arguments, and returns register set $\rho'$, memory state
+$m'$ and abstract state $a'$ as result.
+\end{definition}
+
+By ``\emph{style},'' we mean the calling convention,
+not the language in which they are actually implemented.
+C-style primitives may very well be implemented as hand-written
+assembly code at underlay.
+
+We can then define assembly layer interfaces by replacing the primitive
+specification with our assembly-style one in Def.\ \ref{def:c-layer}.
+But, to make reasoning simpler, when defining assembly layer interfaces,
+we distinguish C-style from assembly-style primitives.
+First, C-style primitives
+can be refined by other C-style primitives. 
+Second and most importantly, it
+becomes possible to instantiate the semantics of ClightX with an
+\emph{assembly} layer interface by just considering C-style primitives and ignoring
+assembly-style primitives (which might not follow the C calling convention).
+In this way, ClightX code is only allowed to call C-style
+primitives, whereas LAsm can actually call both kinds of primitives.
+
+\begin{definition}[Assembly layer interface] \label{def:asm-layer}
+An assembly layer interface $L$ is a tuple
+$ L = (A, P_{\mathrm{ClightX}}, P_{\mathrm{LAsm}}) $
+where:
+\begin{itemize}
+\item $(A, P_{\mathrm{ClightX}})$ is a C layer interface (see
+Def.~\ref{def:c-layer})
+\item $P_{\mathrm{LAsm}}$ is a finite map from identifiers to assembly-style
+primitive specifications over the abstract state $A$. The domains of
+$P_{\mathrm{ClightX}}$ and $P_{\mathrm{LAsm}}$ shall be disjoint.
+\end{itemize}
+\end{definition}
+
+
+\paragraph{Small-step semantics}
+
+We write $\llbracket \mathit{ti} \rrbracket^\triangleleft(\Gamma, \rho)$
+(resp. $\llbracket \mathit{tf} \rrbracket^\triangleleft(\Gamma, \rho)$)
+to denote the evaluation of integer (resp. floating-point) registers
+and global variables as targets for \texttt{mov} operations, where
+$\Gamma$ is a mapping from global variables to memory block
+identifiers, and $\rho$ is a mapping from registers to values.
+
+\[
+\begin{array}{lll}
+\llbracket (\mathit{ri})n \rrbracket^\triangleleft(\Gamma, \rho) & = (n' + n) & \text{if} ~ \rho(\mathit{ri}) = n' \\
+\llbracket (\mathit{ri})n \rrbracket^\triangleleft(\Gamma, \rho) & = (b, \mathit{ofs}+n) & \text{if} ~ \rho(\mathit{ri}) = (b, \mathit{ofs}) \\
+\llbracket x + n  \rrbracket^\triangleleft(\Gamma, \rho) & = (b, n) & \text{if} ~ \Gamma(x) = b
+\end{array}
+\]
+
+To evaluate indirect load through registers and global variables as
+source operand for $\mathtt{mov}$ operations, we write $\llbracket s
+\rrbracket^\triangleright(\Gamma, \rho, m)$ the evaluation of
+\texttt{mov} operands.
+
+\[
+\begin{array}{lll}
+\multicolumn{2}{l}{\llbracket r \rrbracket^\triangleright(\Gamma, \rho, m)} & = \rho(r) \\
+\multicolumn{2}{l}{\llbracket s \rrbracket^\triangleright(\Gamma, \rho, m) } & = m(v) \\
+\text{if} & \llbracket s \rrbracket^\triangleleft(\Gamma, \rho) & = v \\
+\multicolumn{2}{l}{\llbracket \$ n \rrbracket^\triangleright(\Gamma, \rho, m)} & = n \\
+\multicolumn{2}{l}{\llbracket \$ q \rrbracket^\triangleright(\Gamma, \rho, m)} & = q \\
+\multicolumn{2}{l}{\llbracket \$ x+n \rrbracket^\triangleright(\Gamma, \rho, m)} & = (b, n) \\
+\text{if} & \Gamma(x) & = b 
+\end{array}
+\]
+
+For any register set $\rho$, we write $\mathsf{nextEIP}(\rho) =
+\rho[\mathsf{EIP} \leftarrow (b, \mathit{ofs}+1)$ if $\rho(\mathsf{EIP})
+  = (b, \mathit{ofs})$ (register $\mathsf{EIP}$ is assumed to contain a
+  pointer $(b, \mathit{ofs})$ where $b$ is the memory block
+  corresponding to the current function, and $\mathit{ofs}$ is the
+  index of the current instruction within this function; in the exact
+  same way as in CompCert x86 assembly, we assume that all
+  instructions are of size 1).
+
+Function call and return only modify the value of registers \textsf{EIP} and \textsf{RA}.
+
+Similarly to CompCert x86 assembly, \textsf{Pallocframe} allocates a
+new stack frame memory block, stores the return address and a back
+link to the parent stack frame, and makes the stack pointer point to
+the new stack frame. Conversely, \textsf{Pfreeframe} restores the
+previous values of the stack pointer and return address, then frees
+the current stack block.
+
+We define the semantics of LAsm in small-step form. The machine
+state is $(\rho, m, a)$ where $\rho$ contains the values of registers,
+$m$ is the concrete memory state and $a$ is the abstract state.  Let
+$M$ be a module, we write $\Gamma, L, M \vdash (\rho, m, a)
+\rightarrow (\rho', m', a')$ a transition step in the LAsm machine.
+
+For any instruction $I$, we write $\llbracket I \rrbracket (\Gamma, L;
+\rho, m, a) = \rho', m', a'$ its execution step.
+
+\begin{small}
+\[
+\begin{array}{lll}
+  \multicolumn{2}{l}{\llbracket \mathtt{mov}~ s, r \rrbracket(\Gamma, L; \rho, m, a)} & = (\rho', m, a) \\
+    \text{if} &  \llbracket s \rrbracket ^ \triangleright(\Gamma, \rho, m) & = v \\
+    \text{and} & \rho' & = \mathsf{nextEIP}(\rho[r \leftarrow v]) \\
+\\
+  \multicolumn{2}{l}{\llbracket \mathtt{mov}~ s, t \rrbracket(\Gamma, L; \rho, m, a)} & = (\rho_2, m', a') \\
+    \text{if} &  \llbracket s \rrbracket ^ \triangleright(\Gamma, \rho, m) & = v_s \\
+    \text{and} &  \llbracket t \rrbracket ^ \triangleleft(\Gamma, \rho) & = v_t \\
+    \text{and} & m' = m[v_t \leftarrow v_s] \\
+    \text{and} & \rho_2 & = \mathsf{nextEIP}(\rho_1) \\
+   \\
+  \multicolumn{2}{l}{\llbracket \mathtt{addi}~ r_s, r_t \rrbracket(\Gamma, L; \rho, m, a)} & = (\rho', m, a) \\
+  \text{if} & \rho(r_s) & = n \\
+  \text{and} & \rho(r_t) & = (b, \mathit{ofs}) \\
+  \text{and} & \rho' & = \mathsf{nextEIP}(\rho[r_t \leftarrow (b, \mathit{ofs}+n)]) \\
+\\
+  \multicolumn{2}{l}{\llbracket \mathtt{subi}~ r_s, r_t \rrbracket(\Gamma, L; \rho, m, a)} & = (\rho', m, a) \\
+  \text{if} & \rho(r_s) & = (b, \mathit{ofs}_s) \\
+  \text{and} & \rho(r_t) & = (b, \mathit{ofs}_t) \\
+  \text{and} & \rho' & = \mathsf{nextEIP}(\rho[r_t \leftarrow (\mathit{ofs}_t - \mathit{ofs}_s)]) \\
+\\
+  \multicolumn{2}{l}{ \llbracket \mathtt{call} ~ t \rrbracket(\Gamma, L; \rho, m, a)} & = (\rho', m, a) \\
+  \text{if} & \llbracket t \rrbracket^\triangleleft(\Gamma, \rho) & = v \\
+  \text{and} & \rho' & = \rho[\mathsf{EIP} \leftarrow v][\mathsf{RA} \leftarrow \rho(\mathsf{EIP})] \\
+\\
+  \multicolumn{2}{l}{ \llbracket \mathtt{ret} \rrbracket(\Gamma, L; \rho, m, a)} & = (\rho', m, a) \\
+  \text{and} & \rho' & = \rho[\mathsf{EIP} \leftarrow \rho(\mathsf{RA})][\mathsf{RA} \leftarrow \bot] \\
+\\
+\multicolumn{2}{l}{ \llbracket \mathsf{Pallocframe} ~ n \rrbracket(\Gamma, L; \rho, m, a)} & = (\rho', m', a) \\
+\text{if} & m_1 & = \mathsf{alloc}(n)(m) \\
+\text{and} & m_2 & = m_1[(\mathsf{next}(m), 0) \leftarrow \rho(\mathsf{RA})] \\
+\text{and} & m' & = m_2[(\mathsf{next}(m), 4) \leftarrow \rho(\mathsf{ESP})] \\
+\text{and} & \rho' & = \rho[\mathsf{ESP} \leftarrow (\mathsf{next}(m), 0)] \\
+\\
+\multicolumn{2}{l}{ \llbracket \mathsf{Pfreeframe} ~ n \rrbracket(\Gamma, L; \rho, m, a)} & = (\rho', m', a) \\
+\text{if} & \rho(\mathsf{ESP}) & = (b, 0) \\
+\text{and} & m(b, 0) & = \mathit{ra} \\
+\text{and} & m(b, 4) & = \mathit{esp} \\
+\text{and} & m' & = \mathsf{free}(b, n)(m) \\
+\text{and} & \rho' & = \rho[\mathsf{ESP} \leftarrow \mathit{esp}][\mathsf{RA} \leftarrow \mathit{ra}] \\
+\end{array}
+\]
+\end{small}
+
+For an internal function, we look into the module for the
+instruction to execute.
+
+\[
+\inferrule{
+  \rho(\mathsf{EIP}) = (b, \mathit{ofs}) \\
+  \Gamma(f) = b \\
+  M(b)(\mathit{ofs}) = I \\
+  \llbracket I \rrbracket (\Gamma, L; \rho, m, a) = \rho', m', a'
+}{
+  \Gamma, L, M \vdash (\rho, m, a) \rightarrow (\rho', m', a')
+}
+\]
+
+For external function calls, there are two cases, one for the case of
+assembly-style primitive, and the other for the case of the C-style primitive.
+
+For assembly-style primitive, we directly take the step from the
+specification of the primitive in $L$.
+
+\[
+\inferrule{
+  \rho(\mathsf{EIP}) = (b, 0) \\
+  \Gamma(f) = b \\
+  L = (\_, \_, P, \_, \_) \\
+  P(f)(\rho, m, a, \rho', m', a')
+}{
+  \Gamma, L, M \vdash (\rho, m, a) \rightarrow (\rho', m', a')
+}
+\]
+
+Finally, for C-style primitives, we take the specification of the primitive
+from the C-style primitive component of $L$, but we have to wrap it into the
+calling convention. We write $\mathsf{arguments}(\mathit{args}, m, v)$
+to denote the fact that the arguments are stored in memory $m$, at the
+stack pointer $v$; for primitives returning integer or
+pointer values, we store the value to the \texttt{EAX} register. We
+write $\mathsf{eraseNonCalleeSave}(\rho)$ to set to $\bot$ the
+contents of all non-callee-save registers in $\rho$.
+
+\begin{small}
+\[
+\inferrule{
+  \rho(\mathsf{EIP}) = (b, 0) \\
+  \Gamma(f) = b \\
+  L = (\_, P, \_, \_, \_) \\
+  P(f)(\mathit{args}, m, a, \mathit{res}, m', a') \\
+  \rho(\mathsf{ESP}) \neq \bot \\
+  \mathsf{arguments}(\mathit{args}, m, \rho(\mathsf{ESP})) \\
+  \rho(\mathsf{RA}) \neq \bot \\
+  \rho' = \mathsf{eraseNonCalleeSave}(\rho)[\mathtt{EAX} \leftarrow \mathit{res}][\mathsf{EIP} \leftarrow \rho(\mathsf{RA})][\mathsf{RA} \leftarrow \bot]
+}{
+  \Gamma, L, M \vdash (\rho, m, a) \rightarrow (\rho', m', a')
+}
+\]
+\end{small}
+
+
+\paragraph{Whole-machine semantics and contextual refinement}
+
+Based on the relational transition system which we just defined for LAsm,
+we can define the whole-machine semantics including not only the code
+that we wrote by hand or that we compile, but also the \emph{context}
+code that shall call our functions. To this end, it suffices to equip
+the semantics with a notion of initial and final state, in a way
+similar to the CompCert x86 whole-program assembly semantics.
+
+In CompCert, the initial state consists of an empty register set
+with only \textsf{EIP} (instruction pointer register) pointing to the \texttt{main} function of the
+module, and the memory state is constructed by allocating a memory
+block for each global variable of the program. We follow the same
+approach for LAsm, except that we also need an initial abstract
+state, provided by the layer interface, so
+we need to extend its definition:
+
+\begin{definition}[Whole-machine layer interface] \label{def:whole-machine-layer}
+A whole-machine layer interface $L$ is a tuple
+$L = (A, P_{\mathrm{ClightX}}, P_{\mathrm{LAsm}}, a_0)$
+where:
+\begin{itemize}
+\item $(A, P_{\mathrm{ClightX}}, P_{\mathrm{LAsm}})$ is an assembly layer interface
+\item $a_0 : A$ is the initial abstract state.
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Whole-machine initial state]
+The whole-machine LAsm initial state for layer interface $L$ and module $M$ is
+the LAsm state $(\rho_0, m_0, a_0)$ defined as follows:
+\begin{itemize}
+\item $\rho_0(r) = \left\{ \begin{array}{ll}
+(\Gamma(\mathtt{main}), 0) & \text{if} ~ r = \mathsf{EIP} \\
+%\ifTR{0 & \text{if} ~ r = \mathsf{RA} \\}{}
+0 & \text{if} ~ r = \mathsf{RA} \\
+\bot & \text{otherwise}
+\end{array}
+\right. $
+\item $m_0$ is constructed from the global variables of $\Gamma, L, M$
+\item $a_0$ is the whole-machine initial state specified in $L$
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Whole-machine final state]
+A whole-machine LAsm state $(\rho, m, a)$ is final with return code
+$n$ if, and only if, $\rho(\mathsf{EAX}) = n$ and $\rho(\mathsf{EIP}) =
+0$, where $\mathsf{EAX}$ is the accumulator register.
+\end{definition}
+
+Notice that $\rho(\mathsf{EIP})$ contains the \emph{integer} 0,
+which is also the initial return address and is not a valid pointer.
+This ensures that executions do not
+go beyond a final state, following the CompCert x86 whole-program
+semantics: \texttt{main} has returned to its ``caller'', which does
+not exist. Thus, the final state is uniquely determined (there can be
+no other possible behavior once such a state is reached), so the
+whole-machine semantics is deterministic once the primitives are.
+
+\begin{definition}[Whole-machine behavior]
+Let $\Gamma$ be a mapping of global variables to memory blocks. Then, we say that
+\begin{itemize}
+\item $\mathit{LAsm}(\Gamma, L, M)$ \emph{diverges} if there is an
+  infinite execution sequence from the whole-machine initial state for $L$
+\item $\mathit{LAsm}(\Gamma, L, M)$ \emph{terminates with return code} $n$ if there is a finite execution sequence from the whole-machine initial state for $L$ to a whole-machine final state with return code $n$
+\item $\mathit{LAsm}(\Gamma, L, M)$ \emph{goes wrong} if there is a finite execution sequence from the whole-machine initial state for $L$ to a non-final state that can take no step.
+\end{itemize}
+$M$ is said to be \emph{unsafe} in layer interface $L$ if $\mathit{LAsm}(\Gamma, L, M)$ goes wrong.
+\ignore{
+\tahina {TODO: should we also have traces?}
+}
+\end{definition}
+
+Then, we are interested in \emph{refinement} between whole machines:
+\begin{definition}[Whole-machine refinement]
+Let $L_{\text{high}}, L_{\text{low}}$ be two whole-machine assembly
+layer interfaces, and $M_{\text{high}}, M_{\text{low}}$ be two LAsm
+modules. Then, we say that $M_{\text{low}} @ L_{\text{low}}$ refines
+$M_{\text{high}} @ L_{\text{high}}$, and write $M_{\text{low}} @
+L_{\text{low}} \sqsubseteq M_{\text{high}} @ L_{\text{high}}$ if,
+and only if, for any $\Gamma$ such that $
+\mathrm{dom}(L_{\text{high}}) \cup \mathrm{dom}(M_{\text{high}}) \cup
+\mathrm{dom}(L_{\text{low}}) \cup \mathrm{dom}(M_{\text{low}})
+\subseteq \mathrm{dom}(\Gamma)$ and $\mathit{LAsm}(\Gamma, L_{\text{high}},
+M_{\text{high}})$ does not go wrong, then
+(1) $\mathit{LAsm}(\Gamma, L_{\text{low}}, M_{\text{low}})$ does not go wrong;
+(2) if $\mathit{LAsm}(\Gamma, L_{\text{low}}, M_{\text{low}})$
+  terminates with return code $n$, then so does $\mathit{LAsm}(\Gamma,
+  L_{\text{high}}, M_{\text{high}})$;
+(3) if $\mathit{LAsm}(\Gamma, L_{\text{low}}, M_{\text{low}})$
+  diverges, so does $\mathit{LAsm}(\Gamma, L_{\text{high}},
+  M_{\text{high}})$.
+\end{definition}
+
+In our Coq implementation, we actually formalized the semantics of
+LAsm with a richer notion of observable behaviors involving
+CompCert-style events such as I/O. Thus, we define the
+whole-machine behaviors and refinement using event traces 
+{\em a la} CompCert \cite[3.5 sqq.]{Leroy-backend}: if the higher machine does
+not go wrong, then every valid behavior of the lower machine is a
+valid behavior of the higher.
+
+Finally, we can define \emph{contextual refinement} between layer interfaces through a module $M$:
+
+\begin{definition}[Contextual refinement]
+We say a module $M$ implements an overlay $L_{\text{high}}$ on top of an
+underlay $L_{\text{low}}$, and write $ L_{\text{low}} \vDash M :
+L_{\text{high}} $ if, and only if, for any module (\emph{context}) $M'$ disjoint from $M, L_{\text{low}}, L_{\text{high}}$,
+we have $(M \oplus M')@L_{\text{low}} \sqsubseteq M'@L_{\text{high}}$.
+\end{definition}
+
+\paragraph{Per-module semantics}
+As for ClightX, we can also specify the semantics of an LAsm module as
+a layer interface. However, a major difference between ClightX and
+LAsm is that it is not possible to uniquely characterize the
+``per-function final state'' at which function execution should
+stop. Indeed, as in LAsm there is no control stack, when considering
+the per-function semantics of a function $f$, it is not possible to
+distinguish $f$ exiting and returning control to its caller, from a
+callee $g$ returning to $f$. 
+
+For some typical functions in an operating system implementation,
+there is either no \verb+ret+ in the code body, or the actual 
+\verb+ret+ statement may not return directly to their callers (like context switch).
+
+
+Thus, even though both the step relation of the LAsm 
+semantics and the primitive
+specifications (of a layer interface) are deterministic, 
+the semantics of a function could still be non-deterministic.
+
+\begin{definition}
+Let $L = (A, \_, \_)$ be an
+assembly layer interface, and $M$ be an LAsm module. The
+module semantics $\llbracket M \rrbracket L$ % of $M$ in $L$ 
+is then the
+assembly layer interface $\llbracket M \rrbracket L = (A, \emptyset, P)$,
+where the assembly-style primitive specification $P$ is defined for each $f
+\in \mathrm{dom}(M)$ using the small-step semantics of LAsm as follows:
+\[
+\begin{array}{ll}
+\multicolumn{2}{l}{P(f)(\rho, m, a, \rho', m', a')} \\
+\Leftrightarrow & \Gamma(f) = b \land \rho(\mathsf{EIP}) = (b, 0) \\
+& \land \Gamma, L, M \vdash (\rho, m, a) \rightarrow^+ (\rho', m', a')
+\end{array}
+\]
+\end{definition}
+
+\paragraph{Soundness of per-module refinement}
+
+In this paper, we aim at showing that the layer calculus given in
+Section~{\ref{sec:layer}} is a powerful device to prove contextual
+refinement: instead of proving the whole-machine contextual refinement directly, 
+we only need to prove the \emph{downward simulation} relations about
+individual modules, notated as $L_{\text{low}} \vdash_R M : L_{\text{high}}$, 
+and apply the soundness theorem to get the contextual refinement properties
+at the whole-machine level.
+
+\begin{lemma}[Downward simulation diagram] \label{lem:forward}
+Let $(L_{\text{low}}, M, L_{\text{high}})$ be a certified layer,
+such that $L_{\text{low}} \vdash_R M : L_{\text{high}}$. Then,
+for any module $M'$, we have the following downward simulation diagram:
+\[
+\xymatrix{
+s_{\text{high}} \ar[rr]_{\Gamma, L_{\text{high}}, M'}^1 \ar@{-}[d]^R & & s'_{\text{high}} \ar@{.}[d]^R \\
+s_{\text{low}} \ar@{.>}[rr]_{\Gamma, L_{\text{low}}, M \oplus M'}^{+} & & s'_{\text{low}}
+}
+\]
+\end{lemma}
+
+\begin{theorem}[Soundness]\label{thm:sound}
+Let $(L_{\text{low}}, M, L_{\text{high}})$ be a certified layer. If the
+primitive specifications of $L_{\text{low}}$ are deterministic and if
+$L_{\text{low}} \vdash_R M : L_{\text{high}}$, then $L_{\text{low}}
+\vDash M : L_{\text{high}}$.
+\end{theorem}
+\begin{proof}
+Since the whole machine {\small $LAsm(\Gamma, L_{\text{low}}, M)$} is
+deterministic, we can flip the downward simulation given by Lemma
+\ref{lem:forward} to an upward one, hence the whole-machine refinement.
+\end{proof}
+
+Since the per-function semantics is non-deterministic due to its final
+state not being uniquely defined, we can only flip the downward
+simulation to contextual refinement at the whole-machine level.
+
+
+\subsection{Layered programming and verification in LAsm}
+For the functions which do not satisfy the C calling convention, we verify them in 
+LAsm. Fig. \ref{fig:contextswitch} shows the implementation of the context switch function
+\verb"kctxt_switch" in LAsm for switching two kernel thread stacks. This function violates
+the C calling convention, which assumes the stack or continuation stay unchanged after
+a function call.
+
+Recall that the semantics of LAsm functions is non-deterministic, while the
+corresponding deep specifications are deterministic.
+Hence, it is not possible to prove the contextual refinement relation 
+directly at the function level. 
+Therefore, we only prove the downward simulation relation for each LAsm function
+and flip to the contextual refinement relation proof into an upward simulation
+at the whole-machine level. 
+
+
+
+
+
+

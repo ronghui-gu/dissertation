@@ -1,0 +1,436 @@
+% Introduction section
+
+\chapter{Introduction}
+\label{chap-intro}
+
+\epigraph{{\em A distributed system is one in which the failure of a 
+computer you didn't even know existed can render 
+your own computer unusable.}{\\ \hfill --- Leslie Lamport}}
+
+Modern hardware and software systems are constructed using a series of
+abstraction layers (e.g., circuits, microarchitecture, ISA
+architecture, device drivers, OS kernels, hypervisors, network
+protocols, web servers, and application APIs), each defining
+an interface that hides the implementation details of a particular set
+of functionality.  Client programs built on top of each layer can be
+understood solely based on the interface, independent of the layer
+implementation. Two layer implementations of the same interface should
+behave in the same way in the context of any client code.
+
+The power of abstraction layers lies in their use of a very rich class
+of specifications, which we will call {\em deep specifications} in
+this paper. A deep specification, in theory, is supposed to capture
+the precise functionality of the underlying implementation as well as
+the assumptions which the implementation might have about its client
+contexts. In practice, abstraction layers are almost never formally
+specified or verified; their interfaces are often only documented in
+natural languages, and thus cannot be rigorously checked or
+enforced. Nevertheless, even such informal instances of abstraction
+over deep specifications have already brought us huge
+benefits. Baldwin and Clark~\cite{baldwin00} attributed such use of
+abstraction, modularity, and layering as the key factor that drove the computer
+industry toward today's explosive levels of innovation and growth
+because {\em complex products can be built from smaller subsystems
+  that can be designed independently yet function together as a
+  whole}.
+
+Abstraction and modularity have also been heavily studied
+in the programming language community~\cite{reynolds98,pierce02}.
+The focus there is on abstraction over ``shallow''
+specifications. A module interface in existing languages cannot
+describe the full functionality of its underlying implementation,
+instead, it only describes type specifications, augmented sometimes
+with simple invariants.  Abstraction over shallow
+specifications is highly desirable~\cite{mitchell86}, but
+client programs cannot be understood from the interface alone---this 
+makes modular verification of correctness properties
+impossible: verification of client programs must look beyond the
+interface and examine its underlying implementation, thus breaking the
+modularity.
+
+Given the obvious importance, formalizing and verifying abstraction 
+layers are highly desirable, but they pose many challenges:
+\begin{itemize} \itemsep 0pt
+\item
+{\em Lack of a language-based model.}  It is unclear how to
+  model abstraction layers in a language-based setting and how they
+  differ from regular software modules or components.  Each layer
+  seems to be defining a new ``abstract machine;'' it may take an
+  existing set of mechanisms (e.g., states and functions) at the layer
+  below and expose a different view of the same mechanisms. For
+  example, a virtual memory management layer---built on top of a
+  physical memory layer--- would expose to clients a different view of
+  the memory, now accessed through virtual addresses.
+%%%%%%%%%%%%%
+\item {\em Lack of good language support.} Programming an abstraction
+  layer formally, by its very nature, would require two languages: one
+  for writing the layer implementation (which, given the low-level
+  nature of many layers, often means a language like C or assembly);
+  another for writing the formal layer specification (which, given the
+  need to precisely specify full functionality, often means a rich
+  formal logic). It is unclear how to fit these two different
+  languages into a single setting. Indeed, many existing formal
+  specification languages~\cite{znot92,lamport94,jackson12} are
+  capable of building accurate {\em models} with rich specifications,
+  but they are not concerned with connecting to the actual running code.
+%%%%%%%%%%%%%
+\item {\em Lack of compiler and linking support.} Abstraction layers
+  are often deployed in binary or assembly. Even if we can verify a
+  layer implementation written in C, it is unclear how to compile it
+  into assembly and link it with other assembly layers. The CompCert
+  verified compiler~\cite{compcert} can only prove the correctness of
+  compilation for whole programs, not individual modules or
+  layers. Linking C with assembly adds a new challenge since they may
+  have different memory layouts and calling conventions.
+\end{itemize}
+
+In this paper, we present a formal study of abstraction layers that
+tackles all these challenges. We define a {\em certified abstraction
+  layer} as a triple $\layer{L_1}{M}{L_2}$ plus a mechanized proof
+object showing that the layer implementation $M$, built on top of the
+interface $L_1$ (the {\em underlay}), indeed faithfully {\em
+  implements} the desirable interface $L_2$ above (the {\em overlay}).
+Here, the {\em implements} relation is often defined as some
+{\em simulation} relation~\cite{Lynch95}.  A certified layer can be
+viewed as a ``parameterized module'' (from interfaces $L_1$ to $L_2$),
+{\em a~la} an SML functor~\cite{milner97}; but it enforces a stronger
+contextual correctness property: a correct layer is like a
+``certified compiler,'' capable of converting any {\em safe} client program
+running on top of $L_2$ into one that has the same behavior but runs
+on top of $L_1$ (e.g., by ``compiling'' abstract primitives in $L_2$ into
+their implementation in $M$). 
+
+% A regular module $M$, which builds on top of $L_1$ and
+% implements $L_2$, may not enjoy such a property. A client program $P$
+% may invoke functions defined in $M$ and in another module $M'$.  Such
+% $M'$ may share some state with $M$ but imposes state invariants that
+% are in conflict with those assumed by $L_2$.  An abstraction layer
+% does not allow such a client $P$, instead, such $M'$ must be either
+% built on top of $L_2$ (thus respecting the invariants in $L_2$), or
+% below $L_2$ (in which case, $L_2$ itself must be changed).
+
+A regular software module $M$ (built on top of $L_1$) with interface
+$L_2$ may not enjoy such a property because its client may invoke
+another module $M'$ which shares some states with $M$ but imposes
+different state invariants from those assumed by $L_2$. An abstraction
+layer does not allow such a client, instead, such $M'$ must be either built
+on top of $L_2$ (thus respecting the invariants in $L_2$), or below
+$L_2$ (in which case, $L_2$ itself must be changed).
+
+%
+% Each layer interface $L$ contains a {\em deep} specification of a set
+% of functionality in that given any client program $P$ (sanctioned by
+% $L$), its execution on top of $L$ always yield deterministic behaviors
+% (relative to external events, e.g., I/O, scheduling~\cite{leroy06,sevcik13})
+%
+
+Our paper makes the following new contributions:
+\begin{enumerate}
+\item We present the first language-based account of certified
+  abstraction layers and show how they correspond to a {\em rigorous} 
+  form of abstraction over deep specifications used widely
+  in the system community. A certified layer interface
+  describes not only the precise functionality of any underlying
+  implementation but also clear assumptions about its client contexts.
+  Abstraction over deep specifications leads to the powerful
+  {\em implementation independence} property
+  (see Sec.~\ref{sec:overview}): 
+  any two implementations
+  of the same layer interface have contextually equivalent behaviors.
+%%%%%%%%%%%%%
+\item We present a new layer calculus showing how to formally specify,
+  program, verify, and compose certified abstraction layers 
+  (see Sec.~\ref{sec:layer}). Such a
+  layer language plays a similar role as the module language in
+  SML~\cite{milner97}, but its interface checking is not just
+  typechecking or signature matching; instead, it requires formal
+  verification of the {\em implements} relation in a proof assistant.
+%%%%%%%%%%%%%
+\item We have instantiated the layer calculus on top of two core
+  languages (see Sec.~\ref{sec:prog} and ~\ref{sec:lasm}): {\bf
+    ClightX}, a variant of the CompCert Clight
+  language~\cite{blazy-leroy-clight}; and {\bf LAsm}, an x86 assembly
+  language.  Both ClightX and LAsm can be used to program certified
+  abstraction layers.  We use the Coq logic~\cite{coq} to develop all
+  the layer interfaces.  Each ClightX or LAsm layer is parameterized
+  over its underlay interface, implemented using CompCert's external
+  call mechanisms.  We developed new tools and tactic libraries to
+  help automate the verification of the {\em implements} relation.
+%%%%%%%%%%%%%
+\item We have also modified CompCert to build a new verified compiler,
+  {\bf CompCertX}, that can compile ClightX abstraction layers into
+  LAsm layers (see Sec.~\ref{sec:comp}). 
+  CompCertX is novel because it can prove a stronger
+  correctness theorem for compiling individual functions in each
+  layer---such a theorem requires reasoning about {\em memory
+    injection}~\cite{leroy08} between the memory states of the source
+  and target languages.  To support linking between ClightX and LAsm
+  layers, we show how to design the {\em implements} relation so that it
+  is stable over memory injection.
+%%%%%%%%%%%%%
+\item Using these new languages and tools, we have successfully
+  constructed several feature-rich certified OS kernels in Coq (see
+  Sec.~\ref{sec:kernel}).  A certified kernel
+  $\layer{L_{\raw}}{K}{L_{\sys}}$ is a verified LAsm implementation
+  $K$, built on top of $L_{\raw}$, and it {\em implements} the set of
+  system calls as specified in $L_{\sys}$.  The correctness of the
+  kernel guarantees that if a user program $P$ runs {\em safely} on
+  top of $L_{\sys}$, running the version of $P$ linked with the kernel
+  $K$ on $L_{\raw}$ will produce the same behavior.  All our certified
+  kernels are built by composing a collection of smaller layers.
+  The most realistic kernel consists of 37 layers, took less than one
+  person year to develop, and can boot a version of Linux as a guest.
+\end{enumerate}
+
+\noindent{}The {\em POPL Artifact Evaluation Committee} reviewed the
+full artifact of our entire effort, including ClightX and LAsm,
+the CompCertX compiler, and the implementation of all
+certified kernels with Coq proofs. 
+The reviewers unanimously stated
+that our implementation {\em exceeded their expectations}, with one
+reviewer rating the paper as one of the most solid papers he/she has
+ever seen. Additional details about our work can be found in
+the companion technical report~\cite{dscal14tr}.
+%
+%\begin{verbatim}
+%   flint.cs.yale.edu/publications/aec14.html
+%\end{verbatim}
+%
+
+\paragraph{Roadmap.}
+This thesis is organized as follows.
+$\S$\ref{sec:overview} explains why layers support 
+abstraction over deep specifications better than regular modules do.
+$\S$\ref{sec:layer} presents the formal layer calculus.
+$\S$\ref{sec:prog} and $\S$\ref{sec:lasm} describe the new ClightX and
+LAsm languages and show how to use them to build certified layers.
+$\S$~\ref{sec:comp} presents the new CompCertX compiler and shows how
+to link ClightX layers with LAsm layers.  $\S$\ref{sec:kernel} gives
+an overview of the certified OS kernels we have constructed.
+$\S$\ref{sec:related} and $\S$\ref{sec:concl} discuss related work and
+then conclude.
+
+
+
+Abstraction layers (e.g., circuits, microarchitecture, ISA, device
+drivers, OS kernels, hypervisors, network protocols, and application
+APIs)~\cite{salzer09,baldwin00} are widely used in modern computer
+systems to help reduce the complex interdependencies among components
+at different levels of abstraction.  An abstraction layer defines an
+interface that hides the implementation details of its underlying
+software or hardware components. Client programs built on top of each
+layer can be understood solely based on the interface, independent of
+the layer implementation.
+
+As multicore hardware and multithreaded programming become more
+pervasive, many of these abstraction layers also become {\em
+  concurrent} in nature.  Their interfaces not only hide the concrete
+data representations and algorithmic details, but also create an
+illusion of {\em atomicity} for all of their methods: each method call
+can be viewed as if it completes in a single step, even though its
+implementation contains complex interleavings with operations done by
+other threads.  Herlihy~{\em{}et~al.}~\cite{herlihy90,Herlihy08book}
+advocated using these concurrent atomic objects as the key building
+blocks for constructing large-scale shared-memory concurrent software
+systems.
+
+\citet{dscal15} showed that specifying and verifying large-scale
+complex system software (e.g., OS kernels and hypervisors) can also
+benefit greatly from aggressive layer decomposition. They developed a
+formal theory of certified (sequential) abstraction layers, as well as a
+set of new certified programming tools.  A {\em certified abstraction
+  layer} is defined as a triple $\layer{L'}{M}{L}$ plus a mechanized
+proof object for the predicate $\ltyp{L'}{R}{M}{L}$, showing that the layer
+implementation $M$, built on top of the interface $L'$ (the {\em
+  underlay}), indeed faithfully {\em implements} the desirable
+interface $L$ above (the {\em overlay}).  The {\em implements}
+relation $R$ is defined as a {\em simulation}~\cite{Lynch95} but it
+enforces a stronger {\em contextual} correctness property: a correct
+layer is like a ``certified compiler,'' capable of converting any {\em
+  safe} client program $P$ running on top of $L$ into one that has the
+same behavior but runs on top of $L'$ (e.g., by ``compiling'' abstract
+primitives in $L$ into their implementation in $M$); if
+$\sem{L}{\cdot}$ denotes the state machine for layer $L$, the
+correctness property (over context $P$) can be written formally as
+$\sem{L'}{P\oplus{}M} \leq_R \sem{L}{P}$.
+
+Unfortunately, the theory developed by \citet{dscal15} does not easily
+carry over to the concurrent setting. Concurrent abstraction layers
+pose many new technical challenges:
+\begin{itemize} \itemsep 0pt
+\item 
+  {\em Lack of a general compositional model.} It is unclear how to
+  define a general thread-modular semantic framework so that the
+  behavior of each concurrent abstraction machine (e.g.,
+  $\sem{L}{\cdot}$ for a layer interface $L$) can be constructed from the
+  behaviors of each of its threads or CPU cores. More specifically, if
+  $D$ denotes the set of all possible threads and CPU cores, $A$ is a
+  subset of $D$, and $L[A]$ denotes the layer $L$ with members of $A$
+  being {\em active} (i.e., members outside $A$ are considered as the
+  {\em environment}), can we construct the semantics of the abstract
+  machine $\sem{L[A]}{\cdot}$ from those of $\sem{L[t]}{\cdot}$
+  for all $t\in{}A$? Note for readability, we have abbreviated
+  $\{t\}$ as $t$, so $L[t]$ really denotes $L[\{t\}]$.
+%%%%%%%%%%%%%
+\item {\em Lack of a general parallel layer composition rule.}
+  \citet{dscal15} supports both horizontal and vertical layer
+  composition, but even with a compositional concurrency model, and
+  supposing we can perform thread-modular reasoning to prove the
+  ``contextual'' simulation property $\ltyp{L'[t]}{R}{M}{L[t]}$ for
+  each $t\in{}D$, we still need a general ``parallel layer composition''
+  rule to show that the contextual simulation holds for the whole
+  concurrent machine $\ltyp{L'[D]}{R}{M}{L[D]}$.
+  Liang~{\em{}et~al.}\cite{RGSim,Liang14lics,lili16} developed a
+  Rely-Guarantee-based Simulation (RGSim) that is compositional over
+  simple parallel composition constructs (e.g., $C_1 \| C_2$), but
+  it is unclear how to extend it to support richer language constructs
+  and vertical composition of multiple concurrent layers.
+%%%%%%%%%%%%%
+\item {\em Lack of compiler and linking support.} \citet{dscal15}
+  developed a new CompCertX compiler that can compile certified
+  ClightX layers into certified assembly layers. However, neither
+  CompCertX nor the original CompCert compiler~\cite{leroy08} supports
+  concurrent programs. It is unclear how to turn CompCertX into a
+  thread-safe verified compiler, and how to use it to compile a
+  certified concurrent C program into assembly and then link it with
+  other concurrent assembly layers.
+\end{itemize}
+
+In this paper, we present a new formal framework that tackles all of
+the above challenges for specifying, programming, compiling, and
+composing certified concurrent abstraction layers. We extend each
+layer interface $L$ in \citet{dscal15} with a collection of abstract
+{\em atomic} objects~\cite{Herlihy08book}, each of which provides a
+set of atomic methods. Unlike calls to thread-private abstract objects
+(as in \cite{dscal15}) which are not {\em observable} by other
+threads, each method call to an atomic object is recorded as an 
+observable event in the concurrent machine semantics
+($\sem{L}{\cdot}$), and is appended to the end of a global log $l$---a
+single shared abstract state which we maintain for all the atomic
+objects in $L$. The semantics $\sem{L}{P}$ can then be defined based
+on the set of shared logs (i.e., {\em{}traces}, possibly of
+infinite length) generated from running the concurrent program $P$
+over $L$.
+
+We develop a general compositional (operational) model for
+$\sem{L}{P}$ based upon ideas from the game semantics
+community~\cite{gsinvite}. Each run of $P$ over $L$ can be viewed as
+playing a game involving members of $D$ (plus a scheduler). Each
+participant $t$ contributes its play by appending an event into the
+global log; its {\em strategy} $\strat{t}$ can be defined as a
+deterministic partial function from the current log $l$ to its next
+move $\strat{t}(l)$ when the control is transferred to $t$
+(defined by the last event in $l$). The
+eventual log for executing $P$ over $L$ can then be calculated by
+combining the strategies of all the participants.
+
+A layer interface $L[A]$ can be viewed as a concurrent machine
+parameterized over its {\em environment context} $\oracle$, which is a
+strategy for its environment (i.e., the scheduler plus those
+participants not in $A$).  Given an environment context $\oracle$
+which also contains a particular scheduler strategy, the execution of
+$P$ over $L[A]$ should be deterministic; the concurrent machine will
+run $P$ when control is transferred to any of the participants in $A$, but
+will instead ask the environment context $\oracle$ for the next move when 
+control is transferred to a member of the environment.
+
+The new compositional model allows us to prove a general parallel
+layer composition rule. Furthermore, $L[t]$ behaves like a
+thread-local ``sequential'' machine (albeit parameterized over an
+environment context).  This makes it possible to adapt the CompCertX
+compiler so that it can be used to compile a certified ClightX layer
+$(L'[t],M,L[t])$ into a certified assembly layer. We can then apply
+both the horizontal and vertical layer composition rules (as developed
+by \citet{dscal15}) along with the new parallel composition rule to 
+construct fully certified concurrent software.
+ 
+Our paper makes the following new contributions:
+\begin{itemize} \itemsep 0pt
+%%%%%%%%%%%%%
+\item We present the first language-based account of certified
+  concurrent abstraction layers and show that complex concurrent
+  software can indeed be decomposed into layers of simple concurrent
+  atomic objects while still supporting thread-modular reasoning.
+  Following \citet{dscal15}, for each certified layer, we prove a {\em
+    termination-sensitive} contextual correctness property. In the
+  concurrent setting, this means that every certified concurrent
+  object satisfies not only a safety property (e.g., {\em
+    linearizability})~\cite{herlihy90,filipovic10} but also a
+  progress property (e.g., {\em
+    starvation-freedom})~\cite{liang13,lili16}.
+%%%%%%%%%%%%%
+\item We present a new compositional semantic model for shared-memory
+  concurrent abstract machines and prove a general parallel layer
+  composition rule. Our new framework is general in that it can be
+  used to specify and verify the behaviors of various concurrency
+  constructs at different levels of abstraction, such as a multicore
+  machine with hardware scheduler, implementation of fine-grained
+  synchronization primitives (e.g., spinlocks, queuing locks,
+  condition variables), low-level thread primitives (e.g., $\yield$,
+  $\sleep$, $\wakeup$), and multi-threading with software scheduler and I/O
+  interrupts.
+%%%%%%%%%%%%%
+\item We show how to apply standard {\em simulation} techniques
+  (as in \cite{compcert,dscal15}) to verify
+  both the contextual correctness and liveness properties in a unified setting.
+  Following RGSim~\cite{RGSim}, we can impose
+  {\em invariants} both over the environment contexts (i.e., the ``rely'')
+  and also over the active threads themselves (i.e., the ``guarantee'').
+  However, unlike RGSim,
+  because each environment context (i.e., the opponent's strategy)
+  specifies not just the environment's past behaviors
+  but also {\em future behaviors}, we can readily impose temporal
+  invariants such as fairness requirements (for schedulers) or
+  {\em definite actions}~\cite{lili16} (for releasing locks). This allows
+  us to give full specifications for lock primitives and support vertical
+  composition of starvation-free atomic objects, none of which have ever
+  been done before~\cite{lili16}.
+%%%%%%%%%%%%%
+\item We have successfully extended the layered programming languages
+  ClightX (a C variant) and LAsm (an x86 assembly language) by
+  \citet{dscal15} with support for concurrent layered programming.  We
+  have also developed a new {\em thread-safe} version of the CompCertX
+  compiler that can compile certified concurrent ClightX layers into
+  LAsm layers.  To support certified parallel composition of
+  thread-modular layers (i.e., $L[t]$ for all $t$), we have developed
+  a new extended algebraic memory model (for CompCertX) whereby stack
+  frames allocated for each thread can be combined to form a single
+  coherent CompCert-style memory.
+%%%%%%%%%%%%%
+\item Using these new languages and tools, we have successfully
+  constructed a certified concurrent OS kernel in the Coq proof
+  assistant~\cite{coq}. Our certified kernel supports not just user-
+  and I/O concurrency on a single CPU, but also multicore parallelism
+  with fine-grained locking. We prove both the contextual
+  correctness of all system calls, as well as a liveness property 
+  saying that all system calls will eventually return.  As far as we 
+  know, this is the first proof of functional correctness of a complete,
+  general-purpose concurrent OS kernel with fine-grained locking.
+\end{itemize}
+
+The full artifact for our entire effort, including the new ClightX and
+LAsm languages for concurrent layered programming, the thread-safe
+CompCertX compiler, and the implementation of our certified concurrent
+OS kernel have been uploaded as supplementary materials on the POPL
+2017 submission site.
+
+The rest of this paper is organized as follows.
+Sec.~\ref{sec:informal} gives an overview of a few key high-level
+ideas for building certified concurrent layers.  Sec.~\ref{sec:layer}
+presents the formal framework for specifying, verifying, and composing
+concurrent layers.  Sec.~\ref{sec:mach}-\ref{sec:prog}
+describe our layered concurrent machine models and  
+show how to use them to build certified
+concurrent layers.  Sec.~\ref{sec:comp} presents the new thread-safe
+CompCertX compiler and shows how to link ClightX layers
+with concurrent LAsm layers.  Sec.~\ref{sec:kernel} gives an overview
+of the certified concurrent OS kernel that we have constructed.
+Sec.~\ref{sec:related} discusses related work and then concludes.
+
+Finally, note that throughout this paper, all of our concurrent 
+abstract machines assume strong sequential consistency for atomic 
+primitives. Supporting relaxed memory models is left as future work. 
+
+
+
+

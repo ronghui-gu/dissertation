@@ -1,0 +1,42 @@
+%\section{Independence Analysis}
+%\label{sec-IndAna}
+
+\chapter{Independence Auditing}
+\label{sec-audit}
+
+%Independence auditing is \app's core function.
+After dependency data acquisition,
+\app performs independence auditing to generate
+auditing reports.
+
+As described in $\S$\ref{sec-INDArc}, \app supports
+two scenarios.
+We first present a
+{\em structural independence auditing} protocol in $\S$\ref{subsec-IndAna},
+which assumes data sources are willing
+to provide the auditing agent with the full dependency data,
+\eg, for auditing a common cloud provider.
+We later present a
+{\em private independence auditing} protocol in $\S$\ref{subsec-pia}
+to support analysis across multiple cloud providers
+unwilling to reveal the full dependency data to anyone.
+
+%After the auditing agent collects the raw dependency information
+%from the data sources,
+%the agent generates an explicit graph representation
+%for use by the pluggable analysis modules,
+%as illustrated in Figure~\ref{fig-auditing}.
+
+%Using the same example in $\S$\ref{sec-dep},
+%shown in Figure~\ref{fig-example}, the \ft of
+%one of replication deployments,
+%using $S1$ and $S2$ for redundancy,
+%is shown in Figure~\ref{fig-ft}(c).
+
+\input{sia}
+
+
+\input{pia}
+
+
+

@@ -1,0 +1,227 @@
+\chapter{Limitations and Future Work}
+\label{chap-limits}
+%\sectskip
+%\asectskip
+
+%\zhong{
+%Here we address all potential loose-ends.
+%\begin{itemize}
+%\item any lessons learned?
+%\item concurrency and contextual refinement
+%\item liveness properties 
+%\item compcert memory references vs. capabilities (security properties)
+%\item resource usages (stack usages)
+%\item interrupts and interrupt handler
+%\end{itemize}
+%}
+
+\paragraph{Trusted computing base}
+Currently, there is still some gap between the bottommost layer of our
+verified kernel, {\it PreInit}, and the real X86 hardware.
+In the {\it PreInit} layer, some of the hardware virtualization
+instructions such as {\it vmrun}, {\it vmload}, {\it vmsave}
+are not modeled. It also lacks the model for interrupt related hardware
+instruction like {\it cli}, and {\it sti}. The code that
+is used to load the ELF binaries is also axiomatized in the layer.
+
+The \mCTOS{} kernel also relies on a bootloader, and a pre-initialization
+module, which initializes the drivers, e.g.,
+serial, disk, console, {\it etc}, required by \mCTOS{}.
+The verification of these modules are
+left for future work. Device drivers are not verified
+because our current machine semantics lacks device models for
+expressing the corresponding semantics.
+
+Finally, the CompCert assembler for converting assembly into machine
+code is also not verified. We also assume the correctness of the Coq
+proof checker and its code extraction mechanism.
+
+%The following is no longer accurate: now these switches are fully
+%verified.
+%% \item some assembly code generated for the switches between ring0
+%% and ring3, and between the host and the guest. Our machine
+%% semantics % ($\LSem{L}$) models these switches as pseudo
+%% primitives. They can be verified if we model more detailed hardware
+%% behaviors and instructions in our machine model.
+%% C functions, such as memcpy, are not supported by the current 
+%% CompCert memory model and thus can not be verified in $\ClightX{L}$.
+%% On the other hand, they can be implemented in assembly and verified 
+%% at the assembly level, which we leave for future work.
+% Do we really have any code in the kernel (I mean, apart from the
+% bootloader and preinit) having the following features?
+%% \item Some C features are not supported by the current CompCert, e.g.
+%% functions with varying number of arguments, and the GCC-style inline
+%% assembly. They could be verified in assembly, which we leave for future work.
+
+\paragraph{Expressivity of context code} 
+Our assembly-level machines do not cover the full x86 instruction sets 
+and many other hardware features. This means that our correctness results 
+only apply to programs in this subset. However, additional instructions 
+and features can be easily added if they have simple or no interaction
+with our kernel. 
+
+\paragraph{Concurrency}
+Our current certified kernels assume a runtime environment consisting
+of a single processor, but extending it to support multicore
+concurrency is already under way. Our choice of using contextual refinement 
+to connect layers is motivated partly by its
+deep connection with the work on concurrent
+objects~\cite{herlihy90,herlihy08book}.
+
+In \CTOS, all primitives introduced at each abstraction layer are
+assigned ``atomic'' specifications. Such ``atomicity'' is easy to
+establish in the sequential setting when interrupts are turned off.
+In the concurrent setting (and even with preemption and all the
+interleavings), we would still want the underlying kernel
+implementation module to behave like its sequential counterpart 
+in all contexts. This is the essence of {\em linearizability}~\cite{herlihy90}.
+
+Recent work on concurrency verification~\cite{liang13,filipovic10} has
+shown that contextual refinement is precisely equivalent to
+linearizability. In fact, by
+varying the observable context and the assumption about the scheduler,
+Liang~{\em{}et al}~\cite{liang13} have shown that termination-sensitive
+contextual refinement (which we use in \CTOS) is precisely equivalent
+to linearizability plus a specific liveness property (i.e., 
+wait-freedom, lock-freedom, obstruction-freedom, starvation-freedom
+or deadlock-freedom).
+
+These results suggest that by using contextual
+refinement, \CTOS\ can isolate and encapsulate fine-grained concurrent
+interleavings inside the implementation of each kernel object within a
+single layer. Non-blocking fine-grained concurrent data structures can have
+very sophisticated local invariants, but they are not exported to
+other parts of the kernel. This makes the \CTOS\ architecture much
+more appealing and extensible.
+
+\paragraph{Interrupts} Like most existing verified kernel efforts,
+we assume that interrupts are only enabled in user or guest mode. The
+challenges in handling interrupts and preemption are similar to those
+for concurrency. Feng {\em et al.}~\cite{feng08:vstte} verified a
+practical thread implementation with hardware interrupts and
+preemption~\cite{feng08:aim} by using a variant of concurrent
+separation logic~\cite{ohearn:concur04}. Their proofs are interesting
+in that they decompose the thread implementation into one sequential
+layer (with interrupts disabled) and another concurrent one
+(with interrupts enabled). We believe that similar approaches can
+be readily supported in our \CTOS\ framework.
+
+% This part is mostly covered in Section 5 now, we shouldn't need it anymore
+\begin{comment}
+\paragraph{Security and information flow}
+We also plan to utilize the extensible, layered framework of
+\CTOS{} to guarantee that information flow or security properties are never
+broken by a valid layer implementation. For example, consider proving
+a variant of the end-to-end confidentiality property known in the
+literature as \emph{noninterference}. Informally, the property says
+that the observable behavior of a program is independent of the
+initial values of some particular high-security data (i.e., there is
+no flow of information from the high-security data to the observable
+events produced by the program). We define the specification of a
+program as the (partial) mapping from initial state to final state,
+and call a specification ``noninterfering'' if it satisfies the
+property just described. Our goal is then to prove that, at any layer
+$L_i$, if all the primitives implemented in layer $L_{i-1}$ have
+noninterfering specifications, then a program written in layer
+$L_i$ using those primitives will also be noninterfering. We
+have found that such a goal is achievable via instrumentation of the
+CompCert-style memory model with security labels, and
+intelligently placed label checks within the operational
+semantics. Note that these security labels are abstract state---they
+do not actually exist in the concrete machine, and thus they do not
+add any execution overhead.
+
+We also intend to leverage our \CTOS\ architecture to generalize the
+integrity and noninterference properties of seL4~\cite{murray13,sewell11}
+beyond the purely access-control-based policy that parameterizes the 
+properties. Rather than explicitly storing pieces of an access control 
+policy in capabilities and passing them between kernel objects, we wish 
+to reason about label-based policies via a purely static instrumented 
+machine. Another way to view this goal is with respect to the HiStar 
+operating system~\cite{zeldovich06}. In HiStar, all kernel objects have
+an attached security label. Label checks are performed during kernel 
+execution to prevent undesirable information flows, though no formal 
+guarantees regarding information flow are stated or proved. Our goal 
+can be viewed, then, as taking HiStar's security labels, migrating them 
+from the actual machine into the realm of static verification, and 
+proving extensible, end-to-end information-flow guarantees. Through this 
+process, we also anticipate that security policies (given through 
+specifications) will become clearer and more declarative.
+\end{comment}
+
+
+\paragraph{Evaluation and limitations} 
+The planning and development of \mCTOSbase{} took 9.5 person months plus
+2 person months on linking and code extraction.
+With the infrastructure in place, \mCTOShyper{} only took 1.5 person months
+to finish, and \mCTOSringz{} and \mCTOSembed{} take half a person month each.
+The kernels are written, layer by layer, in LAsm and ClightX abstract syntaxes
+along with driver functions specifying how to compose (link) them.
+All of those are in Coq for the proofs to refer to.
+We utilize Coq's code extraction to get an OCaml program which contains
+CompCertX, the abstract syntax trees of the kernels, and the driver functions,
+which invoke CompCertX on pieces of ClightX code and
+generate the full assembly file.
+The output of the OCaml program is then fed to an assembler to produce
+the kernel executable.
+
+With the device drivers (running as user processes) and a cooperative 
+scheduler, most of the benchmarks in
+lmbench\footnote{\url{http://lmbench.sourceforge.net/}}
+are under 2x slowdown running in \mCTOShyper{},
+well within expected overhead.
+Ring 0 processes, not used in the above experiment, can 
+easily lower the number
+as we measured one to two orders of magnitude reduction in the number of cycles
+needed to serve system calls and context switches.
+
+Because the proof was originally developed directly in terms of
+abstract machines and program transformations,
+the current code base does not yet reflect the calculus presented in
+Sec. \ref{sec:layer} in its entirety.
+%The most significant discrepency is that the simulation relations blueprints
+%used by our legacy code do not actually compose.%
+%\footnote{
+%  This is not a fundamental limitation of our approach,
+%  but merely a technical difficulty due to the way
+%  the compiler's memory injections are integrated to
+%  the definition of these relations
+%  in our pre-existing code base.
+%  % XXX: Please refer to the technical report for more 
+%  % complete explanation.
+%}
+% Expand in technical report:
+%  The simulation relations need to factor in the peculiar form of the
+%  compiler's correctness theorem
+%  (XXX: refer somehow to Sec. \ref{sec:comp.tex}),
+%  and consequently are parametrized over Compcert memory injections.
+%  In order to define the composition $(R_1 \circ R_2)(j)$ from
+%  $R_1(j_1)$ and $R_2(j_2)$,
+%  we would need to find a way to split $j$ into $j_1$ and $j_2$
+%  XXX: explain more
+Notably,
+vertical composition is done at the level of
+the whole-machine contextual refinements
+obtained by applying the soundness theorem
+to each individual abstraction layer.
+%[XXX: Talk about simulation paths, refactoring to address this issue?]
+
+Outside our verified kernels
+(\mCTOShyper{} consists of about 3000 lines of C and assembly), there
+are 300 lines of C and 170 lines of x86 assembly code that are not
+verified yet: the preinit procedure, the ELF loader used by user
+process creation, and functions such as \textsf{memcpy} which currently
+cannot be verified because of a limitation arising from the CompCert
+memory model. Device drivers are not verified because LAsm
+lacks device models for expressing the correctness
+statement.  Finally, the CompCert assembler for converting LAsm into
+machine code remains unverified. 
+%We also assume the correctness of the
+%Coq proof checker and its code extraction mechanism.
+
+LAsm does not cover the full x86 instruction sets and many other
+hardware features.  This means that our correctness results only apply
+to programs in this subset. However, additional instructions and
+features can be easily added if they have simple or no interaction
+with our kernel.
+

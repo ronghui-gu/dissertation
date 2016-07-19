@@ -1,0 +1,170 @@
+\chapter{Problem Statement and Challenges}
+\label{chap-prob}
+
+This chapter first clarifies our target 
+problem ($\S$\ref{sec-prob}) and then
+lists associated technical challenges ($\S$\ref{sec-chal}).
+
+\section{Problem Statement}
+\label{sec-prob}
+
+Under the assumption of failure independence,
+cloud providers typically leverage redundancy techniques to
+reduce the likelihood of failures,
+thus enhancing the reliability of their services.
+
+\paragraph{Risk group.}
+For a given service or application's redundant system,
+we define a {\em risk group}~\cite{kaminow97optical}, \rg, 
+of this redundant system as a collection of the underlying components 
+whose simultaneous failures would lead to the service outage.%
+\footnote{Failure of some component means the component does not function
+due to software, network or hardware problems.}
+For example suppose a cloud storage service employs
+three-way redundancy configuration upon its storage components.
+Its purpose is for all \rgs to be of size at least three.
+In other words, at least three components must fail simultaneously 
+to result in the service outage.
+However, if these three higher-level components unexpectedly 
+depend on some {\em single} lower-level component,
+\eg, an aggregation switch, then this lower-level component
+represents a \rg of size one in that its failure
+would make the whole service become unavailable.
+Heading off {\em unexpected \rgs}, defined as
+smaller than expected \rgs, is our goal.
+
+\paragraph{Unexpected \rgs within the clouds.}
+Cloud service outages in reality have resulted from
+unexpected \rgs due to common dependencies~\cite{potharaju13network}.
+Well-known cloud IaaS services, 
+such as Amazon EC2 and Microsoft Azure, 
+try to utilize redundancy to ensure
+service reliability, \eg, by introducing backup 
+servers and switches in their data centers~\cite{abu-libdeh10symbiotic, 
+chuanxiong08dcell, mysore09portland, 
+zhong08replication}.
+However, additional redundancy may not mitigate 
+the likelihood of failure due to a failed \rgs,
+derailing providers' efforts to improve reliability%
+~\cite{he13next}.
+Amazon, for example, experienced a significant
+disruption in the Northern Virginia EC2 data center
+due to correlated failures resulting from 
+incorrect configuration on a few 
+aggregation switches~\cite{EC2Crash11}.
+While Amazon repaired the failure after it occurred,
+the general problem, \ie, an unexpectedly failed \rg, 
+would likely recur in the future.
+
+\paragraph{Unexpected \rgs across multiple cloud providers.}
+As the cloud diversifies, some cloud service providers 
+no longer depend upon only a single cloud service and
+have begun redundantly using other cloud providers
+for enhanced reliability~\cite{bessani11depsky}. 
+For example, as a well-known cloud storage and computing platform,
+iCloud~\cite{iCloud} redundantly builds its service upon 
+infrastructure services from both 
+Amazon EC2 and Microsoft Azure. 
+Zynga~\cite{Zynga}, developer of many Facebook games, 
+uses both EC2 and an internal ``cloud'' for redundancy.
+Despite the efforts, these providers may be 
+unaware and unable to mitigate
+failures due to unexpected \rgs shared by distinct cloud providers.
+For instance, a recent ferocious lightning storm
+in Northern Virginia~\cite{storm12, powerOut} 
+took out local primary and backup power supplies,
+resulting in unavailability of all the IaaS services in the region. 
+%This accident caused the outages of cloud
+%services in this area redundantly using these IaaS services. 
+
+\section{Technical Challenges}
+\label{sec-chal}
+
+Several technical challenges appear in detailed analysis of
+our target problem.  The following list 
+focuses on those we view as critical toward 
+building a practical solution on our problem.
+
+\paragraph{Challenge~1: Acquiring dependencies.}
+In order to discover and eliminate 
+unexpected \rgs within a cloud service deployment,
+we must be able to acquire the information about relevant components 
+and their associated dependencies
+supporting this service.
+Because such infrastructures underlying the
+cloud tend to be very complex in practice,
+it is likely to be infeasible for the 
+service provider or administrator to populate this information manually.
+Therefore, acquiring dependencies 
+automatically becomes an important and challenging problem.
+Existing efforts towards this target found in monitoring and
+diagnosis systems have been limited to networking ignoring
+hardware and software level dependencies~\cite{chen08automating}.
+Recent reports have shown unsuitability of networking alone,
+as failures resulting from software and hardware become
+rather commonplace~\cite{Top10-2013}.
+
+\paragraph{Challenge~2: Determining and evaluating \rgs.}
+Even with a set of components and their dependencies,
+it is still not obvious how best to determine unexpected \rgs and 
+evaluate their importance in a useful way.
+Within this challenge, there exists the need to construct an useful
+dependency graph and instrumenting it with potential failures.
+Determining \rgs collected from target services provides 
+a difficult challenge due to potentially complex dependencies.
+Existing efforts~\cite{bahl07highly, kompella05ip} 
+have tried to solve similar problems with
+diagnosis analysis; however, these approaches may fail to 
+offer accurate results when confronted with complex dependencies%
+~\cite{wu12netpilot}.
+
+\com{
+Even with a set of components and their dependencies,
+it is not obvious how best to determine \rgs
+and evaluate their importance in a useful way.
+For example, while a reasonable first step is 
+simply to rank \rgs by size --- %
+number of components that must fail 
+simultaneously to create an outage --- %
+a more sophisticated ranking might account for differences
+in anticipated failure probabilities of different components.
+Such an improvement, however, would have the cost
+of requiring dependency acquisition mechanisms to obtain
+not just an accurate dependency graph,
+but also realistic failure probability,
+for each component.
+Existing efforts~\cite{bahl07highly, kompella05ip}
+have tried to locate the root cause for a given
+service outage with diagnosis approaches,
+but they do so after the fact in response to a failure,
+and in many cases cannot produce accurate results
+in the face of complex dependencies~\cite{wu12netpilot}.
+}
+
+\paragraph{Challenge~3: Privacy Preservation.}
+For a cloud service that rents infrastructure
+from other different cloud providers,
+performing structural auditing is almost impossible in practice.
+Since the infrastructure information 
+is high secret proprietary information
+to every cloud provider, no provider is willing to share it.
+Auditing such multi-level cloud services, therefore,
+introduces another complex challenge:
+performing auditing of the target service
+without compromising the privacy of its 
+cloud infrastructure providers.
+Two possible solutions would be:
+1) to introduce a trusted third party,
+who collects dependency information from
+multiple cloud providers 
+and performs auditing for the service;
+or 2) using secure multi-party 
+computation (SMPC)~\cite{yao82protocols}
+to compute the overlap privately,
+without exposing any information from which those results are computed.
+Unfortunately, in the former case cloud
+providers may be hesitant to trust a third-party,
+while the latter option has been proven 
+to be time-consuming and does not scale well%
+~\cite{zhai13auditing, xiao13structural}.
+

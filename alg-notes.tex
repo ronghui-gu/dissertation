@@ -1,0 +1,263 @@
+
+% ========================================================================
+% Mathematical notation
+% ========================================================================
+
+%\newtheorem{theorem}{Theorem}
+%\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proof}{Proof}
+
+\subsection{Failure Sampling Algorithm Analysis}
+\label{alg-notes}
+
+Because failure sampling algorithm is a randomized approach,
+we are interested in what type of guarantees it can provide.
+We provide provable guarantees for failure sampling algorithm
+in this section.
+
+\subsubsection{5.3.3.1 \enskip Preliminaries}
+
+Let $f:\{0,1\}^k \rightarrow \{0, 1\}$ be a $k$-ary Boolean function. An
+\emph{assignment} is a vector $\vec{a} \in \{0,1\}^k$. A \emph{target}
+is a set of assignments $T \subseteq \{0, 1\}^k$. Assignment $\vec{a}$
+is a \emph{satisfying} assignment for $f$ if and only if $f(\vec{a}) =
+1$. The \emph{size} of a satisfying assignment $\vec{a}$ is the number
+of 1's in $\vec{a}$. A satisfying assignment is \emph{minimal} if it has
+minimum size over all satisfying assignment.
+
+For example, $Maj_5$ is a Boolean function that maps any assignments
+with at least three 1's to 1 and others to 0, and $\min_{maj}$ is a
+target that consists of all assignments with minimum number of 1's that
+evaluate to 1, i.e., those with exactly three 1's. Then any assignment
+is the target $\min_{maj}$ is a minimal satisfying assignment.
+
+\subsubsection{5.3.3.2 \enskip Hardness of Finding A Minimal Satisfying Assignment}
+
+A Boolean function is \emph{simple} if it consists of only \emph{AND}
+and \emph{OR} operators. We show that there is no efficient algorithm
+that computes a minimal satisfying assignment for a simple Boolean
+function unless $\mathcal{P} = \mathcal{NP}$. The idea is by reduction
+from the set cover problem.
+
+An instance $\sigma$ of the set cover problem (SCP) consists an universe
+$U = \{1, 2, \cdots, m\}$, and $n$ subsets $S = \{s_1, \cdots, s_n\}$,
+such that $s_i \subseteq U$ for any $1\le i\le n$ and $\bigcup_{1\le
+i\le n} s_i = U$. A \emph{cover} of $U$ is a subset of $S$ such that
+their union equals $U$.
+The set cover problem requires to find a cover with minimum size, which
+is known to be $\mathcal{NP}$-hard.
+
+\begin{theorem}
+\label{THM:hardness}
+Finding a minimal satisfying assignment for a simple Boolean function is $\mathcal{NP}$-hard.
+\end{theorem}
+
+\begin{proof}
+Given an instance $\sigma$ of SCP, we construct an instance $\phi$ of
+the minimal satisfying assignment problem (MSA). We first describe the
+construction of a simple Boolean function in the conjunctive normal form
+(CNF). A Boolean function is CNF if it is a conjunction (\emph{AND}) of
+clauses, where a clause is a disjunction (\emph{OR}) of literals. The
+Boolean function has $m$ clauses, $C_1, \cdots, C_m$, corresponding to
+the $m$ elements in $U$, and $n$ variables, $x_1, \cdots, x_n$,
+corresponding to the $n$ subsets in $S$. For each element $j \in s_i$,
+add variable $x_i$ to clause $C_j$. Apparently, this construction
+$g(\sigma) = \phi$ can be computed in polynomial time.
+
+Now we show that there is one-to-one correspondence between covers in
+SCP and satisfying assignments in MSA. In one direction, given a cover
+in SCP, setting \emph{TRUE} all variables $x_i$ corresponding to subsets
+$s_i$ in the cover results in a satisfying assignment in MSA. In the
+other direction, given a satisfying assignment in MSA, including all
+subsets $s_i$ corresponding to \emph{TRUE} variables $x_i$ in the
+satisfying assignment results in a cover in SCP. In addition, the size
+of the cover equals the size of the satisfying assignment in both
+directions. A direct consequence of this observation is that finding a
+cover with minimum size in $\sigma$ is then equivalent to finding a
+satisfying assignment with minimum size in $\phi$. As SCP is
+$\mathcal{NP}$-hard, the MSA problem is also $\mathcal{NP}$-hard.
+\end{proof}
+
+\subsubsection{5.3.3.3 \enskip Target Cover}
+
+\paragraph{Uniform sampling.}
+Consider the following random process. Given a $k$-ary Boolean function
+$f$ and a target $T$, we randomly sample assignments. For each trial of
+sampling, flip a sequence of $k$ independent \emph{fair} coins. Let
+random variable $X$ be the number of samples when all assignments in $T$
+are covered by the random sampling process. Then we want to bound the
+following two problems: (1) What is the expected number of samples in
+order to cover the target? (2) What is the probability of covering the
+target if the number of samples is $m$?
+
+\begin{lemma}
+\label{LEMMA:uniform-expectation}
+The expected number of uniform samples to cover the target is $\Ex[X] =
+2^k H_{t} = \Theta(2^k \log{t})$, where $t = |T|$ and $H_{n} =
+\sum_{i=1}^n (1/i)$ is the harmonic number.
+\end{lemma}
+
+\begin{proof}
+The probability for a random sample to cover any assignment in $T$ is
+$t/2^k$. After $i$ assignments in $T$ has been covered, a random sample
+to cover an additional assignment in $T$ is $(t-i)/2^k$. Let random
+variable $X_i$ be the number of samples used to hit the $i$-th
+assignment in $T$, then the subsequence of random sampling process to
+cover the $i$-th assignment are Bernoulli trials with success
+probability $(t-i+1)/2^k$. Therefore, for any $1\le i\le d$,
+\[
+  \Ex[X_i] = \frac{2^k}{t-i+1}
+\]
+Thus, by the linearity of expectation, we have
+\begin{eqnarray*}
+  \Ex[X] &=& \Ex\left[\sum_{i=1}^t X_i\right] = \sum_{i=1}^t \Ex[X_i]\\
+  &=& \sum_{i=1}^t \frac{2^k}{t-i+1} = 2^k H_t
+\end{eqnarray*}
+Then $\Ex[X] = \Theta(2^k \log{t})$ follows from the fact that $H_{t} =
+\Theta(\log{t})$.
+\end{proof}
+Remark: we can regard the target cover problem as a variant of the
+coupon collector's problem, where $t$ specific coupons out of $2^k$
+possible ones need to be collected.
+
+Then we bound the probability of covering the target with $m$ samples.
+\begin{lemma}
+\label{LEMMA:uniform-prob}
+The probability to cover the target with $m$ uniform samples is at least
+$1 - m / (2^k H_t)$.
+\end{lemma}
+
+\begin{proof}
+By Markov's inequality, the probability that more than $m$ uniform
+samples are need to cover the target is
+\[
+  \Pr(X \ge m) \le \frac{\Ex[X]}{m}
+\]
+Therefore, following Lemma~\ref{LEMMA:uniform-expectation}, the probability to cover the target with $m$ samples is
+\[
+  \Pr(X \le m) = 1 - \Pr(X \ge m) \ge 1 - \frac{2^k H_t}{m}
+\]
+\end{proof}
+
+Take the Boolean function $Maj_5$ and the target $\min_{maj}$ as an
+example. The expected number of uniform samples needed to cover all
+$\binom{5}{3} = 10$ target assignments is $2^5 \cdot H_{10} \approx 94$.
+The probability to cover the target with 188 uniform samples is at least
+0.5.
+
+\paragraph{Biased sampling.}
+Consider the following random process with biased sampling. For each
+trial of sampling, instead of flipping fair coins, we flip a sequence of
+$k$ independent \emph{biased} coins, such that each assignment
+$\vec{a}_i$ is cover with probability $p_i$ and $\sum_{i: \vec{a}_i \in
+\{0,1\}^k} p_i = 1$.
+
+Without loss of generality, let $T = \{a_1, a_2, \cdots, a_t\}$ and $p_1 \le p_2 \cdots \le p_t$. Let $(q_1, q_2, \cdots, q_t)$ be the sequence of prefix sums for the sequence $(p_1, p_2, \cdots, p_t)$, i.e., for any $1\le i\le d$,
+\[
+  q_i = \sum_{j=1}^{i} p_j
+\]
+Let $(q'_1, q'_2, \cdots, q'_t)$ be the sequence of prefix sums for the
+sequence $(p_t, p_{t-1}, \cdots, p_1)$\footnote{The sequence of $q'_i$
+can also be regarded as suffix sums for the sequence $(p_1, p_2, \cdots,
+p_t)$, although this definition is not standard.}, i.e., for any $1\le
+i\le t$,
+\[
+  q'_i = \sum_{j=t-i+1}^{t} p_j
+\]
+Then by definition, it follows that $q_i \le q'_i$ for any $1\le i\le
+t$. We will bound the expected number of biased samples needed to cover
+the target with $q_i$ and $q'_i$.
+
+\begin{lemma}
+\label{LEMMA:biased-expectation}
+The expected number of biased samples to cover the target is $\sum_{i=1}^t (1/q'_i) \le \Ex[X] \le \sum_{i=1}^t (1/q_i)$, where $t = |T|$.
+\end{lemma}
+
+\begin{proof}
+The analysis is similar to that for
+Lemma~\ref{LEMMA:uniform-expectation}, with the only distinction that
+the success probability for each subsequence of Bernoulli trials depends
+on $p_i$ now. Let $\pi$ be a permutation of the sequence $\{1, 2,
+\cdots, t\}$, representing the order in which assignments in target $T$
+are covered in the sampling process. Let the sequence $(\hat{q}_1,
+\cdots, \hat{q}_t)$ be the prefix sums of $(p_{\pi(1)}, p_{\pi(2)},
+\cdots, p_{\pi(t)})$, i.e., $\hat{q}_i = \sum_{j=\pi(1)}^{\pi(i)} p_i$
+for all $1\le i\le t$. Let $p = \sum_{i=1}^t p_i$. It follows the
+definition that for any $1\le i\le t$,
+\begin{equation}
+\label{EQ:lemma-biased-expectation-1}
+  q_i \le \hat{q}_i \le q'_i
+\end{equation}
+
+Let random variable $X_i$ be the number of samples used to cover
+assignment $\vec{a}_{\pi(i)}$. Then the subsequence of random sampling
+process to cover $\vec{a}_{\pi(i)}$ are Bernoulli trials with success
+probability $\sum_{j=\pi(i)}^{\pi(t)} p_j = p - \hat{q}_{i-1}$, where
+$\hat{q}_0 = 0$ by convention. Therefore, for any $1\le i\le t$,
+\[
+  \Ex[X_i] = \frac{1}{p - \hat{q}_{i-1}}
+\]
+Thus, by the linearity of expectation, we have
+\begin{eqnarray}
+  \Ex[X] &=& \Ex\left[\sum_{i=1}^t X_i\right] = \sum_{i=1}^t \Ex[X_i]\nonumber\\
+  &=& \sum_{i=1}^t \frac{1}{p - \hat{q}_{i-1}} \label{EQ:lemma-biased-expectation-2}
+\end{eqnarray}
+Define $q_0 = q'_0 = 0$ for convention. Combining (\ref{EQ:lemma-biased-expectation-1}) and (\ref{EQ:lemma-biased-expectation-2}) gives
+\begin{equation}
+\label{EQ:lemma-biased-expectation-3}
+  \sum_{i=1}^t \frac{1}{p - q_{i-1}} \le \Ex[X] \le \sum_{i=1}^t \frac{1}{p - q'_{i-1}}
+\end{equation}
+Note that by definition, for all $1\le i\le d$,
+\begin{equation}
+\label{EQ:lemma-biased-expectation-4}
+  p - q_{i-1} = q'_{t-i+1}
+\end{equation}
+Finally, combining (\ref{EQ:lemma-biased-expectation-3}) and (\ref{EQ:lemma-biased-expectation-4}) gives
+\[
+  \sum_{i=1}^t \frac{1}{q'_{i}} \le \Ex[X] \le \sum_{i=1}^t \frac{1}{q_{i}}
+\]
+\end{proof}
+
+Take the Boolean function $Maj_5$ and the target $\min_{maj}$ as an
+example. Assume the ten target assignments have probability $p_1 =
+\cdots = p_5 = 1/16$ and $p_6 = \cdots = p_{10} = 1/8$. Then the
+expected number of biased samples needed to cover all target assignments
+is bounded by $24.49 \le \Ex[X] \le 44.35$.
+
+\subsubsection{5.3.3.4 \enskip $(d,t)$-Target Cover}
+
+In some applications, covering the entire target is too expensive. In
+such cases, it might be desirable to cover at least $d$ out of all $t$
+target assignments. We call this problem the $(d,t)$-target cover
+problem.
+
+\begin{lemma}
+\label{LEMMA:d-t-cover}
+The expected number of uniform samples to cover at least $d$ members in the target is $\Ex[X] = 2^k (H_{t}-H(t-d)) = \Theta(2^k \log{\frac{t}{t-d}})$, where $t = |T|$ and $H_{n} = \sum_{i=1}^n (1/i)$ is the harmonic number.
+\end{lemma}
+
+\begin{proof}
+The proof is similar to that of Lemma~\ref{LEMMA:uniform-expectation},
+with the distinction that the counting stops when we cover the $d$-th
+assignment in $T$. Let random variable $X_i$ be the number of samples
+used to cover the $i$-th assignment in $T$. For any $1\le i\le d$,
+\[
+  \Ex[X_i] = \frac{2^k}{t-i+1}
+\]
+Therefore, we have
+\begin{eqnarray*}
+  \Ex[X] &=& \Ex\left[\sum_{i=1}^d X_i\right] = \sum_{i=1}^d \Ex[X_i]\\
+  &=& \sum_{i=1}^d \frac{2^k}{t-i+1} = \sum_{i=t-d+1}^t \frac{2^k}{i} \\
+  &=& 2^k \left( \sum_{i=1}^t \frac{1}{i} - \sum_{i=1}^{t-d} \frac{1}{i} \right) \\
+  &=& 2^k (H_t - H_{t-d}) = \Theta\left(2^k \log{\frac{t}{t-d}}\right)
+\end{eqnarray*}
+\end{proof}
+
+The result in Lemma~\ref{LEMMA:d-t-cover} indicates that when $t$ is a
+significant fraction of $2^k$ or $d$ is a small fraction of $t$, the
+expected number of samples for $(d,t)$-target cover is not overwhelming.
+Take the Boolean function $Maj_5$ and the target $\min_{maj}$ as an
+example. The expected number of uniform samples to cover at least 3 out
+of the 10 target assignments is $2^5 \cdot (H_{10} - H_{7}) \approx
+10.76$.
+

@@ -1,0 +1,101 @@
+
+\section{Appendix}
+
+\subsection{Failure Sampling Algorithm}
+\label{subsec-failure}
+
+The pseudocode of our proposed failure sampling algorithm
+is presented in Algorithm~\ref{alg-monteCarlo}.
+
+\begin{algorithm}[h]
+\begin{footnotesize}
+\KwIn{\ft $G$ and the number of samples $N$}
+\KwOut{RG}
+\For{$i \leftarrow 1$ to $N$}{
+  \ForEach{$event_i \in G$ by reversed breadth-first traversal}{
+    \If{$event_i$ is {\em basic event}}{
+      $event_i.occurrence \leftarrow 0$ or $1$ based on random flipping
+a fair coin}
+    \Else{
+      $event_i.occurrence \leftarrow 0$\;
+      \If{$event_i.InputGate$ is {\em OR}}{
+        \ForEach{$c_i \in event_i.ChildList$}{
+          \If{$c_i.occurrence$ is $1$}{
+            $event_i.occurrence \leftarrow 1$\;
+            break\;
+          }
+        }
+      }
+      \Else(\tcc*[f]{$event_i.InputGate$ is {\em AND}}){
+        \ForEach{$c_i \in event_i.ChildList$}{
+          \If{$c_i.occurrence$ is $0$}{
+            break\;
+          }
+        }
+        $event_i.occurrence \leftarrow 1$\;
+      }
+    }
+  }
+  \If{$root.occurrence$ is $1$}{
+    $TmpSet \leftarrow \emptyset$\;
+    \ForEach{$event_i \in G$}{
+      \If{$event_i.occurrence$ is $1$}{
+        $TmpSet.append(event_i)$\;
+      }
+    }
+    RG.append(TmpSet)\;
+  }
+}
+{\bf return} RG\;
+\end{footnotesize}
+\caption{Failure sampling algorithm}
+\label{alg-monteCarlo}
+\end{algorithm}
+
+
+\subsection{Kissner and Song Protocol}
+\label{subsec-ks}
+
+In order to compare \pia, we implemented a typical private
+set intersection cardinality protocol, 
+Kissner and Song (KS)~\cite{kissner05privacy}.
+
+\paragraph{KS protocol}
+KS allows a group of $k$ parties with
+multisets $S_1,...,S_k$ to compute privately $|\cap_i S_i|$, the number
+of elements they have in common,
+without learning the specific elements in $\cap_i S_i$.
+In addition, KS needs to use a homomorphic encryption
+scheme such as the Paillier cryptosystem~\cite{paillier99public}.
+At the initial phrase of the protocol, 
+the $k$ parties use a homomorphic cryptosystem
+to share a secret key $sk$ amongst themselves, while the
+corresponding public key $pk$ is known to all parties.
+With the above keys in hands, the protocol computes $|\cap_i S_i|$
+as follows.  
+First, each party $p_i$ encrypts a polynomial $P_i$ whose
+roots are the elements of its local input data set $S_i$.
+The encrypted polynomials are essentially added together, thus
+yielding a polynomial $P$ whose roots are the elements in the
+union sets of all the parties.
+Each party $p_i$, then, evaluates $P$ on the elements $e_{ij}$ of its
+local data set $S_i$, yielding values $v_{ij} = P(e_{ij})$; however,
+since $sk$ is shared, no individual party can decrypt the $v_{ij}$.
+The $k$ parties securely re-randomize and shuffle the $v_{ij}$ based on
+the approach~\cite{neff01verifiable}, such that each party 
+learns all the $v_{ij}$
+but cannot tell which party it came from.
+Finally, The $k$ parties jointly decrypt the $v_{ij}$.  
+If there are $n$ elements in
+the intersection, this would yield $n \cdot k$ zeros; thus, each party
+can compute the final result by dividing the number of 
+zeros by $k$.
+
+\paragraph{Implementation of KS.}
+Following the above description, we have implemented 
+KS for comparing with our system in Java.  
+Based on our knowledge, this is the first effort
+implementing a practical system based on KS.
+In our implementation, we used MD5 for hashing operations,
+and use the thep library~\cite{thep} to implement
+Paillier cryptosystem.

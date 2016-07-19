@@ -1,0 +1,201 @@
+% !TEX root =  main.tex
+\documentclass[12pt]{yalephd}
+
+%\usepackage{times}
+\usepackage{epigraph}
+\setlength\epigraphwidth{12cm}
+\setlength\epigraphrule{0pt}
+\usepackage{caption}
+\usepackage{comment}
+\usepackage{cite}	% sort citation numbers
+\usepackage[hyphens]{url}
+\usepackage[colorlinks,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage[hyphenbreaks]{breakurl}
+\usepackage{xspace}
+\usepackage{graphicx}
+%\usepackage{amssymb}
+%\usepackage{amsmath, mathptmx}
+\usepackage{subfig}
+\usepackage[algoruled,vlined,ruled]{algorithm2e}
+\usepackage{titlesec}
+\usepackage{verbatim}
+\usepackage{boxedminipage}
+\usepackage{paralist}
+
+%\usepackage{subcaption}
+\usepackage{rotating}
+\usepackage[table]{xcolor}
+\usepackage{multirow}
+\usepackage{amsfonts}
+\usepackage{colortbl}
+\usepackage{amsmath}
+
+\usepackage{appendix}
+
+
+\long\def\com#1{}
+
+% Choose abbreviated or long-version alternatives in paper
+\long\def\abbr#1#2{#1}			% abbreviated version
+%\long\def\abbr#1#2{#2}			% long version
+
+% Choose abbreviations or long names/titles in bibliography
+%\def\bibbrev#1#2{#1}			% short version
+\def\bibbrev#1#2{#2}			% long version
+% \def\bibbrev#1#2{\abbr{#1}{#2}}		% follow abbr macro
+
+% Conference abbreviations: \bibconf[Nth]{SOSP}{Symposium on ...}
+\newcommand{\bibconf}[3][]{#1 \bibbrev{#2}{#3 (#2)}}
+
+% Nice section separator with asterisks
+\newcommand{\parasep}{\begin{center}*\hspace{6em}*\hspace{6em}*\end{center}}
+
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{d}{>{\columncolor{green}}c}
+\newcolumntype{i}{>{\columncolor{yellow}}c}
+\newcolumntype{n}{>{\columncolor{red}}c}
+\newcolumntype{g}{>{\columncolor{lightgray}}c}
+
+
+\newcommand{\rg}{RG\xspace}
+\newcommand{\rgs}{RGs\xspace}
+
+% System name
+\newcommand{\app}{INDaaS\xspace}
+\newcommand{\application}{Independence-as-a-Service\xspace}
+\newcommand{\sia}{SIA\xspace}
+\newcommand{\pia}{PIA\xspace}
+
+% One of dependency collection tools
+\newcommand{\acq}{NSDMiner\xspace}
+\newcommand{\acqx}{NetAcq\xspace}
+\newcommand{\pso}{P-SOP\xspace}
+\newcommand{\pjsc}{PJSC\xspace}
+
+% Fault graph
+\newcommand{\ft}{fault graph\xspace}
+\newcommand{\fts}{fault graphs\xspace}
+\newcommand{\Fts}{Fault graphs\xspace}
+\newcommand{\comset}{component set\xspace}
+\newcommand{\comsets}{component sets\xspace}
+\newcommand{\fset}{fault set\xspace}
+\newcommand{\fsets}{fault sets\xspace}
+
+\hyphenation{NetPilot Alice NSDMiner PeerReview INDaaS
+             Jaccard DepDB NameNode DataNode OpenStack
+             MongoDB Redis CouchDB Riak HardwareLister MinHash}
+
+
+\newcommand{\Ex}{\mathop{\bf E\/}}
+
+\newcommand{\para}[1]{\smallskip\noindent {\bf #1}}
+\newcommand{\paragraphx}[1]{{\vspace{0.12cm}{\noindent {\bf #1}}}}
+
+%\lstset{basicstyle=\footnotesize\ttfamily}
+
+
+
+%------------------------------------------ added by Ronghui Gu
+%\usepackage[colorlinks=false,allcolors=black,breaklinks,draft=false]{hyperref} 
+\usepackage{listings, multicol} %for code
+\usepackage{amsthm}
+\usepackage{paralist}
+\usepackage{enumitem}
+\theoremstyle{newstyle}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newcommand*{\Scale}[2][4]{\scalebox{#1}{$#2$}}
+\usepackage{mathpartir}
+\usepackage{multirow}
+\usepackage[scaled=0.78]{DejaVuSansMono}
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+\usepackage{xspace}
+\usepackage{tcolorbox}
+\usepackage{xypic} % forward simulation diagram
+\usepackage{subfig}
+\usepackage{tabularx}
+\usepackage{MnSymbol}
+\usepackage{relsize}
+\usepackage[font=small,labelfont=bf]{caption}\usepackage[normalem]{ulem}
+\usepackage{cancel}
+\usepackage{bussproofs} %for proof trees
+\usepackage{stmaryrd} %for llbracket
+\usepackage[numbers,square]{natbib}
+%---------------------------------------------------- added by Ronghui Gu, Code Package
+\lstset{ %
+  backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}
+  basicstyle=\ttfamily\small,        % the size of the fonts that are used for the code
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  %captionpos=b,                    % sets the caption-position to bottom
+  commentstyle=\color{mygreen},    % comment style
+  deletekeywords={...},            % if you want to delete keywords from the given language
+  escapeinside={<@}{@>},          % if you want to add LaTeX within your code
+  extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  %frame=single,	                   % adds a frame around the code
+  keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+  keywordstyle=\color{blue},       % keyword style
+  language=Octave,                 % the language of the code
+  otherkeywords={*,Inductive,Record,typedef,struct, Function , Definition, ...},     
+  deletekeywords={get},
+        % if you want to add more keywords to the set
+  emph = {in, uint, match, end, with, let,ret, do, forall, exist},
+  emphstyle=\color{teal},%
+  moredelim=[is][emphstyle]{|>}{<|},%
+  numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+  numbersep=2pt,                   % how far the line-numbers are from the code
+  numberstyle=\tiny\color{mygray}, % the style that is used for the line-numbers
+  rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  stepnumber=1,                    % the step between two line-numbers. If it's 1, each line will be numbered
+  stringstyle=\color{mymauve},     % string literal style
+  tabsize=2,	                   % sets default tabsize to 2 spaces
+  %title=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
+  %xrightmargin = -10pt,  
+  %xleftmargin = 0pt,
+}
+%----------------------------------------------------
+
+\author{Ronghui Gu}
+\title{\CTOS: An Extensible Architecture for Building
+Certified Concurrent OS Kernels}
+\date{August 2016}
+\advisor{Zhong Shao}
+
+\input{local}  % all the local macros used in the paper
+
+\begin{document}
+
+\input{abs}
+\maketitle
+\makecopyright
+\input{ackpre}
+\input{ack}
+\input{efforts}
+\tableofcontents
+\listoffigures
+\listoftables
+\mainmatter
+\input{intro}
+\input{prob}
+\input{overview}
+\input{sequential}
+\input{seq-kernel}    % Case study: certified OS kernels (1 page)
+\input{concurrent}
+\input{con-kernel}    % Case Study: Concurrent CertiKOS (1.5 pages)
+\input{limit}
+\input{impl}
+\input{eval}
+\input{rel}
+\input{concl}
+\bibliographystyle{afaplain}
+\bibliography{os,sec,net,refs}
+
+\end{document}

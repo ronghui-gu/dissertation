@@ -1,0 +1,512 @@
+\section{Certified compilation and linking}
+\label{sec:comp}
+
+We would like to write most parts of our kernel in ClightX rather than
+in LAsm for easier verification.  This means that, for
+each layer interface $L$, we have to compile our ClightX($L$) source code to the
+corresponding LAsm($L$) assembly language in such a way that all
+proofs at the ClightX level are preserved at the LAsm
+level.
+
+This section describes how we have modified the CompCert compiler to
+compile certified C layers into certified assembly layers. It also talks about
+how we link compiled certified C layers with other certified assembly layers. 
+
+\subsection{The CompCertX verified compiler}
+
+To transport the proofs at ClightX down to LAsm, we adapt the CompCert
+verified compiler to parameterize all
+its intermediate languages over the layer interface $L$ similarly to
+how we defined ClightX($L$), including the assembly language. This gives rise to
+$\CompCertX{L}$ (for ``CompCert eXtended'', where external functions
+are instantiated with layer interface $L$).
+
+CompCertX goes from ClightX to the similarly parameterized AsmX and
+then to LAsm. We retain all features and optimizations of CompCert,
+including function inlining, dead code elimination, 
+constant
+propagation\footnote{With the exception of \texttt{const} global
+  variable unfolding},
+common subexpression elimination, and tail call
+recognition.
+
+% We skip execLoad, execStore for the moment
+
+\paragraph{Kernel mode}
+
+In addition to compiling $\ClightX{L}$ to the assembly
+language,  
+%(which we obtain by similarly parameterizing the CompCert
+%assembly language), 
+we have to ``compile'' --- in fact, reinterpret
+--- the obtained assembly code to the LAsm($L$) assembly language
+instantiated by the layer interface as well. However, remember that, contrary to
+ClightX, the semantics of memory accesses in LAsm is entirely
+parameterized by the layer interface $L$. Thus, it becomes necessary to prove
+that, for every access to the memory state in ClightX, the
+corresponding semantics of $\mathit{execLoad}$ and
+$\mathit{execStore}$ specified by the assembly layer interface $L$
+will actually operate on the memory state rather than on the abstract
+state.
+
+To this end, we require each layer interface to define a predicate
+$\mathit{kernelMode}$ on the type $A$ of abstract state specified by
+the layer interface $L$, with the following properties:
+
+\begin{itemize}
+\item for code in kernel mode, load and store memory accesses are
+  performed in the memory state, and the abstract state is unchanged
+  (and hence, stays in kernel mode):
+\[
+\begin{array}{lll}
+& \multicolumn{2}{l}{L = (\_, \_, \_, \mathit{execLoad}, \mathit{execStore})} \\
+\land & {\mathit{kernelMode}(a)} \\
+\Rightarrow & \mathit{execLoad}(v; \rho, m, a) & = m(v) \\
+\land & \mathit{execStore}(v_s, v; \rho, m, a) & = (\rho, m[v_s \leftarrow v], a)
+\end{array}
+\]
+
+\item every C-style primitive preserves kernel mode:
+\[
+\begin{array}{ll}
+& L = (\_, P, \_, \_, \_) \\
+\land & P(\mathit{args}, m, a, \mathit{res}, m', a') \\
+\land & {\mathit{kernelMode}(a)} \\
+\Rightarrow & {\mathit{kernelMode}(a')}
+\end{array}
+\]
+\end{itemize}
+
+These requirements illustrate the fact that address translation is an
+identity function during kernel code execution.
+
+
+\paragraph{Compiler correctness for CompCertX} 
+
+Because CompCert only proves semantics preservation for whole
+programs, the major challenge is to adapt the semantics preservation
+statements of all compilation passes (from Clight to assembly) 
+to per-function semantics.
+
+The operational semantics of all CompCert languages are given through
+small-step transition relations equipped with sets of whole-program
+initial and final states, so we have to redesign those states to
+per-function setting. For the initial state, whereas CompCert
+constructs an initial memory and calls \verb+main+ with no arguments,
+we take the function pointer to call, the initial memory, and the list
+of arguments as parameters. For the final state, we take not
+only the return value, but also the memory state when we exit the
+function.
+
+Consequently, the compiler correctness proofs have to
+change. Currently, CompCert uses a downward simulation diagram
+\cite[2.1]{Leroy-backend} for each pass from Clight, then, thanks to
+the fact that the CompCert assembly language is deterministic (up to
+input values given by the environment), CompCert composes all of them
+together before turning them to a single upward simulation which
+actually entails that the compiled code refines the source code.
+
+In this work, we follow a similar approach: for each individual pass,
+we prove per-function semantics preservation in a downward simulation
+flavor.
+We do not, however, turn it
+into an upward simulation, because the whole
+layer refinement proof is based on downward simulation,
+which is in turn turned into an upward simulation at
+whole-machine contextual refinement thanks to the determinism (up to
+the environment) of LAsm$(L)$.
+
+
+\paragraph{Memory state during compilation}
+
+The main difference between CompCert and CompCertX lies in the memory
+given at the beginning of a function call.
+
+In the whole-program setting, the initial state is the same
+across all languages, because it is uniquely determined by
+the global variables (which are preserved by compilation).
+On the other hand, in the middle of the execution
+when entering an arbitrary function,
+the memory in Clight is different from its assembly counterpart
+because CompCert introduces \emph{memory transformations} such as
+memory injections or extensions \cite[5.4]{leroy08}
+to manage the callees' stack frames.
+This is actually advantageous for compilation
+of handling arguments and the return address.
+
+For CompCertX, within the module being compiled, the same memory state
+mismatch also exists.
+At module entry, however, we cannot assume much about the
+memory state because it is given as a parameter to
+the semantics of each function in the module. In fact, this memory
+state is determined by the caller, so it may very well come from
+non-ClightX code (e.g., arbitrary assembly user code), thus we have to
+take the same memory as initial state across all the languages of
+CompCertX. It follows then that the arguments of the function already
+have to be present in the memory, following the calling convention
+imposed by the assembly language, even though ClightX does not read
+the arguments from memory.
+
+Another difference between CompCert and CompCertX is the treatment of
+final memory states. In CompCert, only the return value
+of a program is observable at the end; the final memory state
+is not. By contrast, in CompCertX, the final memory state
+is passed back to the caller hence observable. Thus, it is
+necessary to account for memory transformations when relating
+the final states in the simulation diagrams.
+
+\paragraph{Compilation refinement relation}
+Finally, the per-function compiler correctness statement of CompCertX
+can be roughly summarized as this commutative diagram and formally defined below.
+\[
+\xymatrix@R=3pt@C+=3pt{
+& v, m', a'
+\ar@<-3ex>@{_{(}-->}[dd]^j
+\ar@{_{(}-->}[dd]^j
+\ar@<3ex>@{==}[dd]
+\\
+\genfrac{}{}{0pt}{0}{l}{\rho}, m, a
+\ar[ur]^{L_\text{C}(f)}
+\ar@{-->}[dr]^{L_\text{Asm}(f)} \\
+l \approx m(\rho(\textsf{ESP}))
+& \rho', m'', a'
+}
+\]
+
+\begin{definition}
+Let $L_\text{C}$ be a C layer interface, and $L_{\text{Asm}}$ be an
+assembly layer interface. We say that $L_C$ is simulated by
+$L_{\text{Asm}}$ by compilation, written $L_{\text{C}}
+\leqslant^{\textrm{comp}} L_{\text{Asm}}$, if and only if, for any $\Gamma$, and for any execution $L_C(f)(l, m, a, v, m', a')$ of a primitive $f$ of $L_C$ for some list $l$ of arguments and some return value $v$, from  memory state $m$ and abstract state $a$ to $m'$ and $a'$, and for any register map $\rho$ such that the following requirements hold:
+\begin{enumerate}
+\item the memory $m$ contains the arguments $l$ in the stack pointed to by $\rho(\mathsf{ESP})$
+\item $\mathsf{EIP}$ points to the function $f$ being called: $\rho(\mathsf{EIP}) = (\Gamma(f), 0)$
+%% \item $kernelMode(a)$ holds
+\end{enumerate}
+Then, there is a primitive execution $L_{\text{Asm}}(f)(\rho, m, a,
+\rho', m'', a')$ and a memory injection $j$ from $m'$ to $m''$
+preserving the addresses of $m$ such that the following holds:
+\begin{itemize} %\itemsep 0pt
+\item the values of callee-save registers in $\rho$ are preserved in $\rho'$;
+\item $\rho'(\mathsf{EIP})$ points to return address $\rho(\mathsf{RA})$;
+\item the return value contained in $\rho'(\mathsf{EAX})$ (for integers/pointers) or $\rho'(\mathsf{FP0})$ (for floating-points) is related to $v$ by $j$;
+\end{itemize}
+\end{definition}
+
+\begin{theorem}
+\label{theorem:compcorect}
+Let $L$ be an assembly layer interface with all C-style primitives
+well-behaved. Then, for any $M$:
+\[
+\llbracket M \rrbracket L \leqslant^{\textrm{comp}} \llbracket \textrm{\emph{CompCertX}}(M) \rrbracket L
+\]
+\end{theorem}
+
+%{We will write 
+%$\llbracket M \rrbracket L \leqslant^{\textrm{comp}} \llbracket \mathrm{CompCertX}(M) \rrbracket L$
+%for a relation of this shape.}
+
+
+
+It follows that the way abstract state changes must remain intact during
+compilation.
+In other words, while a pointer to a stack-allocated
+variable can be passed to a primitive, it cannot be ``stored'' into
+the abstract state, as such pointer changes during compilation.
+
+\paragraph{Well-behaved primitives}
+
+To be able to use CompCertX, ClightX code can only call
+\emph{well-behaved} external functions. The operational semantics of
+ClightX described in Section~\ref{sec:prog} of this paper already
+guarantees that ClightX code will not call assembly-style primitives. Thus,
+ClightX, similarly to CompCert Clight, does not support primitives
+that do not follow a clear function call/return discipline, such as
+context switching, or primitives that would switch from kernel mode to
+user mode.
+
+However, this restriction is not enough. Just like external functions
+in CompCert, C layer primitives have to satisfy conditions for their
+specifications to be stable by compilation by CompCertX. In
+particular, they have to be stable by memory transformations
+introduced by the compiler, such as memory injections or extensions.
+
+
+
+\paragraph{Memory model and treatment of abstract state}
+
+It is interesting that CompCertX correctness proofs are agnostic to
+the semantics of external functions (besides their compilability
+requirements): in fact, they are not even aware of the presence of
+abstract state along with physical memory, because abstract state can
+be accessed only through primitives, and all calls to primitives are
+exactly preserved ``as is'' by each pass. In terms of Coq
+implementation, we did not even need to specify anything about the
+abstract state at all in compiler correctness proofs. We proceed in four steps:
+
+\begin{enumerate}
+\item We first axiomatically specify the memory model through its
+  operations (load, store, alloc, free) and requirements on their
+  semantics.
+\item Then, we parameterize the compiler correctness proofs of
+  CompCertX over such memory model by means of type classes.
+\item Independently of compiler correctness proofs, we provide a
+  way to lift any memory model along a lens and show that, if $M'
+  \stackrel{\pi}{\longrightarrow} M$ is a lens, then, $M'$ is a valid
+  memory model whenever $M$ is a valid memory model.
+\item Finally, once the compiler correctness is obtained, we
+  instantiate it for any abstract state type $A$ with the memory model $M \times A$
+  where $M$ is the concrete memory model implementation of CompCert,
+  thanks to the fact that $M \times A
+  \stackrel{\pi_1}{\longrightarrow} M$ is a lens.
+\end{enumerate}
+
+
+\paragraph{Stack issues} 
+We have to guarantee that the compiled code must not modify the stack
+of its caller, including its arguments and its spilling locations. To
+this end, we actually restrict the semantics of ClightX by not writing
+to memory blocks that may be the stack locations of the caller.  This
+restriction is necessary because of one pass in the compiler, namely the
+stack layout pass, relies on the fact that the produced code must not
+modify the locations corresponding to the function arguments, which
+are actually located in the caller's frame. Whereas the compiler
+can maintain this guarantee within a module, the arguments of the
+function called at module entry are in the initial memory state, so
+those locations have to be protected.\footnote{In whole-program
+  CompCert, there are no such function arguments in the initial memory
+  state, because \texttt{main} takes no arguments.}
+
+We successfully investigated two ways to ensure this guarantee:
+\begin{itemize}
+\item In an early version, we introduced tags on memory blocks to
+  distinguish stack from global variables, then we forbade ClightX
+  from writing to memory blocks labeled as stack blocks. The major
+  drawback of this method is that it very invasively modifies the
+  CompCert memory model.
+\item To avoid such deep changes, we instead disable writing on blocks
+  that are valid at module entry but do not correspond to global
+  variables. A further advantage of this method is that blocks that will be
+  created by the module being compiled (e.g. local stack-allocated
+  variables) may still be written to.
+\end{itemize}
+
+
+Then, the statement execution rules of ClightX become parameterized
+over the per-module initial memory $m_0$ received at module entry. Thus,
+the memory assignment rule becomes:
+
+\[
+\inferrule{
+\llbracket{} e_1 \rrbracket^\triangleleft(l, \tau, m) = (b, \mathit{ofs}) \\
+\llbracket{} e_2 \rrbracket^\triangleright(l, \tau, m) = v \\
+b \not\in \mathrm{dom}(m_0) \backslash \mathrm{dom}(\Gamma) \\
+m' = m[ (b, \mathit{ofs}) \leftarrow v ]
+}{
+  \Gamma, L, M, m_0, l \vdash e_1 = e_2 : (\tau, m, a) \downarrow
+  (\cdot; \tau, m', a)
+}
+\]
+
+and the semantics of a ClightX module $M$ becomes:
+
+\[
+\inferrule{
+  f \in \mathrm{dom}(M) \\
+  \Gamma, L, M, m \vdash f : (\mathit{args}; m, a) \Downarrow (\mathit{res}; m', a')
+}{
+  (\llbracket{}M\rrbracket{}L)(f)(\mathit{args}, m, a, \mathit{res}, m', a')
+}
+\]
+
+Similarly, we have to impose that memory reads in such blocks still be
+the same before and after any call to a C-style primitive defined in $L$:
+their semantics also becomes parameterized over $m_0$ in a similar way, with an analogous requirement:
+\[
+\forall b \in \mathrm{dom}(m_0) \backslash \mathrm{dom}(\Gamma), m'(b) = m(b)
+\]
+
+
+\subsection{Linking compiled code with assembly code} \label{sec:linking}
+
+Contrary to traditional separate compilation, we target compiling
+ClightX functions that may be called by LAsm assembly code.
+Since the caller may be arbitrary LAsm code, not necessarily well-behaved
+code written in or compiled from ClightX,
+we have to assume that the memory we are given follows LAsm layout.
+When reasoning about memory states that involve compiled code,
+we then have to accommodate memory injections introduced by the compiler.
+
+During a whole-machine refinement proof, the two memory states of the
+overlay and the underlay are related with a simulation relation $R$.
+However, consider when the higher (LAsm) code calls an overlay primitive,
+that, in the underlay, is compiled from ClightX.
+Because during the
+per-primitive simulation proofs we ignored the effects of the compiler,
+the memory injection introduced by the compiler may become a source of
+discrepancy.  That is why we encapsulate, in $R$,
+a memory injection between the higher memory state and the
+lower memory state. This injection is identity until the lower state
+calls a compiled ClightX function. Then, at every such call, the layer
+simulation relation $R$ can ``absorb'' compilation refinement on its
+right-hand side:
+
+\begin{lemma} \label{lem:sim-absorb-comp}
+If $L'$ and $L_\text{C}$ are C overlays and $L_{\text{Asm}}$ is
+an assembly underlay, with $L' \leqslant_R L_C$ and $L_\text{C} \leqslant^{\textrm{comp}} L_{\text{Asm}}$, then $L' \leqslant_R L_{\text{Asm}}$.
+\end{lemma}
+\begin{proof} 
+If $R$ encapsulates a memory injection $j_0$, and compilation introduces a
+memory injection $j$, then, the simulation relation $R$ will still hold with
+the composed memory injection $j \circ j_0$.
+\end{proof}
+
+\paragraph{Summary of the refinement proof with compilation and linking}
+Finally, the outline of proving layer refinement $L_1 \vdash M : L_2$,
+where $M = \textrm{CompCertX}(M_\text{C}) \oplus M_\text{Asm}$ is the union
+of a compiled ClightX module and an LAsm module,
+is summarized in the following steps, also shown in
+Fig.\ \ref{fig:layer-refinement-proof}:
+
+\begin{enumerate}   
+%\begin{compactenum}
+\item Split the overlay $L_2$ into two layer interfaces
+  $L_{2, \text{C}}$ and $L_{2, \text{Asm}}$ where $L_{2, \text{C}}$ is a C layer interface
+  containing primitive specifications to be implemented by
+  ClightX code (necessarily C-style) and $L_{2, \text{Asm}}$ is an assembly layer interface
+  containing all other primitives (implemented in LAsm), so that $L_2 = L_{2, \text{C}} \oplus
+  L_{2, \text{Asm}}$. (In particular, $L_{2, \text{Asm}}$ will contain the
+  memory accessors and the whole-machine initial state specification).
+\item For each such part of the overlay, design an intermediate layer interface
+  $L'_{1, \text{C}}$ and $L'_{1, \text{Asm}}$ with the same abstract state type as
+  $L_1$ (see Section \ref{sec:clightx-prog}), and
+  prove $L_{2, \text{C}} \leqslant_R L'_{1, \text{C}}$ and $L_{2, \text{Asm}} \leqslant_R
+  L'_{1, \text{Asm}}$ independently of the implementation. (In
+  particular, the proof of $L_{2, \text{Asm}} \leqslant_R
+  L'_{1, \text{Asm}}$ will also involve the refinement proofs for memory
+  accessors and whole-machine initial states)
+\item For both intermediate layer interfaces, prove that they are implemented by
+  modules $M_\text{C}$ and $M_\text{Asm}$ on top of
+  $L_1$ respectively, i.e.  $L'_{1, \text{C}} \leqslant_\id \llbracket M_\text{C} \rrbracket L_1$ and
+  $L'_{1,\text{Asm}} \leqslant_\id \llbracket M_{\text{Asm}} \rrbracket L_1$.
+\item Then, compile $M_\text{C}$:
+$\llbracket M_\text{C}
+  \rrbracket L_1 \leqslant^{\textrm{comp}} \llbracket
+  \textrm{CompCertX}(M_\text{C}) \rrbracket L_1$~~~via Theorem~\ref{theorem:compcorect}.
+
+\item
+Using \rulename{LLe-Trans} and \rulename{LLe-Mon} to combine 2.\ and 3., we have:
+$
+L_{2, \text{C}} \oplus L_{2, \text{Asm}}
+\leqslant_R
+  L'_{1, \text{C}} \oplus L'_{1, \text{Asm}}
+\leqslant_\id
+  \llbracket M_\text{C} \rrbracket L_1 \oplus
+  \llbracket M_{\text{Asm}} \rrbracket L_1
+$
+
+On the C side (left of $\oplus$), Lemma~\ref{lem:sim-absorb-comp} shows that
+$\leqslant_R$ absorbs $\leqslant^{\textrm{comp}}$.  By 4.:
+$
+L_{2, \text{C}} \oplus L_{2, \text{Asm}} \leqslant_R
+  \llbracket \textrm{CompCertX}(M_\text{C}) \rrbracket L_1 \oplus 
+  \llbracket M_{\text{Asm}} \rrbracket L_1
+$
+
+\item From the soundness of 
+\rulename{Hcomp}, 
+and because $M = \textrm{CompCertX}(M_\text{C}) \oplus M_\text{Asm}$,
+we have:
+\[\llbracket \textrm{CompCertX}(M_\text{C}) \rrbracket L_1 \oplus
+\llbracket M_\text{Asm} \rrbracket L_1 \leqslant_\id \llbracket
+M \rrbracket
+L_1 \]
+\item
+Finally, by combining 5. and 6., we have 
+$L_{2, \text{C}} \oplus L_{2, \text{Asm}}
+\leqslant_R  \llbracket M \rrbracket L_1$.  
+Since~ $L_2 = L_{2, \text{C}} \oplus L_{2, \text{Asm}}$, 
+by using \rulename{LLe-Ub-Left}
+and \rulename{LLe-Comm},
+we have: 
+$L_2 \leqslant_R  \llbracket M \rrbracket L_1
+\leqslant_\id \llbracket M \rrbracket L_1 \oplus L_1
+\leqslant_\id L_1 \oplus \llbracket M \rrbracket L_1$,
+thus we get ~$L_1 \vdash_R M : L_2$.
+%%
+%\[\begin{array}{r@{\;}c@{\;}l@{}r}
+%L_{2, \text{C}} \oplus L_{2, \text{Asm}}
+%&\leqslant_R&
+%  \llbracket M \rrbracket L_1
+%  & \text{\small{}5.\ \& 6.} \\
+%&\leqslant_\id& \llbracket M \rrbracket L_1 \oplus L_1
+%  & \text{\small\rulename{LLe-Ub-Left}} \\
+%&\leqslant_\id& L_1 \oplus \llbracket M \rrbracket L_1
+%  & \text{\small\rulename{LLe-Comm}}
+%\end{array} \]
+%\end{compactenum}
+\end{enumerate} 
+
+\begin{figure}
+\[
+\xymatrix@R=12pt@C=3pt{
+%
+L_{2, \text{C}} \ar[d]^{\leqslant_R}_{\text{\tiny 2.}} &
+\bigoplus^{\text{\tiny 1.}} &
+L_{2, \text{Asm}} \ar[d]^{\leqslant_R}_{\text{\tiny 2.}} &
+= L_2 \\
+%
+L'_{1, \text{C}} \ar[d]^{\leqslant_\id}_{\text{\tiny 3.}} & &
+L'_{1, \text{Asm}} \ar[dd]^{\leqslant_\id}_{\text{\tiny 3.}} \\
+%
+\llbracket M_\text{C} \rrbracket L_1
+\ar[d]^{\leqslant^{\textrm{comp}}}_{\text{\tiny 4.}} \\
+%
+\llbracket \textrm{CompCertX}(M_\text{C}) \rrbracket L_1 &
+\bigoplus \ar[d]^{\leqslant_\id}_{\text{\tiny 6.}} &
+\llbracket M_\text{Asm} \rrbracket L_1 \\
+%
+& + \save[]+<-37.90pt,0pt>*\txt{
+$\llbracket M \rrbracket L_1 =
+ \llbracket \textrm{CompCertX}(M_\text{C}) \oplus M_\text{Asm} \rrbracket L_1$
+}
+\ar@{<-} `_r[rr] [uuuurr]_{\leqslant_R}^{\txt{\tiny 5.\\ \tiny 7.}}
+\restore
+& &
+}
+\]
+\caption{Proof steps of layer refinement $L_1 \vdash_R M : L_2$}
+\label{fig:layer-refinement-proof}
+\end{figure}
+
+\subsection{Linking across layers before compiling}
+
+Instead of compiling each module within its own layer interface, our layer
+calculus also provides ways to first link code at the C level across
+layers before compiling. Let $L_3$ be an overlay, $L_1$ be an
+underlay, and $L_2$ be an intermediate layer interface. Let us assume that we
+split each layer interface $L_i$ into two layer interfaces $L_i^C \oplus
+L_i^{\mathrm{Asm}}$ and that we proved $L_{i}^{\mathit{lang}} \vdash_{R_i}
+M_i^{\mathit{lang}}: L_{i+1}^{\mathit{lang}}$ for each $i \in \{1,2
+\}$ and $\mathit{lang} \in \{ C, \mathrm{Asm} \}$.
+
+Then, on each side, we can do vertical composition and obtain
+$L_1^{\mathit{lang}} \vdash_{R_2 \circ R_1} M_1^{\mathit{lang}} \oplus
+M_2^{\mathit{lang}} : L_3$. We can then follow the process described
+in subsection~\ref{sec:linking} with $H = L_3$, $L = L_1$ and
+$M^{\mathit{lang}} = M_1^{\mathit{lang}} \oplus M_2^{\mathit{lang}}$, so that we obtain:
+\[
+L_1 \vdash_{R_2 \circ R_1} \mathrm{CompCertX}(M_1^C \oplus M_2^C) \oplus M_1^{\mathrm{Asm}} \oplus M_2^{\mathrm{Asm}}: L_3
+\]
+
+This shows that compiling before linking is possible as soon as
+ClightX supports vertical composition with refinement. The
+corresponding Coq proof is underway. Thus, because CompCertX already
+supports function inlining (within a single module) just like CompCert
+does, if an intermediate layer interface defining ``getter-setters'' is to be
+implemented through simple functions performing only a single memory
+access, then compilation before linking will allow suppressing the
+function call overhead for these simple functions, as they are linked
+within a single module before compilation, so that memory accesses
+will be inlined in the overlay implementation.
+

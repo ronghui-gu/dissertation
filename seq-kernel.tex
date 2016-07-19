@@ -1,0 +1,166 @@
+\chapter{Case study: certified sequential OS kernels}
+\label{chap:kernel}
+
+\section{Overview of certified sequential kernels}
+To demonstrate the power of our new languages and tools,
+we have applied our new layered approach to specify and
+verify four variants of \mCTOS{} kernels in the Coq proof assistant.
+This section describes these kernels and the benefits of the approach.
+
+The \mCTOSbase{} base kernel is a simplified uniprocessor version of
+the CertiKOS kernel~\cite{gu11} designed for the 32 bit x86
+architecture.  It provides a multi-process environment for user-space
+applications using separate virtual address space, where the
+communications between different applications are established by
+message passing.  The \mCTOShyper{} kernel, built on top of the base
+kernel, is a realistic hypervisor kernel that can boot recent versions
+of unmodified Linux operating systems (Debian 6.0.6 and Ubuntu
+12.04.2).  The \mCTOSringz{} kernel extends the hypervisor supporting
+``ring 0'' processes, hosting ``certifiably safe'' services and
+application programs inside the kernel address space.  Finally, we
+strip the last kernel down to the \mCTOSembed{} kernel, removing
+virtualization, virtual memory, and user-space interrupt handling.
+This results in a minimal operating system suitable for embedded
+environments.
+
+The layer structures of these kernels are shown in the top half of
+Fig.\ \ref{fig:kernel-layers};
+each block in the top half represents a collection
+of sub-layers shown in the bottom half (as we zoom in on \mCTOShyper).
+
+\paragraph{\mCTOSbase{}}
+The layered approach is the key to our success in fully certifying a kernel.
+In Sec.~\ref{sec:clightx-prog}, we have shown how to define getters and
+setters for abstract data types like those in Fig.\ \ref{fig:alt},
+allowing higher layers to manipulate abstract states.
+Furthermore, layering is also crucial to certification of thread queues
+as discussed in Sec.~\ref{sec:overview}.
+Instead of directly proving that a C linked-list implements a functional list,
+we insert an intermediate layer as shown in Fig.~\ref{fig:queue}
+to divide the difficult task into two steps.
+
+These may look like mere proof techniques for enabling abstract states
+or reducing proof effort, but they echo the following mantra which 
+makes our certification more efficient and scalable:
+\begin{quote}
+\emph{Abstract in minimal steps, specify \emph{full} behavior,
+and hide \emph{all} underlying details.}
+\end{quote}
+This is also how we prove the overall contextual correctness
+guarantees for all system calls and interrupt handlers.
+Fig.~\ref{fig:pagefault-call-graph} shows the call graph of the page
+fault handler, including all functions called both directly and
+indirectly.  Circles indicate functions, solid arrows mean primitive
+invocations, and faint dashed lines are primitives that are translated
+by all the layers they pass through.
+
+Defined in \textsf{TSysCall} layer interface, the page fault handler makes use of
+\textsf{proc\_exit} and \textsf{proc\_start}, both defined in \textsf{PProc}d layer interface.
+Since the invocations of them are separated by other primitive calls,
+one may expect that the invariants need to be re-established or
+the effects of the in-between calls re-interpreted.
+Fortunately, as our mantra suggests, when the in-between layers translate
+the two primitives to \textsf{TTrap} layer interface, the behaviors of them are
+\emph{fully} specified in terms of \textsf{TTrap}'s abstract states,
+and the invariants of \textsf{PProc} layer interface are considered the underlying
+details and have \emph{all} been hidden.
+This is especially important for calls like \textsf{proc\_exit} to
+\textsf{ikern\_set} which span over 20 layers with the abstract states
+so different that direct translation is not feasible.
+
+\begin{figure}[t]
+\center
+%\includegraphics[scale=0.3]{figs/layers}
+\includegraphics[scale=0.31]{figs/layers2} 
+\caption{Various \mCTOS{} layer structures.
+Layer short-hands: TRAP: interrupt handling; VIRT: virtualization;
+PROC: process management; THR: thread management;
+VM: virtual memory; MM: physical memory management.}
+\label{fig:kernel-layers}
+\end{figure}
+
+Finally, kernel initialization is another difficult task
+that has been missing from other kernel verification projects.
+
+Previous efforts on certifying initialization have led to massive duplication
+of logical components as shown in \cite{vaynberg12}.
+
+The key observation that frees us from such burden is that the traditional
+kernel initialization process is not compatible with
+\emph{``specify full behavior and hide all underlying details.''}
+For example, \textsf{start\_kernel} in Linux
+kernel \footnote{\url{https://github.com/torvalds/linux/blob/master/init/main.c\#L501}}
+makes a sequence of calls to module initializations.  \mCTOSbase's
+initialization (see its call graph in
+Fig.\ \ref{fig:mcertikos-init-call-graph}) is a \emph{chain} of calls
+to layer initializations; this pattern complies with the guideline that 
+initializing one layer should
+hide the detail about initializing the lower layers.
+%and makes certification possible without extra constructs.
+Without layering, the specifications of \emph{all} functions will be populated
+with initialization flags for each module they depend on. This
+makes encapsulation harder and could also lead to
+a quadratic blowup in size and proving effort.
+
+\begin{figure}
+%\vspace*{-2pt}
+\center
+\includegraphics[scale=0.3]{figs/pagefault2}
+\caption{Call graph of the page fault handler}
+\label{fig:pagefault-call-graph}
+\end{figure}
+
+\begin{figure}
+\center
+\includegraphics[scale=0.3]{figs/initialization}
+\caption{Call graph of \mCTOSbase{} initializer}
+\label{fig:mcertikos-init-call-graph}
+\end{figure}
+
+%\vspace*{-8pt}
+\paragraph{\mCTOShyper{}}
+The \mCTOShyper{} kernel provides core primitives to build
+full-fledged user-level hypervisors by supporting one of the two
+popular hardware virtualization technologies -- AMD SVM.  The primitives
+include the operations for manipulating the virtual machine status,
+handling VMEXITs, starting or stopping a virtual machine, {\it etc}.
+The details of virtualization, e.g., the virtual machine control block
+and the nested page table, are hidden from the guest applications.
+The hypervisor functionalities are implemented in nine layers and then
+inserted in between process management and interrupt handling layers.
+The layered approach allows us to do so while (1) only modeling
+virtualization-specific structures when needed; (2) retaining
+primitives in the layer interface \textsf{PProc} by systematic lifting; and
+(3) adding new primitives (including a new initialization function)
+guaranteed not to interfere with existing primitives.
+
+%\vspace*{-8pt}
+\paragraph{\mCTOSringz{}}
+The \mCTOSringz{} kernel explores a different dimension---instead
+of adding intermediate layers, we augmented a few existing layers 
+(in \mCTOShyper{}) with support of ring 0 processes.
+The main modification is at
+\textsf{PProc}, where an additional kind of threads is defined.
+However, all the layers between \textsf{PProc} and \textsf{TSysCall} also
+need to be extended to expose the functionality as system calls.
+Thankfully, since all the new primitives are already described in deep
+specifications, lifting them to system calls only requires equality
+reasoning in Coq.
+
+%\vspace*{-8pt}
+\paragraph{\mCTOSembed{}}
+The \mCTOSembed{} kernel cuts features down to a bare minimum: it does
+not switch to user mode, hence does not require memory protection and
+does not provide system call interfaces.  This requires \emph{removing}
+features instead of adding them.  Since the layered structure minimizes
+entanglements by eliminating unnecessary dependencies and code coupling,
+the removal process was relatively easy and straightforward.
+Moreover, removing the top 12 layers requires no additional
+specifications for those now top-level primitives---deep specifications
+are suitable for both internal reasonings and external descriptions.  Thread and process
+management layers now sit directly on top of physical memory
+management; virtual memory is never enabled.  The
+layers remain largely the same barring the removal of primitives
+mentioning page tables.
+
+\input{seq-case/seq-base}

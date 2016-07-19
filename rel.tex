@@ -1,0 +1,354 @@
+
+\chapter{Related Work}
+\label{chap-rel}
+
+\paragraph{Hoare-style program verification} Hoare logic~\cite{hoare69}
+and its modern variants~\cite{reynolds02,boogie05,nanevski06} were
+introduced to prove strong (partial or total) correctness properties
+of programs annotated with pre- and postconditions. A
+total-correctness Hoare triple $[P]C[Q]$ often means a refinement
+between the implementation $C$ and the specification $[P,Q]$: given
+any state $S$, if the precondition $P(S)$ holds, then the command $C$
+can run safely and terminate with a state that satisfies $Q$. Though
+not often done, it is also possible to introduce auxiliary/ghost
+states to serve as ``abstract states'' and prove that a program
+implements a specification via a simulation.
+  
+Our layer language can be viewed as a novel way of imposing a module
+system over Hoare-style program verification. We insist on using
+interfaces with deep specifications and we address the ``conflicting
+abstract states'' problem mentioned in
+Sec.~\ref{sec:overview}. Traditional program verification does not
+always use deep specification (for pre- and post-conditions) so the
+module interfaces (e.g., $[P,Q]$) may allow some safe but unwanted
+behaviors. Such gap is fine if the goal is to just prove safety (as in
+static type-checking), but if we want to prove the strong contextual
+correctness property across module boundaries, it is important that
+each interface accurately describes the functionality and scope of the
+underlying implementation.
+
+In addition to the obvious benefits on compositionality, our layered
+approach also enables a new powerful way of combining programming- and
+specification languages in a single setting. Each layer interface
+enables a new programming language at a specific abstraction level,
+which is then used to implement layers at even higher
+levels. As we move up the layer hierarchy, our programming language
+gets closer and closer to the specification language---it can call
+primitives at higher abstraction levels but it still supports
+general-purpose programming (e.g., in ClightX).
+
+Interestingly, we did not need to introduce any program logic to
+verify our OS kernel code. Instead, we verify it directly using the
+ClightX (or LAsm) language semantics (which is already conveniently
+parameterized over a layer interface).  In fact, unlike Hoare logic
+which shows that a program (e.g., $C$) refines a specification (e.g.,
+$[P,Q]$), we instead show there is a downward simulation from the
+specification to the program. As in CompCert, we found this easier to
+prove and we can do this because both our specification and language
+semantics are deterministic relative to external events.
+
+\paragraph{Stepwise program refinement}
+Dijkstra~\cite{Dijkstra72} proposed to ``realize'' a complex program
+by decomposing it into a hierarchy of linearly ordered ``abstract
+machines.''  Based on this idea, the PSOS team at SRI~\cite{psos80}
+developed the Hierarchical Development Methodology (HDM) and applied
+HDM to design and specify an OS using 20 hierarchically organized
+modules. HDM was difficult to be rigorously applied in practice,
+probably because of the lack of powerful specification and proof
+tools. In this paper, we advance the HDM paradigm by using a new formal
+layer language to connect multiple layers and by implementing all
+certified layers and proofs in a modern proof assistant. We also
+pursued decomposition more aggressively since it made our
+verification task much easier.
+
+Morgan's refinement calculus~\cite{morgan94} is a formalized approach
+to Dijkstra's stepwise refinement. Using this calculus, a high-level
+specification can be refined through a series of
+correctness-preserving transformations and eventually turned into an
+efficient executable. Our work imposes a new layer language to enhance
+compositional reasoning. We use ClightX (or
+LAsm) and the Coq logic as our ``refinement'' language,
+and use a certified layer (with deep specification)
+to represent each such correctness-preserving transformation.
+All our ClightX and LAsm instances have executable semantics and can be
+compiled and linked using our new CompCertX compiler.
+
+\paragraph{Separate compilation for CompCert} Compositional 
+compiler correctness is an extremely challenging
+problem~\cite{BentonH09,hur12}, especially when it involves an open
+compiler with multiple languages~\cite{perconti14}.  In the context of
+CompCert, a recent proposal~\cite{beringer14}
+aims to tackle the full Clight language but it has not been
+fully implemented in the CompCert compiler.  While our CompCertX
+compiler proves a stronger correctness theorem for each ClightX layer,
+the ClightX language is subtly different from the original
+full-featured Clight language. Within each ClightX layer, all locally
+allocated memory blocks (e.g., stack frames) cannot be updated by
+functions defined in another layer. This means that ClightX does not
+support the same general ``stack-allocated data structures'' as in
+Clight. This is fine for our OS kernels since they do not allocate any
+data structures on stack, but it means that CompCertX can not be
+regarded as a full featured separate compiler for CompCert.
+
+%
+% Previous work on object invariants have also considered how to specify
+% invariants for layered objects. They rely on some auxiliary flags to
+% specify when an invariant should hold and when it could fail. 
+% 
+% Some programming languages (e.g., Spec\#, JML, Eiffel) support rich
+% language constructs for specifying contracts, pre- and post conditions
+% and object invariants. 
+%
+% Another class of specification languages are verification intermediate
+% languages like Boogie. They make the prescription of verification
+% conditions natural and convenient. It contains both mathematical
+% and imperative component, but the imperative component is only used
+% for verification and it cannot be compiled to generate executable code. 
+%
+% Dafny is a programming language with classes and datatypes and
+% specification constructs for describing intended behaviors. It is
+% intended for proving functional correctness.
+% 
+% Hoare type theory describes a rich dependently typed language whose
+% rich types can be used to describe Hoare assertions, but their
+% implements relation is still a typechecking relation, not a 
+% simulation relation. They do not describe 
+%
+% Formal specification languages such as TLA, Z, Alloy, and AADL, can
+% build sophisticated models and reason about deep properties but they
+% are not concerned with connecting to the actual running code.  
+%
+% Data abstraction is abstraction over shallow specification. The
+% representation independence states that the behavior of client
+% programs should only depend on the functionality of an abstract
+% datatype, not the actual representation type.
+%
+
+\paragraph{OS kernel verification} The seL4
+team~\cite{klein2009sel4} were the first to build a proof of
+functional correctness for a realistic microkernel.  The seL4 work is
+impressive in that all the proofs were done inside a modern mechanized
+proof assistant. They have shown that the behaviors of 7500 lines of
+their C code always follow an abstract specification of their
+kernel. To make verification easier, they introduced an intermediate
+executable specification to hide C specifics. Both their abstract and
+executable specifications are ``monolithic'' as they are not divided
+into layers to support abstraction among different kernel modules.
+These kernel interdependencies led to more complex invariants which
+may explain why their effort took 11 person years.
+
+The initial seL4 effort was done completely at the C level so it does
+not support many assembly level features such as address translation.
+This also made verification of assembly code and kernel initialization
+difficult (1200 lines of C and 500 lines of assembly are still
+unverified). It is also unclear how to use their verified kernel
+to reason about user-level programs since they would be running in a
+different address space. Our certified kernels, on the other hand,
+directly model assembly-level machines that support all kernel/user
+and host/guest programs. Memory access to a user-level address space
+must go through a page table, and memory access in a guest virtual
+machine must go through a nested page table. We thus had no problem
+verifying our kernel initialization or assembly code.
+
+
+Recently, Sewell {\em et al.}~\cite{sewell13} used translation
+validation to build a refinement proof between the
+semantics of the seL4 binary (compiled by GCC) and the C source
+code. This is an intriguing way of establishing the correctness of a
+specific compilation run, as it did not rely on any certified
+compiler, but it seems to be more suitable for a fixed code base. 
+This might be suitable for seL4 since it is a minimal microkernel
+not subject to much modification or extension.
+
+This last point illustrates a key high-level difference between our
+two projects. Our compositional approach is developed not just for
+building a ``one-off'' lump of a verified microkernel, but instead, it
+aims to support advanced development of all kinds of verified kernels.
+In particular, we want to apply our layered framework to significantly
+enhance the modularity and extensibility of OS kernels.  In place of
+the rigid safety conditions used in traditional extension mechanisms
+(e.g., that kernel extensions must be
+type-safe~\cite{bershad95,hunt07}), our approach will assure both the
+safety and semantic {\em correctness} of extensions with respect to
+appropriate specifications.
+
+
+\paragraph{Modular verification of low-level code} 
+Vaynberg and Shao~\cite{vaynberg12} also used a layered approach to
+verify a small virtual memory manager. Their layers are not linearly
+ordered; instead, their seven abstract machines form a DAG with
+potential upcalls (i.e., calls from a lower layer to upper ones). As a
+result, their initialization function (an upcall) was much harder to
+verify. Their refinement proofs between layers are insensitive to
+termination, from which they can only prove partial correctness but
+not the strong contextual correctness property which we prove in our
+current work.
+
+Feng {\em et al.}~\cite{feng08:vstte} developed OCAP, an open
+framework for linking components verified in different
+domain-specific program logics. They verified a
+thread library with hardware interrupts and
+preemption~\cite{feng08:aim} using a variant of concurrent
+separation logic~\cite{ohearn:concur04}. They decomposed the thread
+implementation into a sequential layer (with interrupts disabled)
+and a concurrent layer (with interrupts enabled).
+Chlipala~\cite{BedrockPLDI11} developed Bedrock, an automated
+Coq library to support verified low-level programming. All these
+systems aimed to prove {\em partial correctness} only, so they are
+quite different from the layered 
+simulation proofs given in this paper.
+
+\paragraph{Certified abstraction layers} \citet{dscal15}
+presented the first formal account of certified abstraction layers and
+showed how to apply layer-based techniques to build certified system
+software. The layer-based approach differs from Hoare-style program
+verification~\cite{hoare69,reynolds02,boogie05,nanevski06} in several
+significant ways. First, it uses the termination-sensitive forward
+simulation techniques~\cite{Lynch95,compcert} and proves a stronger
+contextual correctness property rather than simple partial or total
+correctness properties (as done for Hoare logics). Second, the overlay
+interface of a certified layer object completely removes the internal
+concrete memory block (for the object) and replaces it with an
+abstract state suitable for reasoning; this abstract state differs
+from auxiliary or ghost states (in Hoare logics) because it is
+actually used to define the semantics of the overlay abstract machine.
+Third, as we move up the abstraction hierarchy by composing more
+layers, each layer interface provides a new programming language that gets
+closer to the specification language---it can call primitives at
+higher abstraction levels while still supporting general-purpose
+programming (e.g., in ClightX or LAsm).
+
+Our new formal framework for certified concurrent layers follows the
+same layer-based methodologies. Each time we introduce a new concrete
+concurrent object implementation, we replace it with an abstract
+atomic object in its overlay interface. All shared abstract states are
+represented as a single global log, so the semantics of each atomic
+method call would need to {\em replay} the entire global log to find
+out the return value.  This seemingly ``inefficient'' way of treating
+shared atomic objects is actually great for compositional
+specification. Indeed, it allows us to apply game-semantic ideas and
+define a general semantics that supports parallel layer composition.
+
+\paragraph{Abstraction for concurrent objects}
+\citet{herlihy90} introduced {\em linearizability} as a key technique
+for building abstraction over concurrent objects. Developing
+concurrent software using a stack of shared atomic objects has since
+become the best practices in the system
+community~\cite{Herlihy08book,ospp11}. Linearizability is quite
+difficult to reason about, and it is not until 20 years later that
+\citet{filipovic10} showed that linearizability is actually equivalent
+to a termination-insensitive version of the contextual refinement
+property. \citet{Gotsman12concur} showed that such equivalence also
+holds for concurrent languages with ownership
+transfers~\cite{ohearn:concur04}.  \citet{liang13,lili16} showed that
+linearizability plus various progress properties~\cite{Herlihy08book}
+for concurrent objects are equivalent to various termination-sensitive
+versions of the contextual refinement property. These results
+convinced us that we should follow \citet{dscal15} and prove
+termination-sensitive (contextual) simulation when building certified
+concurrent layers as well.
+
+\paragraph{RGSim} Building contextual refinement proofs
+for concurrent programs (and program transformations) is challenging.
+Liang~{et~al.}~\cite{RGSim,Liang14lics,lili16} developed the
+Rely-Guarantee-based Simulation (RGSim) that can support both parallel
+composition and also prove contextual refinement of concurrent
+objects. Our contextual simulation proofs between two concurrent
+layers can be viewed as an instance of RGSim if we extend RGSim with
+auxiliary states such as environment contexts and shared logs. This
+extension, of course, is the main innovation of our new compositional
+layered model. Also, all existing RGSim systems are limited to reasoning
+about atomic objects at one layer; their client program context cannot
+be the method body of another concurrent object, so they cannot
+support the same general vertical layer composition as our work does.
+
+%%%% The following paragraph might be optional %%%%
+\citet{lili16} also developed a program logic called LiLi that can
+directly prove both the linearizability and starvation-freedom (or
+deadlock-freedom) properties. Their ``rely'' conditions are specified
+over shared states only, so they cannot express temporal properties. To
+prove progress, they have to introduce a separate temporal ``rely''
+condition called {\em definite actions}.  This made it difficult to
+provide a standalone (total) specification for each lock acquire
+method.  Indeed, all examples in their paper are code fragments that
+must acquire a lock, then perform critical-section tasks, and then release the
+lock. In contrast, our environment context can specify the full
+strategies (i.e., both the past and the future behaviors) of all
+environment threads and the scheduler, so we can readily impose
+temporal invariants over the environment. Within each thread-modular
+layer $L[t]$, we can show that each lock acquire primitive (e.g., for
+ticket locks) always returns as long as its environment is cooperative
+(e.g., always releases its acquired lock), even if $t$ itself may not
+be cooperative.
+In other words, the termination of $t$'s lock acquire
+operation does not depend on whether $t$ itself will release the lock
+after first acquiring it.
+
+
+\paragraph{Treatment of parallel composition}
+Most concurrent languages (including those used by RGSim) use a
+parallel composition command $(C_1 \| C_2)$ to create and terminate
+new threads.  In contrast, we provide thread spawn and join
+primitives, and assign every new thread a unique ID (e.g., $t$, which
+must be a member of the full thread-ID domain set $D$). Parallel layer
+composition in our work is always done over the whole program $P$ over
+all members of $D$. This allows us to reason about the current
+thread's behaviors over the environment's full strategies (i.e., both
+its past and future behaviors). Even if a thread $t$ is never
+created, the semantics for running $P$ over $L[t]$ is still well
+defined since it will simply always query its environment context to
+construct a global log.
+
+\paragraph{Program logics for shared-memory concurrency}
+A large body of new program
+logics~\cite{ohearn:concur04,brookes:concur04,SAGL,vafeiadis:marriage,LRG,verifast,gotsman13,Turon13popl,Turon13icfp,nanevski13,nanevski14,sergey15,sergey15pldi,pinto14,iris15,pinto16}
+have been developed to support modular verification of shared-memory
+concurrent programs. Most of these follow Hoare-style logics so they
+do not prove the same strong contextual simulation properties as RGSim
+and our layered framework do. Very few of them (e.g.,~\cite{pinto16})
+can reason about progress properties. Nevertheless, many of these
+logics support advanced language features such as high-order functions
+and sophisticated non-blocking synchronization, both of which will be
+useful for verifying specific concurrent objects within our layered
+framework.  Our use of a shared global log and an environment context
+resembles the recent work~\cite{sergey15} on using compositional
+subjective auxiliary states to represent history traces; the main
+difference is again that our environment context can talk about both
+past and future behaviors but a history trace can only specify past
+behaviors. 
+
+\paragraph{Compositional CompCert}
+\citet{stewart15} developed a new compositional extension of the
+original CompCert compiler~\cite{compcert} with the goal of providing
+thread-safe compilation of concurrent Clight programs.  Their
+interaction semantics also treats all calls to synchronization
+primitives as external calls. Their compiler does not support a layered
+ClightX language as our CompCertX does, so it is unclear how it can
+be used to build concurrent layers involving a stack of atomic objects.
+
+\paragraph{Connection to game semantics} Even though we have used
+the game-semantic concepts (e.g., strategies) to describe the
+construction of our environment contexts and compositional semantics,
+our concurrent machine is still defined using traditional small-step
+semantics.  This is in contrast to several past
+efforts~\cite{ghica08,nishimura13,rideau11,abramsky99} of modeling
+concurrency in the game semantics community where they use games to
+define the semantics of a complete language. Modeling higher-order
+sequential features as games is great for proving full abstraction,
+but it is still unclear how it would affect large-scale program
+verification as done in the certified software community.  We do
+believe that there are great synergies between the two communities
+waiting to be explored and we hope that our current work can serve as
+a basis for promoting such interaction.
+
+\paragraph{OS kernel verification} There has been a large body
+of recent work on OS kernel verification including
+seL4~\cite{klein2009sel4,klein14},
+CertiKOS~\cite{dscal15,chen16,costanzo16}, Verve~\cite{hawblitzel10},
+and Ironclad~\cite{ironclad14}. None of these works have addressed the
+issues on concurrency with fine-grained locking. Very recently,
+\citet{xu16} developed a new verification framework based on RGSim
+and Feng~{et~al.}'s program logic~\cite{feng08:aim} for reasoning
+about interrupts; they have successfully verified many key modules
+(in C) in the $\mu$C/OS-II kernel, though so far, they have not proved
+any progress properties.
