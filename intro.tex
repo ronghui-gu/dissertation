@@ -7,6 +7,88 @@
 abstraction as our main mental technique to reduce the demands made upon
 enumerative reasoning.}{\\ \hfill --- Edsger W. Dijkstra}}
 
+
+Operating System (OS) kernels and hypervisors form the backbone of
+every safety-critical software system in the world.  Hence it is highly
+desirable to formally verify the correctness of these
+programs~\cite{shao10}.  
+Recent efforts
+~\cite{klein2009sel4,hawblitzel10,klein14,ironclad14,fscq15,cogent16}
+have shown that it is feasible to formally prove the functional
+correctness property of simple general-purpose kernels, and file systems, but the cost of such verification is
+still quite prohibitive. For example,
+it took the seL4 team more than 11 person
+years (effort for tool development excluded) to verify 7500 lines of
+sequential C code, yet the resulting kernel still contains 1200 lines
+of additional C code and 600 lines of assembly code that are not
+verified. Worse still, even after all these efforts, all of these systems have ignored the
+important issues of concurrency~\cite{kaashoek15,ospp11}, which
+include not just user- and I/O concurrency on a single CPU, but also
+multicore parallelism with fine-grained locking. This severely limits
+the applicability and power of today's formally verified system
+software.
+
+
+
+What makes the verification of OS kernels so challenging?
+{\em First, OS kernels are complex artifacts; they contain many
+  interdependent components that are difficult to untangle.} Their
+invariants can involve machine level details (\eg, how the virtual
+memory hardware works) but can also cut across multiple
+abstraction boundaries (\eg, different views of an address space
+under kernel/user or host/guest modes).  Several
+researchers~\cite{baumann12,vaynberg12} observed that even writing
+down a good and easy-to-maintain formal specification alone is already
+a major roadblock for any such verification effort.
+
+{\em Second, OS kernels are often written in C, which only supports
+  limited forms of abstraction,
+  but still lacks the ability to describe hardware details.}
+On one hand, the C language (especially ANSI C) is
+  too low level to abstract the data representations.
+Verifying C programs is
+especially hard if they manipulate low-level data structures (\eg,
+thread queues, allocation tables). The seL4 effort used an
+intermediate executable specification (derived from a Haskell
+prototype) to hide some messy C specifics, but this alone is not
+enough for enforcing abstraction among different kernel components;
+seL4 had to introduce capabilities which add significant
+implementation complexities to the kernel.
+On the other hand, the C language is
+too high level to describe the hardware details
+managed and multiplexed by OS kernels.
+For example, while most kernel code
+can be written in C, many key kernel concepts (\eg, context switches,
+address translation, page fault handling) can only be given accurate
+semantics at the assembly level. Consequently, we need a formal
+assembly model to define many kernel behaviors, but we also want to
+verify most kernel code at a much higher abstraction level.
+
+{\em Fourth, OS kernel verification would not scale if it does not 
+support extensibility.} One advantage of a verified
+kernel is the existence of formal specifications for all of its
+components. In theory, this would allow us to add certified
+kernel plug-ins
+~\cite{shao10:ctos} 
+as long as they do not violate any existing kernel invariants. In
+practice, however, if we are unable to decompose kernel invariants
+into small independent pieces, even modifying an existing (or adding a
+new) verified component may force us to rewrite the proofs for the
+entire kernel.
+
+In this paper, we present a novel compositional approach that
+successfully tackles all of the above challenges in building certified
+OS kernels. We believe that, to make verification scale and to provide
+strong support to extensibility, we must first have a {\em
+  compositional} specification that can untangle {\em all} the kernel
+interdependencies. Because the very purpose of an OS kernel is to
+build layers of abstraction over bare machines, we insist on
+meticulously uncovering and specifying these layers (done in the Coq
+proof assistant~\cite{coq}), and then verifying each kernel module at
+its {\em proper} abstraction level.
+
+
+\paragraph{POPL15}
 Modern hardware and software systems are constructed using a series of
 abstraction layers (e.g., circuits, microarchitecture, ISA
 architecture, device drivers, OS kernels, hypervisors, network
@@ -211,7 +293,7 @@ $\S$\ref{sec:related} and $\S$\ref{sec:concl} discuss related work and
 then conclude.
 
 
-
+\paragraph{POPL17}
 Abstraction layers (e.g., circuits, microarchitecture, ISA, device
 drivers, OS kernels, hypervisors, network protocols, and application
 APIs)~\cite{salzer09,baldwin00} are widely used in modern computer
@@ -430,6 +512,344 @@ Sec.~\ref{sec:related} discusses related work and then concludes.
 Finally, note that throughout this paper, all of our concurrent 
 abstract machines assume strong sequential consistency for atomic 
 primitives. Supporting relaxed memory models is left as future work. 
+
+
+\paragraph{SOSP15}
+
+Operating System (OS) kernels and hypervisors form the backbone of
+every safety-critical software system in the world.  Hence it is highly
+desirable to formally verify the correctness of these
+programs~\cite{shao10}.  
+Recent work on seL4~\cite{klein2009sel4,klein14} has shown that it is
+feasible to formally prove the functional correctness property of a
+general-purpose microkernel, but the cost of such verification is
+still quite prohibitive. It took the seL4 team more than 11 person
+years (effort for tool development excluded) to verify 7500 lines of
+sequential C code, yet the resulting kernel still contains 1200 lines
+of additional C code and 600 lines of assembly code that are not
+verified. Worse still, even after all these efforts, the current
+verified seL4 kernel cannot be used to reason about user-level
+programs as it does not verify important features such as
+virtual-memory page faults and address translation.
+
+What makes the verification of OS kernels so challenging?
+{\em First, OS kernels are complex artifacts; they contain many
+  interdependent components that are difficult to untangle.} Their
+invariants can involve machine level details (e.g., how the virtual
+memory hardware works) but can also cut across multiple
+abstraction boundaries (e.g., different views of an address space
+under kernel/user or host/guest modes).  Several
+researchers~\cite{baumann12,vaynberg12} observed that even writing
+down a good and easy-to-maintain formal specification alone is already
+a major roadblock for any such verification effort.
+
+{\em Second, OS kernels are often written in C, which only supports
+  limited forms of abstraction.}  Verification of C programs is
+especially hard if they manipulate low-level data structures (e.g.,
+thread queues, allocation tables).  The seL4 effort used an
+intermediate executable specification (derived from a Haskell
+prototype) to hide some messy C specifics, but this alone is not
+enough for enforcing abstraction among different kernel components;
+seL4 had to introduce capabilities which add significant
+implementation complexities to the kernel.
+
+{\em Third, OS kernels are developed for managing and multiplexing
+  hardware, so it is important to have a machine model that can
+  describe hardware details.} The C language (especially ANSI C) is
+too high level for this purpose. For example, while most kernel code
+can be written in C, many key kernel concepts (e.g., context switches,
+address translation, page fault handling) can only be given accurate
+semantics at the assembly level. Consequently, we need a formal
+assembly model to define many kernel behaviors, but we also want to
+verify most kernel code at a much higher abstraction level.
+
+{\em Fourth, OS kernel verification would not scale if it does not 
+support extensibility.} One advantage of a verified
+kernel is the existence of formal specifications for all of its
+components. In theory, this would allow us to add certified
+kernel plug-ins
+~\cite{shao10:ctos} 
+as long as they do not violate any existing kernel invariants. In
+practice, however, if we are unable to decompose kernel invariants
+into small independent pieces, even modifying an existing (or adding a
+new) verified component may force us to rewrite the proofs for the
+entire kernel.
+
+In this paper, we present a novel compositional approach that
+successfully tackles all of the above challenges in building certified
+OS kernels. We believe that, to make verification scale and to provide
+strong support to extensibility, we must first have a {\em
+  compositional} specification that can untangle {\em all} the kernel
+interdependencies. Because the very purpose of an OS kernel is to
+build layers of abstraction over bare machines, we insist on
+meticulously uncovering and specifying these layers (done in the Coq
+proof assistant~\cite{coq}), and then verifying each kernel module at
+its {\em proper} abstraction level.
+
+The functional correctness of an OS kernel (as done in seL4) is
+usually stated as a {\em refinement} property. Roughly speaking, if
+$\mimp$ stands for the C/assembly implementation of a kernel, $\mabs$
+for its abstract functional specification, and $\sem{}{\cdot}$ for
+each's corresponding state machine, then $\mimp$ refines $\mabs$ if
+there exists a {\em forward simulation}~\cite{Lynch95} from
+$\sem{}{\mimp}$ to $\sem{}{\mabs}$ (denoted as $\sem{}{\mimp} \Refrel
+\sem{}{\mabs}$).  Through such refinement, Gerwin {\em et
+  al}~\cite{klein14,murray13,sewell11,sewell13} claimed that many
+properties established for $\mabs$ (e.g.,
+confidentiality~\cite{murray13} when $\mabs$ is deterministic) can be
+transferred to $\mimp$.
+
+This claim, unfortunately, fails to hold in the context of any
+interesting user-level programs. If $P$ stands for a collection of
+user-level processes and $\;\join\;$ for a linking operator, then from
+$\sem{}{\mimp} \Refrel \sem{}{\mabs}$ alone, we cannot derive
+$\sem{}{\mimp\join{}P} \Refrel \sem{}{\mabs\join{}P}$. This is because
+the semantics of running $P$ on top of $\mabs$ (where virtual memory
+hardware is hidden) is different from that of running $P$ on top of
+$\mimp$ (where page faults and address translation do come into play).
+Daum~{\em et al}~\cite{daum14} partially closed the gap by extending
+the original refinement proof to also track memory permissions, but
+they still did not deal with page faults in their model of user
+transitions.  In this paper, we instead prove the strong {\em
+  contextual refinement} property for all kernel modules {\em
+  directly}: we show that for any kernel/user or host/guest context
+code $P$, $\sem{}{\mimp\join{}P} \Refrel \sem{}{\mabs\join{}P}$ always
+holds. This guarantees that we cannot overlook any subtle difference
+between machines at different abstraction levels.
+
+Our paper makes the following new contributions:
+\begin{itemize} \itemsep 0pt
+\item We present {\bf{}\CTOS}---a new extensible architecture for
+  building certified OS kernels. \CTOS\ uses {\em contextual
+    refinement} as the unifying formalism for composing kernel and
+  user components at different abstraction levels.  Each abstraction
+  layer is defined as an assembly-level machine extended with a
+  particular set of abstract states and primitives.  However, most of
+  our kernel programs are written in a variant of C (called
+  ClightX)~\cite{dscal15}, verified at the source level, and compiled
+  and linked together using a modified version~\cite{dscal15} of the
+  CompCert verified compiler~\cite{compcert,leroy09}.  As far as we
+  know, \CTOS\ is the first architecture that can truly transfer
+  global properties proved for user-level programs (at the kernel
+  specification level) down to the concrete assembly machine level.
+%%%%%%%
+\item Using \CTOS, we have developed a fully certified
+  {\bf \mCTOS} kernel in Coq. Unlike seL4, 
+  we decompose the specification of \mCTOS\ 
+  into 33 {\em logical} abstraction layers, and turn an otherwise 
+  prohibitive verification task into many simple and easily automatable 
+  sub-tasks. The resulting kernel is a certified assembly implementation 
+  that still enjoys a high degree of compositionality.
+  Our layered specification shows that
+  {\em interdependent} low-level kernel modules can indeed be
+  untangled and given clear formal semantics.
+%%%%%%%
+\item Using \mCTOS\ as the base, we have also built three additional
+  certified kernels: {\bf{}\mCTOShyper} extends \mCTOS\ with virtualization
+  support to form a hypervisor kernel;
+  {\bf{}\mCTOSringz} extends \mCTOShyper\ with ``ring 0'' processes
+  (they are ``certifiably safe'' application programs that can run safely 
+  inside the kernel address space, similar to SIPs in 
+  Singularity~\cite{hunt07}); {\bf{}\mCTOSembed} removes virtual memory
+  and virtualization support from \mCTOSringz\ so that it only supports 
+  ``ring 0'' processes.
+%%%%%%%
+\item We present a detailed evaluation of our certified development
+  effort, including kernel performance, the cost of
+  layer design and proof development,
+%  the cost of making changes (to certified kernels),
+  and the cost of building new extended (or adapted)
+  kernels. All of our certified kernels are practical and can run on stock
+  x86 hardware. Our certified hypervisor kernel (\mCTOShyper) consists
+  of 5500 lines of C and x86 assembly, and can successfully boot 
+  a version of Linux as a guest. The entire specification and proof effort 
+  took less than 1.5 person years. 
+\end{itemize}
+
+The rest of this paper is organized as follows.
+Sec.~\ref{sec:overview} gives an overview of our new
+\CTOS\ architecture. Sec.~\ref{sec:spec} presents the layer design
+process and common principles we have followed. Sec.~\ref{sec:base}
+and~\ref{sec:adapt} present the detailed development of the
+\mCTOS\ kernel and variants and how we prove certain global properties.
+Sec.~\ref{sec:imp} gives a detailed evaluation about our
+implementation. Sec.~\ref{sec:related} % and~\ref{sec:concl}
+discusses
+related work and then concludes.  The full artifact for our entire
+effort can be accessed at
+{~\small\url{http://sites.google.com/site/14ctos}}.
+
+
+\paragraph{OSDI16}
+Operating System (OS) kernels and hypervisors form the backbone of
+every safety-critical software system in the world.  Hence it is
+highly desirable to formally verify the correctness of these
+programs~\cite{shao10}. 
+Recent efforts~\cite{klein2009sel4,hawblitzel10,klein14,ironclad14,dscal15,fscq15,cogent16,chen16}
+have shown that it is feasible to formally prove the functional
+correctness property of simple general-purpose kernels, file systems,
+and device drivers, but all of these systems have ignored the
+important issues of concurrency~\cite{kaashoek15,ospp11}, which
+include not just user- and I/O concurrency on a single CPU, but also
+multicore parallelism with fine-grained locking. This severely limits
+the applicability and power of today's formally verified system
+software.
+
+What makes the verification of concurrent OS kernels so challenging?
+First, concurrent kernels allow interleaved execution of kernel/user
+modules across different abstraction layers; they contain many
+interdependent components that are difficult to untangle.  Several
+researchers~\cite{vontessin13,peters15} believe that the combination
+of concurrency and the kernels' functional complexity makes formal
+verification of functional correctness intractable, and even if it is
+possible, its cost would far exceed that of verifying a single-core
+sequential kernel.
+
+Second, concurrent kernels need to support all three types of
+concurrency (user, I/O, or multicore) and make them work coherently
+with each other. User and I/O concurrency rely on thread
+yield/sleep/wait primitives or interrupts to switch controls and
+support synchronization; these constructs are difficult to reason
+about since they transfer controls from one thread to another.
+Multicore concurrency with fine-grained locking requires sophisticated
+spinlock implementations such as MCS locks~\cite{mcs91}, which are also
+hard to verify.
+
+Third, concurrent kernels should also guarantee that each of their
+system calls eventually returns, but this depends on the progress of
+the concurrent primitives used in the kernels. Proving
+starvation-freedom~\cite{Herlihy08book} for concurrent objects only
+became possible recently~\cite{lili16}.  Standard Mesa-style condition
+variables~\cite{lampson80} do not guarantee starvation-freedom; this
+can be fixed by using a FIFO queue of condition variables, but the
+solution is not trivial and even the popular, most up-to-date OS
+textbook~\cite[fig~5.14]{ospp11} has gotten it
+wrong~\cite{anderson16}.
+
+Fourth, given the high cost of building concurrent kernels, it is
+important that they can be quickly adapted to support new applications
+and hardware platforms~\cite{bershad95,engler95,hunt07,unikernel13}.
+One advantage of a certified kernel is the formal specification for
+all of its components. In theory, this allows us to add certified
+kernel plug-ins as long as they do not violate any existing
+invariants.  In practice, however, if these invariants are complex,
+and if we are unable to encapsulate interference, even a small edit
+could incur huge verification overhead.
+
+In this paper, we present a novel compositional approach that tackles
+all these challenges. We believe that, to control the complexity of
+concurrent kernels and to provide strong support for extensibility, we
+must first have a {\em compositional} specification that can untangle
+{\em all} the kernel interdependencies and encapsulate interference
+among different kernel objects. Because the very purpose of an OS
+kernel is to build layers of abstraction over bare machines, we insist
+on meticulously uncovering and specifying these layers, and then
+verifying each kernel module at its {\em proper} abstraction level.
+
+The functional correctness of an OS kernel (as done in
+seL4~\cite{klein14}) is usually stated as a {\em refinement}
+property. This can be shown by constructing a {\em forward
+  simulation}~\cite{Lynch95} from the C/assembly implementation of a
+kernel ($K$) to its abstract functional specification ($S$). Of
+course, the ultimate goal of having a certified kernel is to reason
+about programs running on top of (or along with) the kernel. It is
+thus important to ensure that given any kernel extension or user
+program $P$, the combined code $K\join{}P$ also refines
+$S\join{}P$. If this fails to hold, the kernel is simply still
+incorrect since $P$ can observe the difference between $K$
+and $S$. \citet{dscal15} advocated proving such a {\em
+contextual refinement} property, but they only considered the {\em
+sequential} contexts (\ie, $P$ is sequential).
+
+For concurrent kernels, proving the {\em contextual refinement}
+property becomes essential. In the sequential setting, the only way
+that the context code $P$ can interfere with the kernel $K$ is when
+$K$ fails to encapsulate its private state, that is, $P$ can
+modify some internal state of $K$ without $K$'s permission.
+In the concurrent setting, the {\em environment} context ($\oracle$)
+of a running kernel $K$ could be other kernel threads or a copy of $K$
+running on another CPU. With shared-memory concurrency, the
+interference between $\oracle$ and $K$ are both necessary and often
+common; the sequential {\em atomic} specification $S$ is now replaced
+by the notion of linearizability~\cite{herlihy90} plus a progress
+property such as starvation-freedom.
+
+In fact, linearzability proofs often require event reordering that
+preserves the happens-before relation, so $K\,\join{}\,\oracle$ may not
+even refine $S\,\join{}\,\oracle$.  Contextual refinement in the
+concurrent setting requires that for any $\oracle$, we can find a {\em
+  semantically related}\ $\oracle'$ such that $K\,\join{}\,\oracle$ refines
+$S\,\join{}\,\oracle'$.  Several
+researchers~\cite{filipovic10,liang13,lili16} have shown that
+contextual refinement is precisely equivalent to the linearizability
+and progress requirements for implementing concurrent
+objects~\cite{Herlihy08book,herlihy90}.
+
+Our paper makes the following contributions:
+\begin{itemize} \itemsep 0pt
+\item We present {\bf{}\CTOS}---a new extensible architecture for
+  building certified concurrent OS kernels.  \CTOS\ uses 
+  contextual refinement over the ``concurrent'' {\em environment contexts}
+  ($\oracle$) as the {\em unifying} formalism for composing 
+  different concurrent kernel/user objects at different
+  abstraction levels.  Each $\oracle$ defines a specific instance on how
+  other threads/cores/devices respond toward the events generated by
+  the current running threads.  Each abstraction layer, 
+  parameterized over a specific $\oracle$, is an
+  assembly-level machine extended with a particular set of
+  abstract objects (\ie, abstract states plus atomic primitives).
+  \CTOS\ successfully decomposes an
+  otherwise prohibitive verification task into many simple and easily
+  automatable ones.
+%%%%%%%
+\item We show how the use of an environment context at each
+  layer allows us to apply standard techniques for
+  verifying sequential programs to verify concurrent programs.
+  Indeed, most of our kernel programs are written in a variant of C
+  (called ClightX)~\cite{dscal15}, verified at the source level, and
+  compiled and linked together using
+  CompCertX~\cite{dscal15}---a {\em thread-safe} version of the CompCert
+  compiler~\cite{compcert,leroy09}. As far as we
+  know, \CTOS\ is the first architecture that can truly build
+  certified concurrent kernels and transfer global properties proved
+  for programs (at the kernel specification level) down to the
+  concrete assembly machine level.
+%%%%%%%
+\item We show how to impose temporal invariants over these environment
+  contexts so we can verify the progress properties of various
+  concurrent primitives. For example, to verify the starvation-freedom
+  of ticket locks or MCS locks, we must assume that the multicore
+  hardware (or the OS scheduler) always generates a {\em fair}
+  interleaving, and those threads/cores which requested locks before
+  the current running thread will eventually acquire and then release
+  the lock. We show how these assumptions (over the environment contexts)
+  can be discharged when we compose different threads/cores to form
+  a complete verified system.
+%%%%%%%
+\item Using \CTOS, we have successfully developed a fully certified
+  concurrent OS kernel (called {\bf \mCTOS}) in Coq~\cite{coq}.  Using
+  \mCTOS\ as the base, we have also built a few additional certified
+  kernels with hypervisor or ring-0 process supports.  Our kernels
+  support both fine-grained locking and sleep-wakeup primitives and
+  can run on stock x86 multicore hardware. Our certified hypervisor
+  kernel consists of 6000 lines of C and x86 assembly, and can boot a
+  version of Linux as a guest.
+  % The specification and proof effort took less than two person years.
+  To our knowledge, this is the
+  first proof of functional correctness of a complete, general-purpose
+  concurrent OS kernel with fine-grained locking.
+\end{itemize}
+
+The rest of this paper is organized as follows.
+Sec.~\ref{sec:overview} gives an overview of our new
+\CTOS\ architecture. Sec.~\ref{sec:machine} shows how we use
+environment contexts to turn concurrent layers into sequential ones. 
+Sec.~\ref{sec:base} presents the development of the
+\mCTOS\ kernel and how we verify various concurrent kernel
+objects. Sec.~\ref{sec:imp} presents an evaluation of \CTOS. 
+Sec.~\ref{sec:related} discusses related work and then concludes.
+% The full artifact for our entire effort can be accessed at
+%   {~\small\url{http://sites.google.com/site/14ctos}}.
 
 
 

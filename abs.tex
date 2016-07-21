@@ -12,15 +12,15 @@ Despite their obvious
 importance, abstraction layers have almost never been formally specified or
 verified. This makes it difficult to establish strong correctness
 properties, and to scale program verification across multiple layers.
-What's more, concurrent abstraction layers are ubiquitous in OS kernels because of the pervasiveness of multi-threaded programming and
-multi-core hardware. This severely limits the applicability of
+What's more, concurrent abstraction layers are ubiquitous in OS kernels because of the pervasiveness of multithreaded programming and
+multicore hardware. This severely limits the applicability of
 layer-based techniques and makes it difficult to scale formal
 verification across multiple concurrent layers.
 
 
 Recent efforts
 have demonstrated the feasibility of building large scale
-formal proofs of functional correctness for simplegeneral-purpose
+formal proofs of functional correctness for simple general-purpose
 kernels, but the cost of such verification is still prohibitive,
 and it is unclear how to use their verified kernels to reason about
 user-level programs and other kernel extensions.
