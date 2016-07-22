@@ -3,20 +3,14 @@
 \begin{abstract}
 
 Operating System (OS) kernels form the backbone of all system
-software. They can have the greatest impact on the resilience,
+software. They can have a significant  impact on the resilience,
 extensibility, and security of today's computing hosts. 
-However, modern OS kernels are complex and consist of a multitude of abstraction layers,
-which have mostly been treated as a system
-concept.
-Despite their obvious
-importance, abstraction layers have almost never been formally specified or
+However, modern OS kernels are complex and consist of a multitude of 
+abstraction layers with concurrency; 
+unfortunately,
+concurrent abstraction layers have almost never been formally specified or
 verified. This makes it difficult to establish strong correctness
 properties, and to scale program verification across multiple layers.
-What's more, concurrent abstraction layers are ubiquitous in OS kernels because of the pervasiveness of multithreaded programming and
-multicore hardware. This severely limits the applicability of
-layer-based techniques and makes it difficult to scale formal
-verification across multiple concurrent layers.
-
 
 Recent efforts
 have demonstrated the feasibility of building large scale
@@ -37,11 +31,11 @@ abstraction over a particularly rich class of specifications, which are
 called {\em deep specifications}.
 To formally specify, program, verify, and compose
 concurrent abstraction layers,
-\CTOS{} provides a new layer
-calculus. 
-This thesis shows how to instantiate the layer calculus in
-realistic programming languages such as C and assembly, and how to
-adapt the CompCert verified compiler to compile certified C layers
+\CTOS{} instantiates
+ the certified abstraction layer framework
+in
+realistic programming languages such as C and assembly, and
+adapts the CompCert verified compiler to compile certified C layers
 such that they can be linked with assembly layers. 
 
 To evaluate \CTOS{}, we  have successfully developed multiple
