@@ -28,8 +28,8 @@ multicore parallelism with fine-grained locking. This severely limits
 the applicability and power of today's formally verified system
 software.
 
-
-
+\section{Challenges for Building Certified OS Kernels}
+\label{sec:intro:challenge}
 What makes the verification of OS kernels so challenging?
 {\em First, OS kernels are complex artifacts; they contain many
   interdependent components that are difficult to untangle.} Their
@@ -41,7 +41,51 @@ researchers~\cite{baumann12,vaynberg12} observed that even writing
 down a good and easy-to-maintain formal specification alone is already
 a major roadblock for any such verification effort.
 
-{\em Second, OS kernels are often written in C, which only supports
+
+{\em Second, concurrency introduces more complexities.}
+Several
+researchers~\cite{vontessin13,peters15} believe that the combination
+of concurrency and the kernels' functional complexity makes formal
+verification of functional correctness intractable, and even if it is
+possible, its cost would far exceed that of verifying a single-core
+sequential kernel.
+First of all, concurrent kernels need to support all three types of
+concurrency (user, I/O, or multicore) and make them work coherently
+with each other. User and I/O concurrency rely on thread
+yield/sleep/wait primitives or interrupts to switch controls and
+support synchronization; these constructs are difficult to reason
+about since they transfer controls from one thread to another.
+Multicore concurrency with fine-grained locking requires sophisticated
+spinlock implementations such as MCS locks~\cite{mcs91}, which
+ are also
+hard to verify.
+Furthermore, concurrent kernels should also guarantee that each of their
+system calls eventually returns, but this depends on the progress of
+the concurrent primitives used in the kernels. Proving
+starvation-freedom~\cite{Herlihy08book} for concurrent objects only
+became possible recently~\cite{lili16}.  Standard Mesa-style condition
+variables~\cite{lampson80} do not guarantee starvation-freedom; this
+can be fixed by using a FIFO queue of condition variables, but the
+solution is not trivial and even the popular, most up-to-date OS
+textbook~\cite[fig~5.14]{ospp11} has gotten it
+wrong~\cite{anderson16}.
+
+{\em Third, OS kernel verification would not scale if it does not 
+support extensibility.} Given the high cost of building concurrent kernels, it is
+important that they can be quickly adapted to support new applications
+and hardware platforms~\cite{bershad95,engler95,hunt07,unikernel13}. One advantage of a verified
+kernel is the existence of formal specifications for all of its
+components. In theory, this would allow us to add certified
+kernel plug-ins
+~\cite{shao10:ctos} 
+as long as they do not violate any existing kernel invariants. In
+practice, however, if we are unable to decompose kernel invariants
+into small independent pieces, even modifying an existing (or adding a
+new) verified component may force us to rewrite the proofs for the
+entire kernel.
+
+
+{\em Finally, OS kernels are often written in C, which only supports
   limited forms of abstraction,
   but still lacks the ability to describe hardware details.}
 On one hand, the C language (especially ANSI C) is
@@ -64,19 +108,9 @@ semantics at the assembly level. Consequently, we need a formal
 assembly model to define many kernel behaviors, but we also want to
 verify most kernel code at a much higher abstraction level.
 
-{\em Fourth, OS kernel verification would not scale if it does not 
-support extensibility.} One advantage of a verified
-kernel is the existence of formal specifications for all of its
-components. In theory, this would allow us to add certified
-kernel plug-ins
-~\cite{shao10:ctos} 
-as long as they do not violate any existing kernel invariants. In
-practice, however, if we are unable to decompose kernel invariants
-into small independent pieces, even modifying an existing (or adding a
-new) verified component may force us to rewrite the proofs for the
-entire kernel.
 
-In this paper, we present a novel compositional approach that
+
+This thesis proposes a new compositional approach that
 successfully tackles all of the above challenges in building certified
 OS kernels. We believe that, to make verification scale and to provide
 strong support to extensibility, we must first have a {\em
@@ -86,8 +120,270 @@ build layers of abstraction over bare machines, we insist on
 meticulously uncovering and specifying these layers (done in the Coq
 proof assistant~\cite{coq}), and then verifying each kernel module at
 its {\em proper} abstraction level.
+These formally specified and verified layers
+are named as {\em certified abstraction layers}.
+
+\section{A New Approach: Certified Abstraction Layer}
+\label{sec:intro:layer}
+
+We define a {\em certified abstraction
+  layer} as a triple $\layer{L_1}{M}{L_2}$ plus a mechanized
+proof object, \ignore{for the predicate $\ltyp{L_1}{R}{M}{L_2}$,}
+showing that the layer
+implementation $M$, built on top of the interface $L_1$ (the {\em
+  underlay}), indeed faithfully {\em implements} the desirable
+interface $L_2$ above (the {\em overlay}).  The {\em implements}
+relation $R$ is defined as a {\em simulation}~\cite{Lynch95}.
+A certified layer can be
+viewed as a ``parameterized module'' (from interfaces $L_1$ to $L_2$),
+{\em a~la} an SML functor~\cite{milner97};
+ but it enforces a stronger {\em contextual} correctness property: a correct
+layer is like a ``certified compiler,'' capable of converting any {\em
+  safe} client program $P$ running on top of $L_2$ into one that has the
+same behavior but runs on top of $L_1$ (\eg, by ``compiling'' abstract
+primitives in $L_2$ into their implementation in $M$); if
+$\sem{L}{\cdot}$ denotes the state machine for layer $L$, the
+correctness property (over any context $P$) can be written formally as $\sem{L_1}{P\oplus{}M} \leq_R \sem{L_2}{P}$.
+
+The power of certified abstraction layers lies in 
+this {\em contextual refinement}
+property,
+which guarantees that the overlay interface captures
+the precise functionality of the underlying implementation as well as
+the assumptions which the implementation might have about its client
+contexts.
+This overlay interface is called as
+a {\em deep specification} 
+to the underlay implementation,
+and client programs can be understood solely based on this interface, independent of implementation details.
+
+\paragraph{Sequential layer interface}
+ contains a  collection of abstract 
+\emph{sequential objects}, each of which provides a
+set of atomic methods.
+The internal abstract states of sequential objects
+specify the data representations in the concrete states
+(\eg, memory),
+and the atomic methods
+specify the layer implementations
+in terms of the abstract states.
+In the sequential setting, the context code $P$ can 
+ interfere with the 
+layer implementation $M$ is when
+$M$ fails to encapsulate its private state.
+The contextual refinement relation
+between $M$ and $L$ guarantees that
+any context code $P$ cannot
+modify the internal state of $M$ 
+without $M$'s permission.
+
+\paragraph{Concurrent layer interface}
+contains a collection of
+sequential objects that are thread-private,
+and abstract {\em atomic} objects that are shared~\cite{Herlihy08book}. Unlike calls to thread-private abstract objects  which are not {\em observable} by other
+threads, each method call to an atomic object is recorded as an 
+observable event in the concurrent machine semantics
+($\sem{L}{\cdot}$), and is appended to the end of a global log $l$---a
+single shared abstract state which we maintain for all the atomic
+objects in $L$. The semantics $\sem{L}{P}$ is defined based
+on the set of shared logs (i.e., {\em{}traces}, possibly of
+infinite length) generated from running the concurrent program $P$
+over $L$.
+
+We develop a general compositional (operational) model for
+$\sem{L}{P}$ based upon ideas from the game semantics
+community~\cite{gsinvite}. Each run of $P$ over $L$ can be viewed as
+playing a game involving members of $D$ (plus a scheduler). Each
+participant $t$ contributes its play by appending an event into the
+global log; its {\em strategy} $\strat{t}$ can be defined as a
+deterministic partial function from the current log $l$ to its next
+move $\strat{t}(l)$ when the control is transferred to $t$
+(defined by the last event in $l$). The
+eventual log for executing $P$ over $L$ can then be calculated by
+combining the strategies of all the participants.
+
+A concurrent layer interface $L[A]$ can be viewed as a concurrent machine
+parameterized over its {\em environment context} $\oracle$, which is a
+strategy for its environment (\ie, the scheduler plus those
+participants not in $A$).  Given an environment context $\oracle$
+which also contains a particular scheduler strategy, the execution of
+$P$ over $L[A]$ should be deterministic; the concurrent machine will
+run $P$ when control is transferred to any of the participants in $A$, but
+will instead ask the environment context $\oracle$ for the next move when 
+control is transferred to a member of the environment.
+\ignore{As a special case,  $L[t]$ behaves like a
+thread-local ``sequential'' machine (albeit parameterized over an
+environment context).  }
+
+Therefore, the \emph{context} in the concurrent
+setting includes not only the client program $P$,
+but also the environment context $\oracle$,
+which captures the behaviors
+of the context threads or context CPUs,
+and all potential interferences.
+
+\section{Contributions and Thesis Outline}
+\label{sec:intro:contribution}
+
+This thesis presents \CTOS{}, a novel extensible architecture
+for building certified sequential and concurrent OS kernels.
+\CTOS{} uses {\em contextual
+    refinement} as the unifying formalism to build and
+    compose certified abstraction layers for OS kernel components
+in both sequential and concurrent settings. 
+
+Before getting into the formal details,
+Chapter~\ref{chap:overview}
+provides a high-level overview of
+\CTOS{} framework,
+and  shows how 
+certified
+  abstraction layers  correspond to a {\em rigorous} 
+  form of abstraction over deep specifications used widely
+  in the system community. A certified layer interface
+  describes not only the precise functionality of any underlying
+  implementation but also clear assumptions about its client contexts.
+  Abstraction over deep specifications leads to the powerful
+  {\em implementation independence} property: 
+  any two implementations
+  of the same layer interface have contextually equivalent behaviors.
+  
+Chapter~\ref{chap:seq} proposes 
+the \CTOS{} framework in the sequential setting,
+and shows how to formally specify,
+program, verify, and compose sequential certified abstraction layers. 
+We have instantiated the framework on top of two core
+  languages: {\bf
+    ClightX}, a variant of the CompCert Clight
+  language~\cite{blazy-leroy-clight}; and {\bf LAsm}, an x86 assembly
+  language.  Both ClightX and LAsm can be used to program certified
+  abstraction layers,
+  and ClightX abstraction layers are compiled into 
+  LAsm layers by a modified CompCert,
+  {\bf CompCertX}, a new verified compiler.
+    CompCertX is novel because it can prove a stronger
+  correctness theorem for compiling individual functions in each
+  layer---such a theorem requires reasoning about {\em memory
+    injection}~\cite{leroy08} between the memory states of the source
+  and target languages.  To support linking between ClightX and LAsm
+  layers, we show how to design the {\em implements} relation so that it
+  is stable over memory injection.
+    As far as we
+  know, \CTOS\ is the first architecture that can truly transfer
+  global properties proved for user-level programs (at the kernel
+  specification level) down to the concrete assembly machine level.
+  
+\ignore{  Each ClightX or LAsm layer is parameterized
+  over its underlay interface, implemented using CompCert's external
+  call mechanisms.  We developed new tools and tactic libraries to
+  help automate the verification of the {\em implements} relation.}
+
+Using the sequential \CTOS{} framework, we have successfully
+  constructed several feature-rich certified sequential OS kernels in Coq.
+In   Chapter~\ref{chap:seqkernel},
+we show how to decompose the specification of 
+a practical general-purpose kernel,
+named as \textbf{\mCTOS{}},
+into 33 certified abstraction layers, and turn an otherwise 
+  prohibitive verification task into many simple and easily automatable 
+  sub-tasks.  The resulting kernel is a certified assembly implementation 
+  that still enjoys a high degree of compositionality.
+  Our layered specification shows that
+  {\em interdependent} low-level kernel modules can indeed be
+  untangled and given clear formal semantics.
+ Using \mCTOS\ as the base, we have also built three additional
+  certified kernels: {\bf{}\mCTOShyper} extends \mCTOS\ with virtualization
+  support to form a hypervisor kernel ;
+  {\bf{}\mCTOSringz} extends \mCTOShyper\ with ``ring 0'' processes
+  (they are ``certifiably safe'' application programs that can run safely 
+  inside the kernel address space, similar to SIPs in 
+  Singularity~\cite{hunt07}); {\bf{}\mCTOSembed} removes virtual memory
+  and virtualization support from \mCTOSringz\ so that it only supports 
+  ``ring 0'' processes.
+  Among these certified kernels,
+  the most realistic one is \mCTOShyper{},
+  which is written in 5,500 lines of C and x86
+assembly, and can boot a version of Linux as a guest.   
+  
+ Chapter~\ref{chap:con} proposes 
+the \CTOS{} framework in the concurrent setting,
+ which uses
+  contextual refinement over the ``concurrent'' {\em environment contexts}
+  ($\oracle$) as the {\em unifying} formalism for composing 
+  different concurrent kernel/user objects at different
+  abstraction levels.  Each $\oracle$ defines a specific instance on how
+  other threads/cores/devices respond toward the events generated by
+  the current running threads.  
+We show how the use of an environment context at each
+  concurrent layer allows us to apply standard techniques for
+  verifying sequential programs to verify concurrent programs.
+   Indeed, most of our kernel programs are still written 
+   in ClightX, and are verified by building
+   thread/core-modular ClightX layers.
+ These ClightX layers are compiled
+ into LAsm layers
+   with a {\em thread-safe} version of the CompCertX,
+   and are composed at the assembly-level to form
+   a complete verified concurrent system.
+ To support certified parallel composition of
+  thread-modular layers (i.e., $L[t]$ for all $t$), we have developed
+  a new extended algebraic memory model (for CompCertX) whereby stack
+  frames allocated for each thread can be combined to form a single
+  coherent CompCert-style memory.
+
+ Using the concurrent \CTOS framework, we have successfully developed a fully certified
+  concurrent OS kernel (called {\bf \cCTOS}),
+which  supports both fine-grained locking and sleep-wakeup primitives and
+  can run on stock x86 multicore hardware.
+  As far as we 
+  know, this is the first proof of functional correctness of a complete,
+  general-purpose concurrent OS kernel with fine-grained locking.
+  Chapter~\ref{chap:conkernel} uses \cCTOS{}
+  as a case study to show to apply our framework
+  to specify and verify the behaviors of various concurrency
+  constructs at different levels of abstraction, such as a multicore
+  machine with hardware scheduler, implementation of fine-grained
+  synchronization primitives (\eg, spinlocks, queuing locks,
+  condition variables), low-level thread primitives (\eg, $\yield$,
+  $\sleep$, $\wakeup$), and multi-threading with software scheduler and I/O
+  interrupts.
+  We prove both the contextual
+  correctness of all system calls, as well as a liveness property 
+  (\ie,  all system calls will eventually return)
+  in a unified setting.
+  Following RGSim~\cite{RGSim}, we can impose
+  {\em invariants} both over the environment contexts (i.e., the ``rely'')
+  and also over the active threads themselves (i.e., the ``guarantee'').
+  However, unlike RGSim,
+  because each environment context (i.e., the opponent's strategy)
+  specifies not just the environment's past behaviors
+  but also {\em future behaviors}, we can readily impose temporal
+  invariants such as fairness requirements (for schedulers) or
+  {\em definite actions}~\cite{lili16} (for releasing locks). This allows
+  us to give full specifications for lock primitives and support vertical
+  composition of starvation-free atomic objects, none of which have ever
+  been done before~\cite{lili16}.
+    
+    
+In Chapter~\ref{chap-eval},   we present a detailed evaluation of our certified development
+  effort, including kernel performance, the cost of
+  layer design and proof development,
+%  the cost of making changes (to certified kernels),
+  and the cost of building new extended (or adapted)
+  kernels. All of our certified kernels are practical and can run on stock
+  x86 hardware. 
+    
+ Finally, Chapter~\ref{chap-limits} discusses
+ the limitations and future work of \CTOS{},
+ and Chapter~\ref{chap-rel}
+ studies related work and then concludes.
+% The full artifact for our entire effort can be accessed at
+%   {~\small\url{http://sites.google.com/site/14ctos}}.
 
 
+
+
+\ignore{
 \paragraph{POPL15}
 Modern hardware and software systems are constructed using a series of
 abstraction layers (e.g., circuits, microarchitecture, ISA
@@ -850,6 +1146,7 @@ objects. Sec.~\ref{sec:imp} presents an evaluation of \CTOS.
 Sec.~\ref{sec:related} discusses related work and then concludes.
 % The full artifact for our entire effort can be accessed at
 %   {~\small\url{http://sites.google.com/site/14ctos}}.
+}
 
 
 

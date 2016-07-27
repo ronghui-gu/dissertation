@@ -2,7 +2,10 @@
 \chapter{Evaluation and Lessons Learned}
 \label{chap-eval}
 
-\paragraph{Execution Model and Completeness}
+
+\input{impl}
+
+\section{Execution Model and Completeness}
 The majority of the {\mCTOS} kernel is implemented and verified 
 at the C level, and then compiled by a modified version of the CompCert verified
 compiler~\cite{dscal15}.  The entire kernel (both C and assembly)
@@ -26,7 +29,7 @@ runs on stock x86 hardware and can successfully boot a guest version
 of Linux.
 }
 
-\paragraph{Proof effort}
+\section{Proof effort}
 We take the mCertiKOS kernel presented by Gu {\it et al}
 \cite{dscal15}, and extend the kernel with various features such as
 dynamic memory management, container support for controlling resource
@@ -146,8 +149,8 @@ recent years \cite{dscal15}. These tools have greatly
 reduced the amount of work needed to verify extensions of the kernel.
 }
 
-\vspace{-4pt}
-\paragraph{Extension and adaptation}
+
+\section{Extension and adaptation}
 We augmented \mCTOSbase{} to support the hardware-assisted
 virtualization technology Intel VT-x, and built a certified hypervisor
 \mCTOShyper{}.  We have also built certified kernels with ring-0
@@ -167,8 +170,8 @@ Removing plug-ins or layers are achieved simply by
 altering the contextual refinement proof 
 at the boundary so that we can glue them back together.
 
-\vspace{-4pt}
-\paragraph{Performance evaluation} 
+
+\section{Performance evaluation} 
 Although the performance is not the main emphasis of this paper, we
 have run a number of micro and macro benchmarks to measure the
 overhead of {\mCTOS} and to compare {\mCTOS} to existing systems such
@@ -188,7 +191,7 @@ cannot boot Linux. As a result, we do not compare hypervisor
 performance but instead focus on a comparison of the IPC performance
 of {\mCTOS} and an \emph{unverified} x86 version of seL4.
 
-\vspace{-4pt}
+
 \paragraph{IPC Performance}
 We use seL4's IPC benchmark
 sel4bench-manifest\footnote{https://github.com/smaccm/sel4bench-manifest}
