@@ -123,12 +123,12 @@ its {\em proper} abstraction level.
 These formally specified and verified layers
 are named as {\em certified abstraction layers}.
 
-\section{A New Approach: Certified Abstraction Layer}
+\section{\CTOS{}: A New Layered Approach}
 \label{sec:intro:layer}
 
 We define a {\em certified abstraction
   layer} as a triple $\layer{L_1}{M}{L_2}$ plus a mechanized
-proof object, \ignore{for the predicate $\ltyp{L_1}{R}{M}{L_2}$,}
+proof object the predicate $\ltyp{L_1}{R}{M}{L_2}$, \ignore{for the predicate $\ltyp{L_1}{R}{M}{L_2}$,}
 showing that the layer
 implementation $M$, built on top of the interface $L_1$ (the {\em
   underlay}), indeed faithfully {\em implements} the desirable
@@ -186,7 +186,7 @@ observable event in the concurrent machine semantics
 ($\sem{L}{\cdot}$), and is appended to the end of a global log $l$---a
 single shared abstract state which we maintain for all the atomic
 objects in $L$. The semantics $\sem{L}{P}$ is defined based
-on the set of shared logs (i.e., {\em{}traces}, possibly of
+on the set of shared logs (\ie, {\em{}traces}, possibly of
 infinite length) generated from running the concurrent program $P$
 over $L$.
 
@@ -352,10 +352,10 @@ which  supports both fine-grained locking and sleep-wakeup primitives and
   (\ie,  all system calls will eventually return)
   in a unified setting.
   Following RGSim~\cite{RGSim}, we can impose
-  {\em invariants} both over the environment contexts (i.e., the ``rely'')
-  and also over the active threads themselves (i.e., the ``guarantee'').
+  {\em invariants} both over the environment contexts (\ie, the ``rely'')
+  and also over the active threads themselves (\ie, the ``guarantee'').
   However, unlike RGSim,
-  because each environment context (i.e., the opponent's strategy)
+  because each environment context (\ie, the opponent's strategy)
   specifies not just the environment's past behaviors
   but also {\em future behaviors}, we can readily impose temporal
   invariants such as fairness requirements (for schedulers) or

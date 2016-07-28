@@ -3,16 +3,82 @@
 \chapter{Overview of \CTOS{} Framework}
 \label{chap:overview}
 
+The ultimate goal of research on certified OS kernels is not just
+to verify the functional correctness of a particular kernel, but
+rather to find the best OS design and development methodologies that
+can be used to build provably reliable, secure, and efficient computer
+systems in a cost-effective way. We enumerate a few important
+dimensions of concerns and evaluation metrics which we have used so far
+to guide our work toward realizing this goal:
+%%%%%%%%%
+\begin{itemize}
+\item {\bf Support for new kernel design.}  Traditional OS kernels use
+  the hardware-enforced ``red line'' to define a single system call
+  API. A certified OS kernel opens up the design space significantly as
+  it can support multiple certified kernel APIs at different
+  abstraction levels. It is important to support kernel
+  extensions~\cite{bershad95,engler95} and ring-0
+  processes~\cite{hunt07} so we can experiment and find the best trade-offs.
+%%%%%%%%%  
+\item {\bf Kernel performance.} Verification should not
+  impose significant overhead on kernel performance. Of course,
+  different kernel designs may imply different performance
+  priorities.  An L4-like microkernel~\cite{liedtke95} would sacrifice
+  portability for faster inter-process communication (IPC) while a
+  Singularity-like kernel~\cite{hunt07} would focus on efficient
+  support for type-safe ring-0 processes.
+%%%%%%%%%
+\item {\bf Verification of global properties.}
+  A certified kernel is much less interesting if it cannot be
+  used to prove global properties of the complete system built on top
+  of the kernel.  Such global
+  properties include not only safety, liveness, and security properties
+  of user-level processes and virtual machines, but also resource usage
+  and availability properties (\eg, to counter denial-of-service attacks).
+%%%%%%%%%  
+\item {\bf Quality of kernel specification.}  A good kernel
+  specification should capture precisely those {\em contextually observable}
+  behaviors in the kernel implementation~\cite{dscal15}. It must
+  support transferring global properties proved at a high abstraction
+  level down to any lower abstraction level.
+%%%%%%%%%
+\item {\bf Cost of development and maintenance.} Compositionality
+  is the key to minimize such cost. If the machine model is stable,
+  verification of each kernel module should only need
+  to be done once (to show that it {\em implements} its deep
+  functional specification~\cite{dscal15}). Global properties should
+  be derived from the kernel specification alone. 
+%%%%%%%%%  
+\item {\bf Quality of formal proofs.} We use the term {\em certified
+  kernels} rather than {\em verified kernels} to emphasize
+  the importance of third-party machine-checkable proof
+  certificates~\cite{shao10}. Hand-written paper proofs are
+  error-prone~\cite{findler12}. Program verification without
+  machine-checkable proofs has been subject to significant
+  controversy~\cite{demillo77}.
+\end{itemize}
+%%%%%%%%%
+
+
+Our new \CTOS\ architecture aims to address all of the above concerns
+and also tackle all four challenges described in Chapter~\ref{chap-intro}.
+The \CTOS\ architecture 
+proposes a new language-based account of 
+\emph{certified abstraction layer}
+to construct certified OS kernels with deep specifications.
+
+\section{Why Abstraction Layers?}
+\label{sec:overview:why}
 In this section, we describe the main ideas behind deep
 specifications and show why they work more naturally with
 abstraction layers than with regular software modules.
 
-\section{Shallow vs. deep specifications}
+\paragraph{Shallow vs. deep specifications}
 %\paragraph{Deep vs. shallow specifications} 
-We introduce shallow and deep specifications to describe different
+We introduce \emph{shallow} and \emph{deep} specifications to describe different
 classes of requirements on software and hardware components.  Type
 information and program contracts are examples of ``shallow''
-specifications. Type-based module interfaces (e.g., ML signatures) are
+specifications. Type-based module interfaces (\eg, ML signatures) are
 introduced to support compositional static type checking and separate
 compilation: a module $M$ can be typechecked based on its import
 interface $L_1$ (without looking at $L_1$'s implementation), and shown to
@@ -26,7 +92,7 @@ implementation), and shown to {\em implement} its export interface
 $L_2$.
 
 To achieve true modularity, we would like to reason about the
-behaviors of $M$ {\bf solely} based on its import interface $L_1$; and
+behaviors of $M$ {\em solely} based on its import interface $L_1$; and
 we would also like its export interface $L_2$ to describe the full
 functionality of $M$ while omitting the implementation details.
 
@@ -40,19 +106,17 @@ about any of its implementations---it must satisfy the following
 important ``implementation independence'' property:
 
 \begin{center}
-\vspace*{-.2ex}
 \fbox{\parbox{.9\columnwidth}{
 {\bf Implementation independence:}~~
-{\em Any two implementations (e.g., $M_1$ and $M_2$) of the same deep
-  specification (e.g., $L$) should have {\em contextually equivalent}
+{\em Any two implementations (\eg, $M_1$ and $M_2$) of the same deep
+  specification (\eg, $L$) should have {\em contextually equivalent} observable
   behaviors}.}}
-\vspace*{-.2ex}
 \end{center}%
 
 \noindent{}Different languages may define such contextual equivalence relation
 differently, but regardless, we want that, given any {\em
   whole-program} client $P$ built on top of $L$, running
-$P\oplus{}M_1$ (i.e., $P$ linked with $M_1$) should lead to the same
+$P\oplus{}M_1$ (\ie, $P$ linked with $M_1$) should lead to the same
 observable result as running $P\oplus{}M_2$.
 
 Without implementation independence, running $P\oplus{}M_1$ and
@@ -68,7 +132,7 @@ specification for a factorial function, one can return the correct
 factorial number and another can just go into infinite loop.  A
 program built on top of such specification may not be reasoned about 
 based on the specification alone, instead, we have to peek into the actual
-implementation in order to prove certain properties (e.g.,
+implementation in order to prove certain properties (\eg,
 termination).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -197,7 +261,7 @@ $$
 \end{figure}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-In the rest of this paper, following CompCert~\cite{Leroy-backend}, we
+In the rest of this thesis, following CompCert~\cite{Leroy-backend}, we
 will focus on languages whose semantics are {\em
   deterministic} relative to external events (formally, these
 languages are defined as both {\em receptive} and {\em
@@ -213,14 +277,13 @@ specifications are thus also deep specifications.
 
 Deep specifications can, of course, also be nondeterministic. They may
 contain resource bounds~\cite{veristack}, numerical
-uncertainties~\cite{chaudhuri10}, etc. Such nondeterminism should
+uncertainties~\cite{chaudhuri10}, {\em etc}. Such nondeterminism should
 be unobservable in the semantics of a {\em whole} program,
 allowing implementation independence to still hold.  We leave the
 investigation of nondeterministic deep specifications as future work.
 
 
-\section{Layers vs. modules} 
-%\paragraph{Layers vs. modules} 
+\paragraph{Layers vs. modules} 
 When a module (or a software component)
 implements an interface with a shallow specification, 
 we often hide its private memory state completely
@@ -229,12 +292,10 @@ cannot possibly break any invariants imposed on the private state
 in the module implementation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{figure}[t]
-\begin{center}
-\includegraphics[scale=.7]{figs/conflict}
+\begin{figure}[t]\centering
+\includegraphics[scale=1]{figs/conflict}
 \caption{Client code with conflicting abstract states?}
 \label{fig:conflict}
-\end{center}
 \end{figure}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -243,7 +304,7 @@ would still hide the private memory state from its client, but we also
 need to introduce an {\em abstract state} to specify
 the full functionality of each primitive in the interface. 
 
-For example, Fig.~\ref{fig:queue} shows the implementation of a
+For example, Figure~\ref{fig:queue} shows the implementation of a
 concrete thread queue module (in C) and its interface with a deep
 specification (in Coq). The local state of the C implementation
 consists of 64 thread queues (%
@@ -255,7 +316,7 @@ linked-list queue it belongs to. The \textsf{dequeue} function
 takes a pointer to a queue; it returns the head block if the queue
 is not empty, or null if the queue is empty.
 
-In the Coq specification (Fig.~\ref{fig:queue} right; we omitted some
+In the Coq specification (Figure~\ref{fig:queue} right; we omitted some
 invariants to make it more readable), we introduce an abstract state
 of type \textsf{abs} where we represent each C array as a Coq finite map
 (\textsf{ZMap.t}), and each pointer as an integer index (\textsf{Z}) to the
@@ -337,3 +398,201 @@ when it calls a function defined in another module. A layered approach
 aims to sort and isolate all components based on a carefully designed
 set of abstraction levels so we can reason about one small abstraction
 step at a time and eliminate most unwanted interaction and dependencies.
+
+
+
+\section{Building  Abstraction Layers for OS Kernels}
+
+\begin{figure}[tb] \centering
+\includegraphics[scale=.5]{figs/mainthm}
+\caption{Certified OS kernels: what to prove?}
+%\rule[0in]{\columnwidth}{.15mm}
+\label{fig:mainthm}
+\end{figure}
+
+A {\em certified abstraction layer} is a language-based module construct that
+consists of a triple $\layer{L_1}{M}{L_2}$ plus a mechanized proof
+object the predicate $\ltyp{L_1}{R}{M}{L_2}$,
+showing that the layer implementation $M$, built on top of the
+interface $L_1$ (the {\em underlay}), is a {\em contextual refinement}
+of the desirable interface $L_2$ above (the {\em overlay}). 
+Thus, $L_2$ is
+a deep
+specification of a module (\eg, $M$), which  captures
+everything {\em contextually observable} about running the module over
+its underlay  $L_1$. Once the certified abstraction layer
+is built for module  $M$, there is no need to ever look at $M$
+again, and any property about the observable behavior of $M$ can be proved using $L_2$ alone. Of
+course, if the semantics of the underlying abstract machine (for $M$)
+changes, the deep specification for $M$ may also have to change.
+
+Under \CTOS, building a new certified kernel (or experimenting with a new
+design) is just a matter of composing a collection of certified
+layers, developed in a variant of C (called ClightX) or assembly.
+\CTOS{} provides  a powerful Coq library
+for supporting {\em horizontal} and {\em vertical} composition of
+certified layers, as well as a certified compiler (called
+CompCertX) that can compile certified ClightX layers into certified
+assembly layers. \CTOS\ can thus enjoy the full programming power of
+an ANSI C variant and also the assembly language to certify any
+efficient routines required by low-level kernel programming.  The
+layer mechanism allows us to certify most kernel components at higher
+abstraction levels, even though they all eventually get mapped (or
+compiled) down to an assembly machine
+ that models important hardware details (\eg, virtual memory support).
+
+
+In Figure~\ref{fig:mainthm}, we use x86 to denote an assembly machine
+and {$\sem{\rm{}x86}{\cdot}$} for its whole-machine semantics.
+Suppose we load such a machine with the \mCTOS\ kernel $K$ (in
+assembly) and user-level assembly code $P$; then proving any
+global property of such a complete system amounts to reasoning about
+the semantic object {$\sem{\rm{}x86}{K\join{}P}$}.
+
+Reasoning at such a low level is difficult, so we formalize a new
+\mCTOS\ machine that extends the x86 machine with the deep
+specification of $K$. We use $\sem{\rm\mCTOS}{\cdot}$ to denote its
+whole-machine semantics.  The contextual refinement property about the
+\mCTOS\ kernel can be stated as $\forall
+P,\;\sem{\rm{}x86}{K\join{}P}\Refrel{}\sem{\rm\mCTOS}{P}$.
+\noindent{}Hence any global property proved about
+$\sem{\rm\mCTOS}{P}$ can be transferred to
+$\sem{\rm{}x86}{K\join{}P}$.
+
+
+%Contextual refinement is also a highly general and
+%compositional property. Recent work~\cite{filipovic10,liang13} on
+%concurrent objects~\cite{herlihy90} has shown that contextual
+%refinement is precisely equivalent to the linearazibility and
+%various liveness properties~\cite{Herlihy08book}. 
+
+\begin{figure}[tb] \centering
+\includegraphics[scale=1]{figs/archA}
+\caption{Overview of the \CTOS\ architecture}
+%\rule{\columnwidth}{.15mm}
+\label{fig:arch}
+\end{figure}
+
+In \CTOS, we also use contextual refinement to support fine-grained
+layer decomposition and linking.  In Figure~\ref{fig:arch}, to build a
+certified kernel $K$, we decompose it into multiple kernel modules
+$K_1,...,K_n$, each sitting at its respective underlay ($L_0$, ...,
+$L_{n-1}$). Each such module ($K_i$) implements the primitives in its
+overlay (i.e., $L_i$) but it can only call the primitives in its
+underlay ($L_{i-1}$).  Using vertical composition~\cite{dscal15}, from
+the contextual refinement $\forall
+P,\;\sem{i-1}{K_i\join{}P}\Refrel{}\sem{i}{P}$ for each layer (we use
+$\sem{j}{\cdot}$ to denote the semantics of the $L_j$ machine), we can
+deduce $\forall P, \sem{0}{K\join{}P} =
+\sem{0}{K_1\join{}K_2\cdots\join{}K_n\join{}P} \Refrel
+\sem{1}{K_2\cdots\join{}K_n\join{}P} \cdots \Refrel
+\sem{n-1}{K_n\join{}P} \Refrel \sem{n}{P}$.  If we instantiate $L_0$
+and $L_n$ with the x86 and \mCTOS\ layers, we get precisely the
+contextual refinement property of the \mCTOS\ kernel. We can also
+compose intermediate layers in the same way---this makes it much
+easier to modify existing (or add new) certified kernel modules.
+
+
+\begin{figure}[htb]\scriptsize
+$$
+\begin{array}{l|l}
+\begin{array}{l}
+\verb+/* memory types */+
+\\
+\verb+#define MEM_RAM      1+
+\\ 
+\verb+#define MEM_RESERVED 2+
+\\
+\verb+#define MEM_ACPI     3+
+\\
+\verb+#define MEM_NVS      4+ 
+\\ 
+\verb#struct pmmap {#
+\\
+\verb#  uintptr_t start;#
+\\
+\verb#  uintptr_t end;#
+\\
+\verb#  uint32_t  type;#
+\\
+\verb#};#                           
+\\
+\verb#struct pmmap mm[128];#
+\end{array}
+&
+\begin{array}{l}
+\verb#Inductive MEMPerm:=#
+\\
+\verb#| MEM_RESERVED#
+\\
+\verb#| MEM_USABLE.#
+\\
+\\
+\verb#Inductive pmmap:=#
+\\
+\verb#| MEMV (start end : Z)#
+\\
+\verb#       (type : MEMPerm)#
+\\
+\verb#| MEMUndef.#
+\\  
+\\
+\verb#Definition MM :=#
+\\
+\verb#       ZMap.t pmmap.#
+\end{array}
+\\\vspace*{-14pt}
+\end{array}
+$$ 
+\caption{Concrete memory vs. abstract state}
+\label{fig:abs-pmmap}
+\vspace*{-10pt}
+\end{figure}
+
+
+For example, in $K_1$, we might use an array (in $L_0$ memory) to
+implement a physical memory map \verb+mm+ (see Fig.~\ref{fig:abs-pmmap} left,
+in C syntax); 
+this map describes the physical memory
+layout including the size and ``type'' of every memory piece. 
+For any code above $L_0$, there is no need to see (or reason
+about) such concrete details. Instead, we encapsulate $K_1$
+by hiding the array (in $L_0$) and replacing it with a Coq finite map
+\verb+MM+ (see Fig.~\ref{fig:abs-pmmap} right) as part of 
+the new abstract state in $L_1$. Note, we only need to 
+know which memory piece is usable or reserved (\verb+MEMPerm+), 
+and we need to add the case \verb+MEMUndef+ to represent the content
+of \verb+mm+ before it is initialized. Here \verb+Z+ and \verb+ZMap.t+ 
+are Coq's integer and finite map types. The new $L_1$ primitives
+can then be specified using the Coq finite map
+so $L_1$ code can be verified
+at a higher abstraction level, but these primitives
+are still {\em realizable} by an efficient assembly implementation
+(i.e., $K_1$).
+
+This last point is important since it means that abstraction
+layers in \CTOS\ are introduced strictly to support compositional 
+specification and verification. Regardless how many layers we add 
+and how we specify the layer primitives, the kernel always has the same 
+efficient assembly implementation (i.e., $K$).
+
+\ignore{
+\paragraph*{What have we proved?}
+Using \CTOS, we have successfully built multiple certified OS
+kernels. For each such kernel, we have always constructed its deep
+specification and proved its contextual functional correctness
+property, so all global properties proved at the specification level can
+be transferred down to the lowest assembly machine.
+
+From the functional correctness property, we immediately derive that
+all system calls and traps will always run {\em safely} and also
+terminate; and there will be no code injection attacks, no buffer
+overflows, no null pointer access, no integer overflow, etc. We also
+proved that there is no stack overflow or memory exhaustion in the
+kernel using recent techniques developed by Carbonneaux~{\em et
+  al}~\cite{veristack,ccrb15}.  As we will discuss in
+Sec.~\ref{security}, we also proved an isolation property between the
+virtual address spaces of user-level processes.  All of these
+properties were proved using the abstract specification provided at
+the top layer, and then transferred to the lowest assembly machine via
+contextual refinement.}
