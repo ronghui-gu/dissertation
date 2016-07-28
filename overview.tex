@@ -7,7 +7,7 @@ The ultimate goal of research on certified OS kernels is not just
 to verify the functional correctness of a particular kernel, but
 rather to find the best OS design and development methodologies that
 can be used to build provably reliable, secure, and efficient computer
-systems in a cost-effective way. We enumerate a few important
+systems in a cost-effective way. I enumerate a few important
 dimensions of concerns and evaluation metrics which we have used so far
 to guide our work toward realizing this goal:
 %%%%%%%%%
@@ -65,18 +65,46 @@ and also tackle all four challenges described in Chapter~\ref{chap-intro}.
 The \CTOS\ architecture 
 proposes a new language-based account of 
 \emph{certified abstraction layer}
-to construct certified OS kernels with deep specifications.
+to construct certified OS kernels with respect to \emph{deep specifications}.
+
+A {\em certified abstraction layer} is a language-based account that
+consists of a triple $\layer{L_1}{M}{L_2}$ plus a mechanized proof
+object for the predicate $\ltyp{L_1}{R}{M}{L_2}$,
+showing that the layer implementation $M$, built on top of the
+interface $L_1$ (the {\em underlay}), is a {\em contextual refinement}
+of the desirable interface $L_2$ above (the {\em overlay}). 
+We call $L_2$ 
+a 
+\emph{deep
+specification} of the module $M$, because it captures
+everything {\em contextually observable} about running the module over
+its underlay  $L_1$. Once the certified abstraction layer
+is built for module  $M$, there is no need to ever look at $M$
+again, and any property about the observable behavior of $M$ can be proved using $L_2$ alone. Of
+course, if the semantics of the underlying abstract machine (for $M$)
+changes, the deep specification for $M$ may also have to change.
+
+Abstraction layers and deep specifications
+are our key technologies to address all the challenges 
+for constructing certified OS kernels.
+Thus, the first question to answer in this thesis
+is \emph{why they are essential for OS kernel verification
+and how they work?}
+
 
 \section{Why Abstraction Layers?}
 \label{sec:overview:why}
-In this section, we describe the main ideas behind deep
-specifications and show why they work more naturally with
+To answer the question,
+we first describe the main ideas behind deep
+specifications and then show why they work more naturally with
 abstraction layers than with regular software modules.
 
 \paragraph{Shallow vs. deep specifications}
 %\paragraph{Deep vs. shallow specifications} 
 We introduce \emph{shallow} and \emph{deep} specifications to describe different
-classes of requirements on software and hardware components.  Type
+classes of requirements on software and hardware components.  
+\ronghui{Relative concept}
+Type
 information and program contracts are examples of ``shallow''
 specifications. Type-based module interfaces (\eg, ML signatures) are
 introduced to support compositional static type checking and separate
@@ -116,13 +144,13 @@ important ``implementation independence'' property:
 \noindent{}Different languages may define such contextual equivalence relation
 differently, but regardless, we want that, given any {\em
   whole-program} client $P$ built on top of $L$, running
-$P\oplus{}M_1$ (\ie, $P$ linked with $M_1$) should lead to the same
-observable result as running $P\oplus{}M_2$.
+$P\join M_1$ (\ie, $P$ linked with $M_1$) should lead to the same
+observable result as running $P\join M_2$.
 
-Without implementation independence, running $P\oplus{}M_1$ and
-$P\oplus{}M_2$ may yield different observable results, so we can prove
-a specific whole-program property that holds on $P\oplus{}M_1$ but not on
-$P\oplus{}M_2$---such whole-program property cannot be proved based
+Without implementation independence, running $P\join M_1$ and
+$P\join M_2$ may yield different observable results, so we can prove
+a specific whole-program property that holds on $P\join M_1$ but not on
+$P\join M_2$---such whole-program property cannot be proved based
 on the program $P$ and the specification $L$ alone. 
 
 Hoare-style partial correctness specifications are rarely
@@ -232,34 +260,6 @@ $$
 \caption{Concrete (in C) vs. abstract (in Coq) thread queues}
 \label{fig:queue}
 \end{figure}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{figure}[t]\scriptsize
-$$
-\begin{array}{l|l}
-\hspace*{-2ex} 
-\begin{array}[t]{l}
-\verb+Definition tcb := td_state.+\\
-\verb++\\
-\verb+Definition tdq := List Z.+\\
-\verb++\\
-\verb+Record abs':={tcbp:ZMap.t tcb;+\\
-\verb+              tdqp:ZMap.t tdq}+\\
-\end{array}
-&
-\begin{array}[t]{l}
-\verb+Function + \hat{\sigma}_\textsf{dequeue}' \verb+ a i :=+\\ 
-\verb+match (a.tdqp i) with+\\
-\verb+| h :: q' =>+\\
-\verb+  Some(set_tdq a i q', h)+\\
-\verb+| nil => None+\\
-\verb+end ......+\\
-\end{array}
-\end{array}
-$$ 
-\caption{A more abstract queue (in Coq)}
-\label{fig:queue2}
-\end{figure}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 In the rest of this thesis, following CompCert~\cite{Leroy-backend}, we
 will focus on languages whose semantics are {\em
@@ -270,7 +270,7 @@ nondeterminism such as I/O and concurrency by making events explicit
 in the execution traces).
 Likewise, we only consider interfaces whose primitives
 have deterministic specifications. If $L$ is a deterministic interface, 
-and both $M_1$ and $M_2$ implement $L$, then $P\oplus{}M_1$ and $P\oplus{}M_2$
+and both $M_1$ and $M_2$ implement $L$, then $P\join M_1$ and $P\join M_2$
 should have identical behaviors since they both follow the semantics
 of running $P$ over $L$, which is deterministic. Deterministic 
 specifications are thus also deep specifications.
@@ -317,7 +317,7 @@ takes a pointer to a queue; it returns the head block if the queue
 is not empty, or null if the queue is empty.
 
 In the Coq specification (Figure~\ref{fig:queue} right; we omitted some
-invariants to make it more readable), we introduce an abstract state
+invariants to make it more readable)\ronghui{Re-draw the figure}, we introduce an abstract state
 of type \textsf{abs} where we represent each C array as a Coq finite map
 (\textsf{ZMap.t}), and each pointer as an integer index (\textsf{Z}) to the
 \textsf{tdq} or \textsf{tcb} array. The \textsf{dequeue} primitive 
@@ -336,13 +336,42 @@ languages~\cite{sevcik13,Leroy-backend},
 if the specification is also deterministic, it is sufficient to find
 a forward simulation from the specification to its
 implementation (this is often easier to prove in practice). 
-
-In the rest of this paper, following CompCert, we often call the
+In the rest of this thesis, following CompCert, we often call the
 forward simulation from the implementation to its specification
 as {\em upward (forward) simulation} and the one from the specification
 to its implementation as {\em downward (forward) simulation}.
 
-Fig.~\ref{fig:queue2} shows a more abstract specification of the same
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[t]\scriptsize
+$$
+\begin{array}{l|l}
+\hspace*{-2ex} 
+\begin{array}[t]{l}
+\verb+Definition tcb := td_state.+\\
+\verb++\\
+\verb+Definition tdq := List Z.+\\
+\verb++\\
+\verb+Record abs':={tcbp:ZMap.t tcb;+\\
+\verb+              tdqp:ZMap.t tdq}+\\
+\end{array}
+&
+\begin{array}[t]{l}
+\verb+Function + \hat{\sigma}_\textsf{dequeue}' \verb+ a i :=+\\ 
+\verb+match (a.tdqp i) with+\\
+\verb+| h :: q' =>+\\
+\verb+  Some(set_tdq a i q', h)+\\
+\verb+| nil => None+\\
+\verb+end ......+\\
+\end{array}
+\end{array}
+$$ 
+\caption{A more abstract queue (in Coq)}
+\label{fig:queue2}
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Figure~\ref{fig:queue2} shows a more abstract specification of the same
 queue implementation where the new abstract state \textsf{abs'} omits
 the \textsf{prev} and \textsf{next} links in \textsf{tcb} and treats each
 queue simply as a Coq list. The \textsf{dequeue} specification 
@@ -350,17 +379,18 @@ $\hat{\sigma}_\textsf{dequeue}'$ is now
 even simpler, which makes it easier to reason about its client,
 but it is now harder to prove that the C module
 implements this more abstract specification.  This explains why we
-often introduce less abstract specifications (e.g.,
-the one in Fig.~\ref{fig:queue}) as intermediate steps, so a
+often introduce less abstract specifications (\eg,
+the one in Figure~\ref{fig:queue}) as intermediate steps, so a
 complex abstraction can be decomposed into several more tractable
 abstraction steps.
 
 Deep specification brings out an interesting {\bf new challenge}
-shown in Fig.~\ref{fig:conflict}: {\em what if a program $P$ attempts to
+shown in Figure~\ref{fig:conflict}: {\em what if a program $P$ attempts to
 call primitives defined in two different interfaces $L_1$ and $L_2$,
 which may export two conflicting views (i.e., abstract states
 \textsf{abs1} and \textsf{abs2}) of the same abstract state \textsf{abs}
 (thus also the same concrete memory state \textsf{mem})?}
+\ronghui{Concurrency}
 
 Here we assume that modules $M, M_1, M_2$ implement interfaces $L,
 L_1, L_2$ via some simulation relations $R, R_1, R_2$ (lines marked
@@ -409,23 +439,6 @@ step at a time and eliminate most unwanted interaction and dependencies.
 %\rule[0in]{\columnwidth}{.15mm}
 \label{fig:mainthm}
 \end{figure}
-
-A {\em certified abstraction layer} is a language-based module construct that
-consists of a triple $\layer{L_1}{M}{L_2}$ plus a mechanized proof
-object the predicate $\ltyp{L_1}{R}{M}{L_2}$,
-showing that the layer implementation $M$, built on top of the
-interface $L_1$ (the {\em underlay}), is a {\em contextual refinement}
-of the desirable interface $L_2$ above (the {\em overlay}). 
-Thus, $L_2$ is
-a deep
-specification of a module (\eg, $M$), which  captures
-everything {\em contextually observable} about running the module over
-its underlay  $L_1$. Once the certified abstraction layer
-is built for module  $M$, there is no need to ever look at $M$
-again, and any property about the observable behavior of $M$ can be proved using $L_2$ alone. Of
-course, if the semantics of the underlying abstract machine (for $M$)
-changes, the deep specification for $M$ may also have to change.
-
 Under \CTOS, building a new certified kernel (or experimenting with a new
 design) is just a matter of composing a collection of certified
 layers, developed in a variant of C (called ClightX) or assembly.
@@ -442,12 +455,12 @@ compiled) down to an assembly machine
  that models important hardware details (\eg, virtual memory support).
 
 
-In Figure~\ref{fig:mainthm}, we use x86 to denote an assembly machine
+In Figure~\ref{fig:mainthm}\ronghui{$\oplus$}, we use x86 to denote an assembly machine
 and {$\sem{\rm{}x86}{\cdot}$} for its whole-machine semantics.
 Suppose we load such a machine with the \mCTOS\ kernel $K$ (in
 assembly) and user-level assembly code $P$; then proving any
 global property of such a complete system amounts to reasoning about
-the semantic object {$\sem{\rm{}x86}{K\join{}P}$}.
+the semantic object {$\sem{\rm{}x86}{K\join P}$}.
 
 Reasoning at such a low level is difficult, so we formalize a new
 \mCTOS\ machine that extends the x86 machine with the deep
@@ -478,21 +491,35 @@ layer decomposition and linking.  In Figure~\ref{fig:arch}, to build a
 certified kernel $K$, we decompose it into multiple kernel modules
 $K_1,...,K_n$, each sitting at its respective underlay ($L_0$, ...,
 $L_{n-1}$). Each such module ($K_i$) implements the primitives in its
-overlay (i.e., $L_i$) but it can only call the primitives in its
-underlay ($L_{i-1}$).  Using vertical composition~\cite{dscal15}, from
+overlay (\ie, $L_i$) but it can only call the primitives in its
+underlay (\ie, $L_{i-1}$).  Using vertical composition~\cite{dscal15}, from
 the contextual refinement $\forall
 P,\;\sem{i-1}{K_i\join{}P}\Refrel{}\sem{i}{P}$ for each layer (we use
 $\sem{j}{\cdot}$ to denote the semantics of the $L_j$ machine), we can
-deduce $\forall P, \sem{0}{K\join{}P} =
+deduce:
+$$\forall P, \sem{0}{K\join{}P} =
 \sem{0}{K_1\join{}K_2\cdots\join{}K_n\join{}P} \Refrel
 \sem{1}{K_2\cdots\join{}K_n\join{}P} \cdots \Refrel
-\sem{n-1}{K_n\join{}P} \Refrel \sem{n}{P}$.  If we instantiate $L_0$
+\sem{n-1}{K_n\join{}P} \Refrel \sem{n}{P}$$
+If we instantiate $L_0$
 and $L_n$ with the x86 and \mCTOS\ layers, we get precisely the
-contextual refinement property of the \mCTOS\ kernel. We can also
+contextual refinement property of the \mCTOS\ kernel. 
+
+We can also
 compose intermediate layers in the same way---this makes it much
 easier to modify existing (or add new) certified kernel modules.
+For example, once the abstract layer interface
+for thread queue (\cf{}Figure~\ref{fig:queue2}) is introduced,
+there is no need to see (or reason about) 
+the concrete queue implementations
+and the intermediate interfaces (\cf{}Figure~\ref{fig:queue}). 
+Thus, all the code relied on the thread queue module can be verified
+at a higher abstraction level using these abstract queue primitives,
+which are still {\em realizable} by an efficient assembly implementation
+(\ie, Figure~\ref{fig:queue} left).
 
 
+\ignore{
 \begin{figure}[htb]\scriptsize
 $$
 \begin{array}{l|l}
@@ -568,13 +595,13 @@ can then be specified using the Coq finite map
 so $L_1$ code can be verified
 at a higher abstraction level, but these primitives
 are still {\em realizable} by an efficient assembly implementation
-(i.e., $K_1$).
+(i.e., $K_1$).}
 
 This last point is important since it means that abstraction
 layers in \CTOS\ are introduced strictly to support compositional 
 specification and verification. Regardless how many layers we add 
 and how we specify the layer primitives, the kernel always has the same 
-efficient assembly implementation (i.e., $K$).
+efficient assembly implementation.
 
 \ignore{
 \paragraph*{What have we proved?}
