@@ -68,19 +68,19 @@ proposes a new language-based account of
 to construct certified OS kernels with respect to \emph{deep specifications}.
 
 A {\em certified abstraction layer} is a language-based account that
-consists of a triple $\layer{L_1}{M}{L_2}$ plus a mechanized proof
-object for the predicate $\ltyp{L_1}{R}{M}{L_2}$,
+consists of a triple $\layer{L}{M}{L'}$ plus a mechanized proof
+object for the predicate $\ltyp{L}{R}{M}{L'}$,
 showing that the layer implementation $M$, built on top of the
-interface $L_1$ (the {\em underlay}), is a {\em contextual refinement}
-of the desirable interface $L_2$ above (the {\em overlay}). 
-We call $L_2$ 
+interface $L$ (the {\em underlay}), is a {\em contextual refinement}
+of the desirable interface $L'$ above (the {\em overlay}). 
+We call $L'$ 
 a 
 \emph{deep
 specification} of the module $M$, because it captures
 everything {\em contextually observable} about running the module over
-its underlay  $L_1$. Once the certified abstraction layer
+its underlay  $L$. Once the certified abstraction layer
 is built for module  $M$, there is no need to ever look at $M$
-again, and any property about the observable behavior of $M$ can be proved using $L_2$ alone. Of
+again, and any property about the observable behavior of $M$ can be proved using $L'$ alone. Of
 course, if the semantics of the underlying abstract machine (for $M$)
 changes, the deep specification for $M$ may also have to change.
 
@@ -88,8 +88,7 @@ Abstraction layers and deep specifications
 are our key technologies to address all the challenges 
 for constructing certified OS kernels.
 Thus, the first question to answer in this thesis
-is \emph{why they are essential for OS kernel verification
-and work so well?}
+is \emph{why they  work so well for OS kernel verification?}
 
 
 \section{Why Abstraction Layers?}
@@ -103,25 +102,33 @@ abstraction layers than with regular software modules.
 %\paragraph{Deep vs. shallow specifications} 
 We introduce \emph{shallow} and \emph{deep} specifications to describe different
 classes of requirements on software and hardware components.  
-\ronghui{Relative concept}
-Type
-information and program contracts are examples of ``shallow''
-specifications. Type-based module interfaces (\eg, ML signatures) are
+Both ``shallow" and ``deep" are \textbf{relative concept} with respect to
+the \emph{observable behavior} of running programs on the hardware.
+For a hardware that values in the memory and registers
+are observable,
+type information and program contracts are examples of ``shallow''
+specifications. 
+However, if the type is the only behavior that clients 
+can observe (or care about),
+type information then become a ``deep''
+specification.
+For example, type-based module interfaces (\eg, ML signatures) are
 introduced to support compositional static type checking and separate
 compilation: a module $M$ can be typechecked based on its import
-interface $L_1$ (without looking at $L_1$'s implementation), and shown to
-have types specified in its export interface $L_2$.
+interface $L$ (without looking at $L$'s implementation), and shown to
+have types specified in its export interface $L'$.
 
 To support compositional verification of strong functional correctness
 properties on a large system, we would hope that all of its components
-are given ``deep'' specifications.  A module $M$ will be verified based on
-its import interface $L_1$ (without looking at $L_1$'s
+are given ``deep'' specifications
+relative to the observable behaviors of the system.  A module $M$ will be verified based on
+its import interface $L$ (without looking at $L$'s
 implementation), and shown to {\em implement} its export interface 
-$L_2$.
+$L'$.
 
 To achieve true modularity, we would like to reason about the
-behaviors of $M$ {\em solely} based on its import interface $L_1$; and
-we would also like its export interface $L_2$ to describe the full
+behaviors of $M$ {\em solely} based on its import interface $L$; and
+we would also like its export interface $L'$ to describe the full
 functionality of $M$ while omitting the implementation details.
 
 %A desirable property for abstraction over deep specification
@@ -136,8 +143,8 @@ important ``implementation independence'' property:
 \begin{center}
 \fbox{\parbox{.9\columnwidth}{
 {\bf Implementation independence:}~~
-{\em Any two implementations (\eg, $M_1$ and $M_2$) of the same deep
-  specification (\eg, $L$) should have {\em contextually equivalent} observable
+{\em Any two implementations (e.g., $M_1$ and $M_2$) of the same deep
+  specification (e.g., $L$) should have {\em contextually equivalent} observable
   behaviors}.}}
 \end{center}%
 
@@ -153,6 +160,8 @@ a specific whole-program property that holds on $P\join M_1$ but not on
 $P\join M_2$---such whole-program property cannot be proved based
 on the program $P$ and the specification $L$ alone. 
 
+Since termination is always observable 
+for programs that need high insurance,
 Hoare-style partial correctness specifications are rarely
 deep specifications since they fail to satisfy implementation
 independence. Given two implementations of a partial correctness
@@ -261,6 +270,26 @@ $$
 \label{fig:queue}
 \end{figure}
 
+
+\begin{figure*}[tb]\centering
+\subfloat[]{
+\label{fig:queue:a}
+    \begin{minipage}[t]{0.5\textwidth}
+    \centering
+\lstinputlisting [language = C] {source_code/seq-dequeue.c}
+    \end{minipage}
+}
+\subfloat[]
+{\label{fig:queue:b}
+    \begin{minipage}[t]{0.5\textwidth}
+    \centering
+\lstinputlisting [language = C] {source_code/seq-dequeue.v}
+  \end{minipage}
+}\caption{Concrete (in C) vs. abstract (in Coq) thread queues}
+\hrulefill
+\label{fig:queue}
+\end{figure*}
+
 In the rest of this thesis, following CompCert~\cite{Leroy-backend}, we
 will focus on languages whose semantics are {\em
   deterministic} relative to external events (formally, these
@@ -287,7 +316,7 @@ investigation of nondeterministic deep specifications as future work.
 When a module (or a software component)
 implements an interface with a shallow specification, 
 we often hide its private memory state completely
-from its client code. In doing so, we can guarantee that the client
+from its client code. In doing so, we guarantee that the client
 cannot possibly break any invariants imposed on the private state
 in the module implementation.
 
@@ -431,7 +460,7 @@ step at a time and eliminate most unwanted interaction and dependencies.
 
 
 
-\section{Building Layers for Sequential Kernels}
+\section{Abstraction Layers for Sequential Kernels}
 
 \begin{figure}[tb] \centering
 \includegraphics[scale=.5]{figs/mainthm}
@@ -603,7 +632,7 @@ specification and verification. Regardless how many layers we add
 and how we specify the layer primitives, the kernel always has the same 
 efficient assembly implementation.
 
-\section{Building Layers for Concurrent Kernels}
+\section{Abstraction Layers for Concurrent Kernels}
 \label{sec:overview:concurrent}
 To build certified concurrent OS kernels,
 we introduce a notion of \emph{certified concurrent abstraction
@@ -624,14 +653,14 @@ that can reconstruct the current shared state from the current global
 log. Thus, all shared objects are represented as a single sequence of
 logged events with appropriate replay functions.
 
-With concurrency, the machine semantics for each layer (e.g.,
+With concurrency, the machine semantics for each layer (\eg,
 $\sem{L}{\cdot}$) is no longer deterministic: for each scheduler
 strategy ($\strat{hs}$), it may generate a different global
-log. To prove the simulation $\sem{L'}{P\oplus{}M} \leq_R \sem{L}{P}$,
+log. To prove the simulation $\sem{L}{P\oplus{}M} \leq_R \sem{L'}{P}$,
 for each scheduler strategy $\strat{hs}$, if running $P\oplus{}M$ on
-machine $L'$ with $\strat{hs}$ produces a global log $l$, we must find
+machine $L$ with $\strat{hs}$ produces a global log $l$, we must find
 another scheduler strategy $\stratp{hs}$ such that running $P$ on
-machine $L$ under $\stratp{hs}$ would generate a global log $l'$ that
+machine $L'$ under $\stratp{hs}$ would generate a global log $l'$ that
 is related to $l$ via the simulation relation $R$. We will actually
 construct a {\em function} that will map $l$ and $\strat{hs}$ into
 $l'$ and $\stratp{hs}$. Of course, the simulation relation $R$ over
@@ -651,10 +680,8 @@ ticket lock~\cite{mcs91}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{figure}
 \lstinputlisting [language = C, multicols=2] {source_code/ticket_lock_example.c}
-%\vspace{-5pt}
 \caption{Building certified concurrent layers over a ticket lock}
 \label{fig:exp:ticket_lock_example}
-\vspace{-10pt}
 \end{figure}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -671,7 +698,7 @@ $\comm{now}$ values can be reconstructed by replaying the global log
 (for the $L_1$ machine).  $L_1$ also provides the atomic $\comm{f}$
 and $\comm{g}$ events which are later passed on to $L_2$.
 
-\paragraph{Strategy, environment context, and layer simulation}
+\paragraph{Strategy, environment context, and concurrent layer simulation}
 Our goal is to show that for each run of $P\oplus{}M_2\oplus{}M_1$
 over $L_1$, we can find another run of $P$ over $L_3$ so that the
 global logs produced by both runs are related.
@@ -706,7 +733,7 @@ a specific run of $P\oplus{}M_2\oplus{}M_1$ over $L_1$.
 \]
 \end{small}%
 
-Throughout this paper, we assume that all programs always
+Throughout this thesis, we assume that all programs always
 start from CPU 1, and before each CPU executes an atomic primitive,
 it always yields to the hardware scheduler ($hs$).
 We use $\ssame$ to denote a hardware yield to the same CPU,
@@ -749,8 +776,8 @@ the log ends with $(\any\switch hs)$, then it is the
 hardware scheduler's turn to generate a switch event $(hs\switch \any)$.
 
 These strategies also form a nice decomposition of the global log
-$l_{g1}$. To reason about CPU 1 alone, we only need to construct
-its environment context $\oracle_1 := \strat{hs} \bigcup \strat{2}$.
+$l_{g1}$. To reason about CPU 1 alone, since the machine consists of two CPUs, we only need to construct
+its environment context $$\oracle_1 := \strat{hs} \bigcup \strat{2}$$
 
 The layer interface $L_2$ introduces the $\acq$ and $\rel$ primitives
 which trigger events $\acq$ and $\rel$ respectively. Running
@@ -863,7 +890,7 @@ Finally, from $f_{\strat{}}$ we can construct the function
 $f_{\oracle}$ which will map each environment context $\oracle$ for
 $L_1$ into one for $L_2$.
 
-\paragraph{Layer verification and composition}
+\paragraph{Concurrent layer verification and composition}
 Reasoning about a concrete strategy is simple, but when we verify
 a concurrent module, we cannot assume such a specific environment context.
 Instead, to verify
@@ -910,9 +937,27 @@ get $\ltyp{L_1[T]}{R}{M_1\oplus{}M_2}{L_3[T]}$.
 
 
 
+\paragraph{Layer architecture for concurrent kernels}
 
+\begin{figure}\centering
+\includegraphics[scale=1]{figs/refine_layer}
+\caption{Contextual refinement between concurrent layers.}
+\label{fig:spec:refine_layer}
+\end{figure}
 
-
+With our new compositional concurrent layer interface, as shown in
+Figure~\ref{fig:spec:refine_layer}\ronghui{double-check the symbol}, we can freely take a multicore
+machine like x86mc and zoom into a specific active core $i$ by
+creating a {\em logical} ``single-core'' machine layer for core $i$,
+and build
+a collection of certified layers
+follow the same technique shown in Figure~\ref{fig:arch}. 
+When we want to introduce kernel- or
+user-level threads, we can further zoom into a particular thread
+(\eg, $i0$) and create a corresponding logical machine
+layer. Eventually, after we have added all the kernel components and
+implemented all the system calls, we can combine these per-thread
+machines into a single concurrent machine.
 
 \ignore{
 \paragraph*{What have we proved?}

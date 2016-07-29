@@ -127,23 +127,23 @@ are named as {\em certified abstraction layers}.
 \label{sec:intro:layer}
 
 We define a {\em certified abstraction
-  layer} as a triple $\layer{L_1}{M}{L_2}$ plus a mechanized
-proof object for the predicate $\ltyp{L_1}{R}{M}{L_2}$, \ignore{for the predicate $\ltyp{L_1}{R}{M}{L_2}$,}
+  layer} as a triple $\layer{L}{M}{L'}$ plus a mechanized
+proof object for the predicate $\ltyp{L}{R}{M}{L'}$, \ignore{for the predicate $\ltyp{L}{R}{M}{L'}$,}
 showing that the layer
-implementation $M$, built on top of the interface $L_1$ (the {\em
+implementation $M$, built on top of the interface $L$ (the {\em
   underlay}), indeed faithfully {\em implements} the desirable
-interface $L_2$ above (the {\em overlay}).  The {\em implements}
+interface $L'$ above (the {\em overlay}).  The {\em implements}
 relation $R$ is defined as a {\em simulation}~\cite{Lynch95}.
 A certified layer can be
-viewed as a ``parameterized module'' (from interfaces $L_1$ to $L_2$),
+viewed as a ``parameterized module'' (from interfaces $L$ to $L'$),
 {\em a~la} an SML functor~\cite{milner97};
  but it enforces a stronger {\em contextual} correctness property: a correct
 layer is like a ``certified compiler,'' capable of converting any {\em
-  safe} client program $P$ running on top of $L_2$ into one that has the
-same behavior but runs on top of $L_1$ (\eg, by ``compiling'' abstract
-primitives in $L_2$ into their implementation in $M$); if
+  safe} client program $P$ running on top of $L'$ into one that has the
+same behavior but runs on top of $L$ (\eg, by ``compiling'' abstract
+primitives in $L'$ into their implementation in $M$); if
 $\sem{L}{\cdot}$ denotes the state machine for layer $L$, the
-correctness property (over any context $P$) can be written formally as $\sem{L_1}{P\oplus{}M} \leq_R \sem{L_2}{P}$.
+correctness property (over any context $P$) can be written formally as $\sem{L}{P\oplus{}M} \leq_R \sem{L'}{P}$.
 
 The power of certified abstraction layers lies in 
 this {\em contextual refinement}
@@ -167,11 +167,11 @@ specify the data representations in the concrete states
 and the atomic methods
 specify the layer implementations
 in terms of the abstract states.
-In the sequential setting, the context code $P$ can 
+In the sequential setting, the only way that context code $P$ can 
  interfere with the 
 layer implementation $M$ is when
 $M$ fails to encapsulate its private state.
-The contextual refinement relation
+But the contextual refinement relation
 between $M$ and $L$ guarantees that
 any context code $P$ cannot
 modify the internal state of $M$ 
@@ -284,7 +284,7 @@ In   Chapter~\ref{chap:seqkernel},
 we show how to decompose the specification of 
 a practical general-purpose kernel,
 named as \textbf{\mCTOS{}},
-into 33 certified abstraction layers, and turn an otherwise 
+into 33 certified abstraction layers \ronghui{Check the layer number}, and turn an otherwise 
   prohibitive verification task into many simple and easily automatable 
   sub-tasks.  The resulting kernel is a certified assembly implementation 
   that still enjoys a high degree of compositionality.
@@ -326,7 +326,7 @@ We show how the use of an environment context at each
    and are composed at the assembly-level to form
    a complete verified concurrent system.
  To support certified parallel composition of
-  thread-modular layers (i.e., $L[t]$ for all $t$), we have developed
+  thread-modular layers (\ie, $L[t]$ for all $t$), we have developed
   a new extended algebraic memory model (for CompCertX) whereby stack
   frames allocated for each thread can be combined to form a single
   coherent CompCert-style memory.
@@ -375,8 +375,8 @@ In Chapter~\ref{chap-eval},   we present a detailed evaluation of our certified 
     
  Finally, Chapter~\ref{chap-limits} discusses
  the limitations and future work of \CTOS{},
- and Chapter~\ref{chap-rel}
- studies related work and then concludes.
+Chapter~\ref{chap-rel}
+ studies related work, and Chapter~\ref{chap-concl} then concludes.
 % The full artifact for our entire effort can be accessed at
 %   {~\small\url{http://sites.google.com/site/14ctos}}.
 
