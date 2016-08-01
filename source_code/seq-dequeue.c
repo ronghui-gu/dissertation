@@ -3,12 +3,13 @@ typedef enum {
 } td_state;
 typedef struct tcb {
   td_state tds;
-  uint CPU_ID;
+  uint CPU;
   tcb *prev, *next;
 } tcb;
 typedef struct tdq {
   tcb *head, *tail;
 } tdq;
+// <@$M_{q1}$@> module
 tcb tcbp[64]; // <@$\nu_\textsf{tcbp}$@>
 tdq tdqp[256]; // <@$\nu_\textsf{tdqp}$@>
 tcb * deQ(tdq *i){// <@$\kappa_\mathsf{deQ}$@>
@@ -23,5 +24,4 @@ tcb * deQ(tdq *i){// <@$\kappa_\mathsf{deQ}$@>
     next -> prev = null;
     i -> head = next;
   }
-  return res;
-}
+  return res; }

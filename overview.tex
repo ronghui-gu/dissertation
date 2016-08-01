@@ -173,6 +173,7 @@ implementation in order to prove certain properties (\eg,
 termination).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\ignore{
 \begin{figure}[t]\scriptsize
 $$
 \begin{array}{l|l}
@@ -268,27 +269,26 @@ $$
 $$ 
 \caption{Concrete (in C) vs. abstract (in Coq) thread queues}
 \label{fig:queue}
-\end{figure}
+\end{figure}}
 
-
-\begin{figure*}[tb]\centering
-\subfloat[]{
+\begin{figure}[tb]\centering
+\subfloat[Concrete implementation in C]{
 \label{fig:queue:a}
-    \begin{minipage}[t]{0.5\textwidth}
+    \begin{minipage}{0.5\textwidth}
     \centering
 \lstinputlisting [language = C] {source_code/seq-dequeue.c}
     \end{minipage}
 }
-\subfloat[]
+\subfloat[Abstract specification in Coq]
 {\label{fig:queue:b}
-    \begin{minipage}[t]{0.5\textwidth}
+    \begin{minipage}{0.5\textwidth}
     \centering
 \lstinputlisting [language = C] {source_code/seq-dequeue.v}
   \end{minipage}
-}\caption{Concrete (in C) vs. abstract (in Coq) thread queues}
+}\caption{Concrete vs. abstract sequential thread queues}
 \hrulefill
 \label{fig:queue}
-\end{figure*}
+\end{figure}
 
 In the rest of this thesis, following CompCert~\cite{Leroy-backend}, we
 will focus on languages whose semantics are {\em
@@ -320,49 +320,42 @@ from its client code. In doing so, we guarantee that the client
 cannot possibly break any invariants imposed on the private state
 in the module implementation.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{figure}[t]\centering
-\includegraphics[scale=1]{figs/conflict}
-\caption{Client code with conflicting abstract states?}
-\label{fig:conflict}
-\end{figure}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 If a module implements an interface with a deep specification, we
 would still hide the private memory state from its client, but we also
 need to introduce an {\em abstract state} to specify
 the full functionality of each primitive in the interface. 
 
 For example, Figure~\ref{fig:queue} shows the implementation of a
-concrete thread queue module (in C) and its interface with a deep
+sequential thread queue module (in C) and its interface with a deep
 specification (in Coq). The local state of the C implementation
-consists of 64 thread queues (%
+consists of 256 thread queues (%
 % e.g., a ready queue and many sleep queues, denoted as 
 \textsf{tdqp}) and 64 thread control blocks
-(\textsf{tcbp}).  Each thread control block consists of the thread state,
+(\textsf{tcbp}).  Each thread control block consists of the thread state, its owner CPU $id$,
 and a pair of pointers (\textsf{prev} and \textsf{next}) indicating which
-linked-list queue it belongs to. The \textsf{dequeue} function 
+linked-list queue it belongs to. The dequeue  function 
+\textsf{deQ}
 takes a pointer to a queue; it returns the head block if the queue
 is not empty, or null if the queue is empty.
 
-In the Coq specification (Figure~\ref{fig:queue} right; we omitted some
-invariants to make it more readable)\ronghui{Re-draw the figure}, we introduce an abstract state
+In the Coq specification (\cf, Figure~\ref{fig:queue:b}), we introduce an abstract state
 of type \textsf{abs} where we represent each C array as a Coq finite map
 (\textsf{ZMap.t}), and each pointer as an integer index (\textsf{Z}) to the
-\textsf{tdq} or \textsf{tcb} array. The \textsf{dequeue} primitive 
-$\hat{\sigma}_\textsf{dequeue}$ is
+\textsf{tdq} or \textsf{tcb} array. The dequeue primitive 
+$\sigma_\textsf{deQ}$ is
 a mathematical function of type $\textsf{abs} \rightarrow \textsf{Z}
-\rightarrow \textsf{option (abs}\times \textsf{Z)}$; when the function returns
-\textsf{None}, it means that the abstract primitive faults.  This
-\textsf{dequeue} specification is intentionally made very similar to the C
+\rightarrow \textsf{(abs}\times \textsf{Z)}$,
+which takes an abstract state and queue index $i$ as arguments,
+and returns the resulted abstract state and the head of the queue (if exists).  This
+dequeue specification is intentionally made very similar to the C
 function, so we can easily show that the C module indeed {\em
   implements} the specification. 
 
 We define that a module implements a specification if there is a
 {\em forward simulation}~\cite{Lynch95} from the module implementation to its
 specification. In the context of determinate and receptive 
-languages~\cite{sevcik13,Leroy-backend},
-if the specification is also deterministic, it is sufficient to find
+whole machine semantics~\cite{sevcik13,Leroy-backend},
+it is sufficient to find
 a forward simulation from the specification to its
 implementation (this is often easier to prove in practice). 
 In the rest of this thesis, following CompCert, we often call the
@@ -370,7 +363,14 @@ forward simulation from the implementation to its specification
 as {\em upward (forward) simulation} and the one from the specification
 to its implementation as {\em downward (forward) simulation}.
 
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}\centering
+\lstinputlisting [language = C, multicols=2] {source_code/seq-dequeue2.v}
+\caption{A more abstract queue (in Coq)}
+\label{fig:queue2}
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\ignore{
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{figure}[t]\scriptsize
 $$
@@ -398,20 +398,30 @@ $$
 \caption{A more abstract queue (in Coq)}
 \label{fig:queue2}
 \end{figure}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%}
+}
 
 Figure~\ref{fig:queue2} shows a more abstract specification of the same
 queue implementation where the new abstract state \textsf{abs'} omits
 the \textsf{prev} and \textsf{next} links in \textsf{tcb} and treats each
-queue simply as a Coq list. The \textsf{dequeue} specification 
-$\hat{\sigma}_\textsf{dequeue}'$ is now
+queue simply as a Coq list. The dequeue specification 
+$\sigma_\textsf{deQ}$ is now
 even simpler, which makes it easier to reason about its client,
 but it is now harder to prove that the C module
 implements this more abstract specification.  This explains why we
 often introduce less abstract specifications (\eg,
-the one in Figure~\ref{fig:queue}) as intermediate steps, so a
-complex abstraction can be decomposed into several more tractable
-abstraction steps.
+Figure~\ref{fig:queue:b}) as intermediate steps, so a
+complex abstraction can be decomposed into several more tractable steps.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[t]\centering
+\includegraphics[scale=1]{figs/conflict}
+\caption{Client code with conflicting abstract states?}
+\hrulefill
+\label{fig:conflict}
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Deep specification brings out an interesting {\bf new challenge}
 shown in Figure~\ref{fig:conflict}: {\em what if a program $P$ attempts to
@@ -538,14 +548,16 @@ We can also
 compose intermediate layers in the same way---this makes it much
 easier to modify existing (or add new) certified kernel modules.
 For example, once the abstract layer interface
-for thread queue (\cf{}Figure~\ref{fig:queue2}) is introduced,
+$L_{q2}$
+for sequential thread queue (\cf{}Figure~\ref{fig:queue2}) is introduced,
 there is no need to see (or reason about) 
-the concrete queue implementations
-and the intermediate interfaces (\cf{}Figure~\ref{fig:queue}). 
+the concrete queue implementations $M_{q1}$
+(\cf{}Figure~\ref{fig:queue:a})
+and the intermediate interfaces $L_{q1}$ (\cf{}Figure~\ref{fig:queue:b}). 
 Thus, all the code relied on the thread queue module can be verified
 at a higher abstraction level using these abstract queue primitives,
 which are still {\em realizable} by an efficient assembly implementation
-(\ie, Figure~\ref{fig:queue} left).
+(\ie, Figure~\ref{fig:queue:a}).
 
 
 \ignore{
@@ -667,16 +679,6 @@ $l'$ and $\stratp{hs}$. Of course, the simulation relation $R$ over
 thread-private states might still be a relation~\cite{dscal15}.
 
 \paragraph{An example of concurrent layers}
-The example in Figure~\ref{fig:exp:ticket_lock_example} contains a
-client program $P$ which has two threads running on two different
-CPUs; each thread makes one call to the atomic primitive $\comm{foo}$
-provided by the layer interface $L_3$.
-
-Concurrent object module $M_2$ implements the layer interface $L_3$
-but it is built on top of $L_2$.  The $\comm{foo}$ method calls two
-atomic primitives $f$ and $g$ in a critical section protected by a
-ticket lock~\cite{mcs91}.
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{figure}
 \lstinputlisting [language = C, multicols=2] {source_code/ticket_lock_example.c}
@@ -684,31 +686,36 @@ ticket lock~\cite{mcs91}.
 \label{fig:exp:ticket_lock_example}
 \end{figure}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+The example in Figure~\ref{fig:exp:ticket_lock_example} contains a
+client program $P$ which has two threads running on two different
+CPUs; each thread makes one call to the atomic primitive $\comm{foo}$
+provided by the layer interface $L_{t3}$.
 
-The ticket-lock module $M_1$ is built on top of $L_1$ and it
-implements $L_2$. Even though the implementation of a ticket lock
+Concurrent object module $M_{t2}$ implements the layer interface $L_{t3}$
+but it is built on top of $L_{t2}$.  The $\comm{foo}$ method calls two
+atomic primitives $f$ and $g$ in a critical section protected by a
+ticket lock~\cite{mcs91}.
+
+The ticket-lock module $M_{t1}$ is built on top of $L_{t1}$ and it
+implements $L_{t2}$. Even though the implementation of a ticket lock
 contains two shared integer value fields: $\comm{ticket}$ and
 $\comm{now}$ (where $\comm{now} \leq \comm{ticket}$ always holds), the
-interface $L_1$ only provides the atomic primitives such as
+interface $L_{t1}$ only provides the atomic primitives such as
 fetch-and-incrementing the $\comm{ticket}$ value, getting the current
 $\comm{now}$ value, holding the lock (if the $\comm{now}$ value is
 equal to the $\comm{ticket}$ value), and incrementing the $\comm{now}$
 value (to release the lock). The current $\comm{ticket}$ and
 $\comm{now}$ values can be reconstructed by replaying the global log
-(for the $L_1$ machine).  $L_1$ also provides the atomic $\comm{f}$
-and $\comm{g}$ events which are later passed on to $L_2$.
+(for the $L_{t1}$ machine).  $L_{t1}$ also provides the atomic $\comm{f}$
+and $\comm{g}$ events which are later passed on to $L_{t2}$.
 
 \paragraph{Strategy, environment context, and concurrent layer simulation}
-Our goal is to show that for each run of $P\oplus{}M_2\oplus{}M_1$
-over $L_1$, we can find another run of $P$ over $L_3$ so that the
+Our goal is to show that for each run of $P\oplus{}M_{t2}\oplus{}M_{t1}$
+over $L_{t1}$, we can find another run of $P$ over $L_{t3}$ so that the
 global logs produced by both runs are related.
 To show how we accomplish this, here is
 a global log $l_{g1}$ produced from  
-a specific run of $P\oplus{}M_2\oplus{}M_1$ over $L_1$.
-
-\vspace*{-1ex}
-% \colorbox{Peach}{\textcolor{white}{a}}
-\begin{small}
+a specific run of $P\oplus{}M_{t2}\oplus{}M_{t1}$.
 \[
 \begin{array}{l}
 \ssame \cons (1.\incticket) \cons
@@ -731,7 +738,6 @@ a specific run of $P\oplus{}M_2\oplus{}M_1$ over $L_1$.
 \ssame \cons (2.\incnow) 
 \end{array}
 \]
-\end{small}%
 
 Throughout this thesis, we assume that all programs always
 start from CPU 1, and before each CPU executes an atomic primitive,
@@ -747,19 +753,14 @@ We define $\comm{target}(l)$ as the switching destination of the last event in
 the log $l$, which can be either 1, 2, or $hs$. The above run,
 which produced the global log $l_{g1}$, can be viewed as combining
 the following {\em strategies} defined for each CPU and $hs$:
-
-\vspace*{-1ex}
-\begin{small}
 \[
 \strat{j} (l)=
 \begin{cases}
-  j.e & \text{if } (\comm{target}(l) = j) ~~\wedge \\
-      & ~~~~~(l\cons (j.e)) |_{j,hs} \text{ is a prefix of } (l_{g1} |_{j,hs}) \\
+  j.e & \text{if } (\comm{target}(l) = j) ~~\wedge 
+      (l\cons (j.e)) |_{j,hs} \text{ is a prefix of } (l_{g1} |_{j,hs}) \\
 \comm{undefined } & \text{otherwise}
 \end{cases}
 \]
-\end{small}%
-
 \noindent{}Here, $l |_{j,hs}$ only keeps those events in $l$ that are
 related to participants $j$ and $hs$.  For the hardware scheduler's
 strategy $\strat{hs}$, this filtering essentially means that
@@ -777,54 +778,42 @@ hardware scheduler's turn to generate a switch event $(hs\switch \any)$.
 
 These strategies also form a nice decomposition of the global log
 $l_{g1}$. To reason about CPU 1 alone, since the machine consists of two CPUs, we only need to construct
-its environment context $$\oracle_1 := \strat{hs} \bigcup \strat{2}$$
+its environment context 
+\[\oracle_1 := \strat{hs} \bigcup \strat{2}\]
 
-The layer interface $L_2$ introduces the $\acq$ and $\rel$ primitives
+The layer $L_{t2}$ introduces the $\acq$ and $\rel$ primitives
 which trigger events $\acq$ and $\rel$ respectively. Running
-$P\oplus{}M_2$ over $L_2$ could produce the following shared log $l_{g2}$:
-
-\vspace*{-1ex}
-\begin{small}
+$P\oplus{}M_{t2}$ over $L_{t2}$ could produce the following  log $l_{g2}$:
 \[
 \begin{array}{l}
 \ssame \cons (1.\acq) \cons
 \ssame \cons (1.\comm{f}) \cons
 \ssame \cons (1.\comm{g}) \cons
 \ssame \cons (1.\rel) 
-\\
 \cons \sdiff \cons (2.\acq) \cons
 \ssame \cons (2.\comm{f}) \cons
 \ssame \cons (2.\comm{g}) \cons
 \ssame \cons (2.\rel) 
 \end{array}
 \]
-\vspace{-5pt}
-\end{small}%
 
-The layer interface $L_3$ introduces the atomic $\comm{foo}$
-primitive. Running $P$ over $L_3$ could produce the following shared log
+The layer interface $L_{t3}$ introduces the atomic $\comm{foo}$
+primitive. Running $P$ over $L_{t3}$ could produce the following shared log
 $l_{g3}$:
-\vspace*{-1ex}
-\begin{small}
 \[
 \ssame \cons (1.\comm{foo})
 \cons \sdiff \cons (2.\comm{foo})
 \]
-\vspace{-7pt}
-\end{small}%
 
 To build a simulation, we want to define a function mapping one
 layer's log and environment context into those of another layer.  For
-example, the function $f_l$, mapping a log over $L_1$ into one over
-$L_2$, can be defined as follows: (1) it maps the $\holdlock$ and
-$\incnow$ events in $L_1$ to $\acq$ and $\rel$ events in $L_2$; (2) it
+example, the function $f_l$, mapping a log over $L_{t1}$ into one over
+$L_{t2}$, can be defined as follows: (1) it maps the $\holdlock$ and
+$\incnow$ events in $L_{t1}$ to $\acq$ and $\rel$ events in $L_{t2}$; (2) it
 drops the $\incticket$ and $\getnow$ events; 
 and (3) it merges all the adjacent switch symbols (\eg,
 $\ssame \cons \sdiff$ is merged into $\sdiff$).
 The following shows that $l_{g2} = f_l (l_{g1})$ is true:
-
-\vspace*{-1ex}
-\begin{small}
 \[
 \begin{array}{l}
 \hspace*{-1em}\mysout
@@ -859,28 +848,22 @@ The following shows that $l_{g2} = f_l (l_{g1})$ is true:
 \ssame \cons (2.\cancel{\incnow}/\rel) 
 \end{array}
 \]
-\end{small}
 
 From $f_l$, we can construct a function $f_{\strat{}}$
-that maps each strategy $\strat{j}$ for $L_1$ into one for $L_2$:
-
-\vspace*{-1ex}
-\begin{small}
+that maps each strategy $\strat{j}$ for $L_{t1}$ into one for $L_{t2}$:
 \[ 
 f_{\strat{}}(\strat{j}) (l'')=
 \begin{cases}
 j.e' & \text{if } 
-\exists l', f_l(l') = l'' \wedge \strat{j}(l') = j.e\\
-&\qquad\ \wedge f_l(l'\cons(j.e)) = l'' \cons (j.e') \\
+\exists l', f_l(l') = l'' \wedge \strat{j}(l') = j.e
+\wedge f_l(l'\cons(j.e)) = l'' \cons (j.e') \\
 \comm{undefined } & \text{otherwise}
 \end{cases}
 \]
-\end{small}
-
-Here, since many $L_1$ events are dropped in $L_2$,
-the $L_2$ strategy $f_{\strat{}}(\strat{j})$ for $j$
+Here, since many $L_{t1}$ events are dropped in $L_{t2}$,
+the $L_{t2}$ strategy $f_{\strat{}}(\strat{j})$ for $j$
 has to keep querying $\strat{j}$ until
-it also returns an event from $j$ at $L_2$.  For example, let $l'$ be
+it also returns an event from $j$ at $L_{t2}$.  For example, let $l'$ be
 $\ssame \cons (1.\incticket) \cons \sdiff \cons (2.\incticket) \cons
 \ssame \cons (2.\getnow) \cons \sdiff \cons (1.\getnow) \cons \ssame$,
 since $\strat{1} (l') = 1.\holdlock$ and $f_l(l') = \ssame$, we have
@@ -888,7 +871,7 @@ $f_{\strat{}}(\strat{1}) (\ssame) =1.\holdlock$.
 
 Finally, from $f_{\strat{}}$ we can construct the function
 $f_{\oracle}$ which will map each environment context $\oracle$ for
-$L_1$ into one for $L_2$.
+$L_{t1}$ into one for $L_{t2}$.
 
 \paragraph{Concurrent layer verification and composition}
 Reasoning about a concrete strategy is simple, but when we verify
@@ -898,44 +881,43 @@ a layer running on CPU~$i$, we have to show that its implementation
 meets its specification for all possible environment contexts
 $\oracle_i$ that satisfy its ``rely'' invariants.
 
-For example, to show that $\ltyp{L_1[1]}{R}{M_1}{L_2[1]}$, we must
+For example, to show that $\ltyp{L_{t1}[1]}{R}{M_{t1}}{L_{t2}[1]}$, we must
 show that the implementation of $\acq$ meets its specification.
 This requires us to prove the starvation-freedom of the ticket
 lock algorithm. To do so, we can impose the following rely conditions
 over $\oracle_1$:
 %%%%%%
 \begin{itemize} \itemsep 0pt
-\item ($\comm{INV}_{hs}$):  $\strat{hs}$ is \emph{fair}, that is,
+\item ($\comm{INV}_{hs}$):  $\strat{hs}$ is \emph{fair}, \ie,
   for any CPU $i$, the gap between two $(hs \switch i)$ events
   in the log is less than some constant $m$.
 %%%%%%%
 \item ($\comm{INV}_{2}$):  $\strat{2}$ will eventually release the
-  lock it held, that is, the number of events generated by CPU~2
+  lock it held, \ie, the number of events generated by CPU~2
   between $(2.\holdlock)$ and $(2.\incnow)$   is less
-  than some constant $n$ .
+  than constant $n$ .
 \end{itemize}
 %%%%
 Therefore, when CPU~1 acquires the lock, the loop iteration (\cf
-line 17 in Fig~\ref{fig:exp:ticket_lock_example}) is bound by
+line 17 in Figure~\ref{fig:exp:ticket_lock_example}) is bound by
 $n \times m$, because CPU~2 can generate at most $n$ events before
 releasing the lock and $\strat{hs}$ is fair to CPU~2.
 
 Interestingly, we do not need
 to prove that CPU~1 \emph{guarantees} to release the lock within $n$
-steps in machine $L_2[1]$
-when we prove $\ltyp{L_1[1]}{R}{M_1}{L_2[1]}$.  We can restore
-this guarantee proof when we prove $\ltyp{L_2[1]}{R}{M_2}{L_3[1]}$
-since clearly, each call to $\acq$ in $M_2$ is followed by a call to
+steps in machine $L_{t2}[1]$
+when we prove $\ltyp{L_{t1}[1]}{R}{M_{t1}}{L_{t2}[1]}$.  We can restore
+this guarantee proof when we prove $\ltyp{L_{t2}[1]}{R}{M_{t2}}{L_{t3}[1]}$
+since clearly, each call to $\acq$ in $M_{t2}$ is followed by a call to
 $\rel$ within three steps.
 
 Two certified layers are allowed to compose only if each one's guarantee
 implies the other's rely. We cannot parallel-compose
-$\ltyp{L_1[1]}{R}{M_1}{L_2[1]}$ and $\ltyp{L_1[2]}{R}{M_1}{L_2[2]}$;
-but we can first get $\ltyp{L_1[1]}{R}{M_1\oplus{}M_2}{L_3[1]}$ and
-$\ltyp{L_1[2]}{R}{M_1\oplus{}M_2}{L_3[2]}$, and then compose these to
-get $\ltyp{L_1[T]}{R}{M_1\oplus{}M_2}{L_3[T]}$.
-
-
+$\ltyp{L_{t1}[1]}{R}{M_{t1}}{L_{t2}[1]}$ and 
+$\ltyp{L_1[2]}{R}{M_1}{L_2[2]}$;
+but we can first get $\ltyp{L_{t1}[1]}{R}{M_{t1}\oplus{}M_{t2}}{L_{t3}[1]}$ and
+$\ltyp{L_{t1}[2]}{R}{M_{t1}\oplus{}M_{t2}}{L_{t3}[2]}$, and then compose these to
+get $\ltyp{L_{t1}[T]}{R}{M_{t1}\oplus{}M_{t2}}{L_{t3}[T]}$.
 
 \paragraph{Layer architecture for concurrent kernels}
 
