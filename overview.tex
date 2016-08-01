@@ -342,7 +342,7 @@ In the Coq specification (\cf, Figure~\ref{fig:queue:b}), we introduce an abstra
 of type \textsf{abs} where we represent each C array as a Coq finite map
 (\textsf{ZMap.t}), and each pointer as an integer index (\textsf{Z}) to the
 \textsf{tdq} or \textsf{tcb} array. The dequeue primitive 
-$\sigma_\textsf{deQ}$ is
+$\spec_\textsf{deQ}$ is
 a mathematical function of type $\textsf{abs} \rightarrow \textsf{Z}
 \rightarrow \textsf{(abs}\times \textsf{Z)}$,
 which takes an abstract state and queue index $i$ as arguments,
@@ -366,10 +366,11 @@ to its implementation as {\em downward (forward) simulation}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{figure}\centering
 \lstinputlisting [language = C, multicols=2] {source_code/seq-dequeue2.v}
-\caption{A more abstract queue (in Coq)}
+\caption{A more abstract thread queue (in Coq)}
 \label{fig:queue2}
 \end{figure}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \ignore{
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{figure}[t]\scriptsize
@@ -405,7 +406,7 @@ Figure~\ref{fig:queue2} shows a more abstract specification of the same
 queue implementation where the new abstract state \textsf{abs'} omits
 the \textsf{prev} and \textsf{next} links in \textsf{tcb} and treats each
 queue simply as a Coq list. The dequeue specification 
-$\sigma_\textsf{deQ}$ is now
+$\spec_\textsf{deQ}$ is now
 even simpler, which makes it easier to reason about its client,
 but it is now harder to prove that the C module
 implements this more abstract specification.  This explains why we
@@ -475,9 +476,11 @@ step at a time and eliminate most unwanted interaction and dependencies.
 \begin{figure}[tb] \centering
 \includegraphics[scale=.5]{figs/mainthm}
 \caption{Certified OS kernels: what to prove?}
+\hrulefill
 %\rule[0in]{\columnwidth}{.15mm}
 \label{fig:mainthm}
 \end{figure}
+
 Under \CTOS, building a new certified kernel (or experimenting with a new
 design) is just a matter of composing a collection of certified
 layers, developed in a variant of C (called ClightX) or assembly.
@@ -521,6 +524,7 @@ $\sem{\rm{}x86}{K\join{}P}$.
 \begin{figure}[tb] \centering
 \includegraphics[scale=1]{figs/archA}
 \caption{Overview of the \CTOS\ architecture}
+\hrulefill
 %\rule{\columnwidth}{.15mm}
 \label{fig:arch}
 \end{figure}
@@ -680,10 +684,11 @@ thread-private states might still be a relation~\cite{dscal15}.
 
 \paragraph{An example of concurrent layers}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{figure}
+\begin{figure}[t]
+\label{fig:exp:ticket_lock_example}
 \lstinputlisting [language = C, multicols=2] {source_code/ticket_lock_example.c}
 \caption{Building certified concurrent layers over a ticket lock}
-\label{fig:exp:ticket_lock_example}
+\hrulefill
 \end{figure}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 The example in Figure~\ref{fig:exp:ticket_lock_example} contains a
@@ -921,10 +926,11 @@ get $\ltyp{L_{t1}[T]}{R}{M_{t1}\oplus{}M_{t2}}{L_{t3}[T]}$.
 
 \paragraph{Layer architecture for concurrent kernels}
 
-\begin{figure}\centering
+\begin{figure}[t]\centering
 \includegraphics[scale=1]{figs/refine_layer}
 \caption{Contextual refinement between concurrent layers.}
 \label{fig:spec:refine_layer}
+\hrulefill
 \end{figure}
 
 With our new compositional concurrent layer interface, as shown in

@@ -8,7 +8,7 @@ Inductive tdq :=
 Record abs:= 
 {tcbp:ZMap.t tcb; tdqp:ZMap.t tdq}.
 // <@$L_{q1}$@> primitive
-Function <@$\sigma_\textsf{deQ}'$@> a i := 
+Function <@$\spec_\textsf{deQ}'$@> a i := 
  match (a.tdqp i) with 
    |TDQUndef => (a, -1)
    |TDQV head tail =>

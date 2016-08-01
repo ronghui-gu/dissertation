@@ -1,5 +1,5 @@
 \section{Layered programming in ClightX}
-\label{sec:clight}
+\label{sec:seq:clight}
 
 In this section, we provide an instantiation of our framework for a
 C-like language. This instantiation serves two purposes: it
@@ -440,7 +440,7 @@ The semantics of a module $M$ in ClightX($L$), written $\llbracket{} M \rrbracke
 \label{sec:clightx-prog}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{figure}\small
+\begin{figure}[t]
     \begin{prooftree}
         \AxiomC{$\begin{array}{c}
 %            \ltyp{L_1}{\id}{\varnothing}{L_1} \\
@@ -462,13 +462,14 @@ The semantics of a module $M$ in ClightX($L$), written $\llbracket{} M \rrbracke
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % XXX: update for m_1 m_2 vs m_L m_H
 
-\begin{figure}
+\begin{figure}[tp]
 \begin{center}
 \includegraphics[scale=.7]{figs/layersimulation}
 \caption{Layer simulation relation}
 \label{fig:layersimulation}
 %\vspace*{-7pt}
 \end{center}
+\afterpage{\FloatBarrier}
 \end{figure}
 
 To construct a certified abstraction layer $\layer{L_1}{M}{L_2}$, we

@@ -1,6 +1,24 @@
 \chapter{Sequential CertiKOS Framework}
 \label{chap:seq}
-
+In this Chapter, we will provide the formal details
+of our sequential \CTOS{} framework.
+Section~\ref{sec:seq:layer} introduces
+a layer calculus to compose
+sequential layers vertically and
+horizontally, starting from \emph{layer semantics unit}
+(which is language dependent).
+In Section~\ref{sec:seq:sound},
+we show the proof structure for the soundness of layer calculus.
+Section~\ref{sec:seq:clight}
+and Section~\ref{sec:seq:lasm}
+show how to construct layer semantics unit
+and apply layer calculus
+in ClightX (\ie, a C-like language) and LAsm (\ie, an assembly language), respectively.
+In Section~\ref{sec:seq:comp},
+we introduce CompCertX (\ie, a verified C compiler)
+to compile ClightX layers down to assembly-level,
+and show how to link the result layers with
+LAsm layers.
 
 \input{seq/seq-layer}
 \input{seq/seq-clight}
