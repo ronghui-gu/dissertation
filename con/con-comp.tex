@@ -4,7 +4,7 @@
 
 In our approach, interaction between threads happens only through the 
 abstract log, and concrete memory is always thread-local.
-In Sec.~\ref{sec:prog} we already saw how this yields a big
+In Section~\ref{sec:con:base}, we already saw how this yields a big
 improvement over the previous state of the art, because it lets us
 give a \emph{C level} specification to primitives that handle
 communication between threads. In particular, we can write the
@@ -14,13 +14,13 @@ write a sequential-style specification in which $\yield$ immediately
 returns with the abstract state suitably modified.
 In order to take advantage of this, we also need a C compiler which
 can compile the programs that call $\yield$. 
-In this section we show how to adapt Gu et al.'s CompCertX verified
-separate compiler \cite[\S 6]{dscal15} for this task.
+In this section we show how to adapt the CompCertX verified
+separate compiler for this task.
 
 In fact, most of the compiler can be reused as is. This is because we
 do not need to consider parallel composition of thread behaviors
-\emph{at the C level}. As the source language, we reuse Gu et al.'s
-ClightX \cite[\S 4]{dscal15}, which is the CompCert
+\emph{at the C level}. As the source language, we reuse our
+ClightX, which is the CompCert
 Clight subset of C parameterized with layer interfaces.
 Each program is compiled into a
 target program in the per-thread TAsm language, and we prove that the
@@ -83,9 +83,9 @@ our concurrent abstraction layers.
 }
 
 \paragraph{Verified separate compilation and linking with CompCertX} 
-Replacing Gu et al.'s LAsm target with our per-thread TAsm assembly
-language, we first recall Gu et al.'s CompCertX correctness statement
-pictured in Fig.~\ref{fig:compcertx}: starting from a memory state $m$
+Replacing  LAsm target with our per-thread TAsm assembly
+language, we first recall the CompCertX correctness statement
+pictured in Figure~\ref{fig:compcertx}: starting from a memory state $m$
 (provided by the caller of the primitive being implemented), if the
 ClightX function $f$ runs on top of a layer $L$ and produces a
 concrete memory state $m'$, then the compiled function $f$ in TAsm
@@ -111,16 +111,15 @@ l \approx m(\rho(\textsf{ESP}))
 & \rho', m'', a'
 }
 \]
-\vspace{-10pt}
 \caption{CompCertX per-thread correctness statement} \label{fig:compcertx}
-\vspace{-10pt}
+\hrulefill
 \end{figure}
 
 Then, to implement the primitives of an overlay interface $L_2$ on top
 of an underlay interface $L_1$ by some ClightX module $M_C$ for some
 primitives of $L_2$ and some TAsm module $M_{\text{Asm}}$ for other
 primitives of $L_2$, for any fixed thread $t$ and environment context
-$\mathcal E$, we follow Gu et al., first splitting $L_2$ into C-style
+$\mathcal E$, we follow the sequential setting, first splitting $L_2$ into C-style
 and assembly-style primitives by writing $L_2 = L_{2, \text{C}} \oplus
 L_{2, \text{Asm}}$ , then implementing $L_{2, \text{Asm}}$ with TAsm
 code $M_{\text{Asm}}$, and $L_{2, \text{C}}$ with ClightX code
@@ -162,6 +161,23 @@ fact that the per-thread specifications of concurrent primitives such
 as $\yield$ are in fact compatible with verified compilation a la
 CompCert, which we are explaining in this paragraph.
 }
+
+\begin{figure}
+\begin{small}
+\begin{tabular}{ll}
+$\load{m}{\ell} = \some{x}$ & reading from location $\ell$ in memory $m$ succeeds and value $x$ is read \\
+$\store{m}{\ell}{v} = \some{m'}$ & storing value $v$ to location $\ell$ in  $m$ succeeds and yields $m'$ \\
+$\alloc{m}{l}{h}$ & allocating a new block in $m$ with permissions for offsets from $l$ to $h$ \\
+$\nextblock{m}$ & number of memory blocks already allocated in $m$ \\
+$\liftnextblock{m}{n}$ & allocating $n$ empty memory blocks \\
+&(satisfies $\liftnextblock{m}{n+1} = \liftnextblock{\alloc{m}{0}{0}}{n}$ and $\liftnextblock{m}{0} = m$) \\
+$\extends{m}{m'}$ & memory extension between $m$ and $m'$ \cite[\S 5.2]{leroy08} \\
+$\inject{j}{m}{m'}$ & memory injection between $m$ and $m'$ \cite[\S 5.4]{leroy08} \\
+\end{tabular}
+\end{small}
+\caption{The CompCert memory model \cite{leroy08}: notations} \label{fig:mem}
+\hrulefill
+\end{figure}
 
 Modeling the $\yield$ primitives when performing parallel
 composition at the assembly level (from TAsm to LAsm, Lemma~\ref{thread_composition}) requires
@@ -218,87 +234,71 @@ and the global memory state $m$.
   wrt. conveying the $\nextblockOP$ into the log events?}
 }
 
-More formally, in Fig.~\ref{fig:algmem}, we introduce a notion of \emph{algebraic memory model}
+More formally, in Figure~\ref{fig:algmem}, we introduce a notion of \emph{algebraic memory model}
 to model the relationship $\disjointunion{m_1}{m_2}{m}$ between the private memory states $m_1, m_2$ of two disjoint
 thread sets and the global memory state $m$ after parallel composition.
 \begin{definition}[Algebraic memory model] \label{def:algmem}
 A memory model based on the CompCert memory model \cite{leroy08} is
 said to be \emph{algebraic} if, and only if, there is a \emph{disjoint
   union} predicate $\disjointunion{m_1}{m_2}{m}$ satisfying
-the axioms of Fig.~\ref{fig:algmem}.
+the axioms of Figure~\ref{fig:algmem}.
 \end{definition}
 
-\begin{figure}
-\begin{small}
-\begin{tabular}{ll}
-$\load{m}{\ell} = \some{x}$ & reading from location $\ell$ in memory $m$ succeeds and value $x$ is read \\
-$\store{m}{\ell}{v} = \some{m'}$ & storing value $v$ to location $\ell$ in memory $m$ succeeds and yields memory $m'$ \\
-$\alloc{m}{l}{h}$ & memory state obtained by allocating a new memory block in $m$ with permissions for offsets from $l$ to $h$ within the new block \\
-$\nextblock{m}$ & number of memory blocks already allocated in $m$ \\
-$\liftnextblock{m}{n}$ & memory state obtained by allocating $n$ empty memory blocks (satisfies $\liftnextblock{m}{n+1} = \liftnextblock{\alloc{m}{0}{0}}{n}$ and $\liftnextblock{m}{0} = m$) \\
-$\extends{m}{m'}$ & memory extension between $m$ and $m'$ \cite[\S 5.2]{leroy08} \\
-$\inject{j}{m}{m'}$ & memory injection between $m$ and $m'$ \cite[\S 5.4]{leroy08} \\
-\end{tabular}
-\end{small}
-\caption{The CompCert memory model \cite{leroy08}: notations} \label{fig:mem}
-\end{figure}
+
 
 \begin{figure}
-\begin{scriptsize}
-\[
+\begin{mathpar}
 \inferrule{
   \disjointunion{m_1}{m_2}{m}
 }{
   \nextblock{m} = \max(\nextblock{m_1}, \nextblock{m_2})
 }(\textsc{Disj-Nb})
-~ \inferrule{
+\and
+ \inferrule{
   \disjointunion{m_1}{m_2}{m}
 }{
   \disjointunion{m_2}{m_1}{m}
 }(\textsc{Disj-Comm})
-\]
-\begin{mathpar}
+\and
 \inferrule{
   \disjointunion{m_1}{m_2}{m} \\
   \nextblock{m_1} \leq \nextblock{m_2}
 }{
   \disjointunion{m_1}{\liftnextblock{m_2}{n}}{\liftnextblock{m}{n}}
 }(\textsc{Disj-Liftnb-Right})
-\\
+\and
 \inferrule{
   \disjointunion{m_1}{m_2}{m} \\
   \nextblock{m_1} \leq \nextblock{m_2}
 }{
   \disjointunion{\liftnextblock{m_1}{n}}{m_2}{\liftnextblock{m}{n - (\nextblock{m} - \nextblock{m_1})}}
 }(\textsc{Disj-Liftnb-Left})
-\\
+\and
 \inferrule{
   \disjointunion{m_1}{m_2}{m} \\
   \nextblock{m_1} \leq \nextblock{m_2} 
 }{
   \disjointunion{m_1}{\alloc{m_2}{l}{h}}{\alloc{m}{l}{h}}
 }(\textsc{Disj-Alloc})
-\end{mathpar}
-\[
+\and
 \inferrule{
   \disjointunion{m_1}{m_2}{m}
 }{
   \disjointunion{m_1}{\store{m_2}{\ell}{v}}{\store{m}{\ell}{v}}
 }(\textsc{Disj-Store})
+\and
 \inferrule{
   \disjointunion{m_1}{m_2}{m} \\
   \load{m_2}{\ell} = \some{v}
 }{
   \load{m}{\ell} = \some{v}
 }(\textsc{Disj-Load})
-\]
-\end{scriptsize}
-\vspace{-10pt}
+\end{mathpar}
 \caption{Algebraic memory model} \label{fig:algmem}
-\vspace{-10pt}
+\hrulefill
 \end{figure}
 
-Rules in Fig.~\ref{fig:algmem} define the notion of algebraic memory
+Rules in Figure~\ref{fig:algmem} define the notion of algebraic memory
 we use to prove the correctness of single-processor parallel
 composition: any memory operation in a per-thread memory state shall
 reflect in the corresponding global memory state. The condition
@@ -325,7 +325,7 @@ m_{N-1}$ and $\disjointunion{m_N}{m'}{m}$ holds.
 
 \begin{lemma}
 Let $m_1, m_2$ two partial memory states containing the thread-private memories of two disjoint thread sets. Then, we say that global memory state $m$ is \emph{a disjoint union} of $m_1$ and $m_2$ (written $\disjointunion{m_1}{m_2}{m}$) if, and only if, all the following conditions hold:
-$\mathsf{nb}(m) = \max(\mathsf{nb}(m_1), \mathsf{nb}(m_2))$; $\forall i$, memory extension from $\mathsf{liftnb}(m_i, \mathsf{nb}(m) - \mathsf{nb}(m_i))$ to $m$; and no valid common memory locations in both $m_1$ and $m_2$; then we satisfy the algebraic memory model axioms of Fig.~\ref{fig:algmem}.
+$\mathsf{nb}(m) = \max(\mathsf{nb}(m_1), \mathsf{nb}(m_2))$; $\forall i$, memory extension from $\mathsf{liftnb}(m_i, \mathsf{nb}(m) - \mathsf{nb}(m_i))$ to $m$; and no valid common memory locations in both $m_1$ and $m_2$; then we satisfy the algebraic memory model axioms of Figure~\ref{fig:algmem}.
 \end{lemma}
 
 Remember that, similarly to CompCert, CompCertX can only compile

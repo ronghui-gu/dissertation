@@ -1,6 +1,6 @@
 %\sectskip
 \section{Verifying the {\cCTOS} Kernel}
-\label{sec:base}
+\label{sec:con:base}
 %\asectskip
 
 \ignore{
@@ -776,6 +776,7 @@ By applying the vertical composition rule \ignore{ (Lemma~\ref{lem:vertical})}, 
 
 
 \subsection{MCS lock}
+\label{sec:con:mcs}
 \begin{figure}
 \lstinputlisting [language = C, multicols=2] {source_code/mcs_lock.c}
 \caption{MCS Lock Implementation}
@@ -845,19 +846,19 @@ identical to that exposed by the ticket locks.
 }
 
 \subsection{Device drivers}
-\label{sec:base:device}
+\label{sec:con:device}
 Chen {\it et al} \cite{chen16} present a framework to allow interrupts
 inside the kernel
-with device drivers. \ignore{The core idea is to treat device drivers of
+with device drivers. The core idea is to treat device drivers of
 each device as if they were running on a ``logical'' CPU dedicated to that device,
 and build a framework that systematically enforces the isolation among different
-``devices'' and the rest of the kernel.} The work has been successfully ported
+``devices'' and the rest of the kernel. The work has been successfully ported
 into our setting relatively easily thanks to the fact that their event-based
  model is consistent with our interleaving machine model.
 
 
 \subsection{Memory management}
-\label{sec:base:memm}
+\label{sec:con:mem}
 \ignore{
 The memory management of {\mCTOS} consists of  the
 \emph{physical memory management} (4 layers), 
@@ -878,7 +879,7 @@ The memory management of {\mCTOS} consists of  the
 \paragraph{Physical memory management}
 \label{sec:base:memm}
 maintains the physical pages and provides a \emph{dynamic page allocator}
-\texttt{palloc} (\cf Fig.~\ref{fig:exp:palloc}).
+\texttt{palloc} (\cf Figure~\ref{fig:exp:palloc}).
 As the page allocation table $\texttt{AT}$ is shared among different CPUs, 
 we associate it with a lock $\texttt{lock\_AT}$.
 The dynamic page allocator is then refined into an atomic object where
@@ -1018,7 +1019,7 @@ and \emph{IPC} module (2 layers).}
 
 
 \subsection{Shared queue library}
-\label{sec:base:procm} 
+\label{sec:con:queue} 
 Shared queue object
 is widely used in concurrent kernels, e.g., as buffers for producer/consumer,
 as the list of threads in a scheduler, {\it etc}.
@@ -1249,6 +1250,7 @@ Vertical composition \ignore{ (Lemma~\ref{lem:vertical})} then yields the desire
 \]
 
 \subsection{Thread management}
+\label{sec:con:thread}
 
 \begin{figure}[t]\centering
 \includegraphics[scale=1]{figs/scheduler} 
@@ -1287,6 +1289,7 @@ all the other thread queue operations are protected by \emph{fine-grained} locks
 \caption{Implementation of the Scheduler Module}
 \label{fig:exp:scheduler}
 \hrulefill
+    \afterpage{\FloatBarrier}
 \end{figure}
 
 Verification of such scheduling primitive is extremely challenging.
@@ -1336,12 +1339,11 @@ This function $\mathsf{cswitch}$ can only be implemented at the assembly level,
 and its specification does not satisfy the C calling convention.
 To verify these low level scheduler functions, we introduce an
 assembly-style concurrent layer interface $L_5$.
-\begin{figure}
+\begin{figure}[t]
 \lstinputlisting [language = C, multicols=2] {source_code/scheduling.c}
-\vspace{-10pt}
 \caption{Pseudocode of scheduling implementation.}
 \label{fig:exp:sched}
-\vspace{-10pt}
+\hrulefill
 \end{figure}
 
 
@@ -1617,12 +1619,35 @@ and link with per-CPU layers.
 % ------------------------------------------------------------------
 
 \subsection{Synchronized IPC module}
+\label{sec:con:ipc}
 We have implemented and verified a single-copy
 inter-process communication (IPC) protocol using condition variables
 and the FIFO Blocking Bounded Queue.
 Additionally, we have verified a
 zero-copy IPC for user programs that is built on top of the
 shared memory infrastructure.
+The verification of synchronized IPC is based on the 
+queuing lock.
+
+Queuing Lock is an algorithm whereby waiting threads are put to sleep,
+so that busy waiting is avoided.
+Verification of this complex locking algorithm is particularly
+challenging since its C implementation utilizes both
+spinlocks and low level scheduler primitives ($\sleep$ and $\wakeup$).
+In our framework, a queuing lock implementation is verified
+by building multiple layer interfaces on top of $L_7$.
+
+
+We first introduce two atomic operations (using $\comm{CAS}$)
+that set and clear the busy bit of the lock.
+Then we prove that the implementations
+of the lock and unlock operations
+satisfy their atomic specifications
+(which generate single $\comm{acq\_q}$ and $\comm{rel\_q}$ events, respectively).
+This is achieved by proving a simulation between layer interfaces together
+with starvation-freedom, using a strategy similar to verification of
+the ticket lock implementation.
+
 \ignore{
 \begin{figure}
 \lstinputlisting [language = C, multicols=2] {source_code/ipc.c}
@@ -1667,7 +1692,7 @@ objects are introduced.  Then the handler code is verified and
 the behavior is interpreted using its abstract atomic specification.
 }
 
-
+\subsection{Verification of user code}
 To further simplify the reasoning about user code, we have implemented and
 verified the user level system call libraries directly in the user space.
 Since our machine semantics models hardware behaviors

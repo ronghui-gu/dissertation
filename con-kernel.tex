@@ -50,9 +50,8 @@ the per-CPU scheduler, the kernel-thread management module, the process
 management module, and the virtualization module (VM Monitor). Each
 kernel thread has its own TCB, context, and stack.
 
-\vspace{-5pt}
 \paragraph{What have we proved?}
-Using \CTOS framework, we have successfully built a fully certified version of
+Using \CTOS{} framework, we have successfully built a fully certified version of
 the \cCTOS\ kernel and proved its contextual refinement property with
 respect to a high-level deep specification for \cCTOS.  This important
 functional correctness property implies that all system calls and
@@ -60,6 +59,61 @@ traps will strictly follow the high-level specification and always run
 {\em safely} and {\em terminate} eventually; and there will be no data
 race, no code injection attacks, no buffer overflows, no null pointer
 access, no integer overflow, \etc{}
+
+\begin{figure}[t]
+%\includegraphics[scale=0.1]{figs/layer_diagram.png}
+\includegraphics[width=1.0\textwidth]{figs/layer_diagram.pdf}
+\caption{Layer hierarchy of \cCTOS{} kernel}
+\label{fig:layer_diagram}
+\hrulefill
+\end{figure}
+
+\ignore{In addition to all the concurrent objects described in Sec. \ref{sec:prog},
+the kernel also implements an MCS lock \cite{mcs91}, paging-based dynamically
+allocated virtual memory,
+a synchronous inter-process communication (IPC) protocol implemented using the
+queuing lock, and a shared-memory IPC protocol with a shared page.
+Using the techniques and strategies presented in the paper, we have
+successfully specified and verified the \cCTOS{} kernel in the Coq proof assistant.}
+
+Figure~\ref{fig:layer_diagram} shows the layer hierarchy of  \cCTOS{}.
+The gray boxes denote machine models, on top of which the
+per-CPU (blue) and per-thread (yellow) layers are built. Orange boxes
+are user threads.
+
+The bottom-left portion of the figure illustrates the contextual refinement
+among machine models (\cf Section~\ref{sec:mach}), where we gradually turn the nondeterministic
+multicore machine model with arbitrary interleavings
+among different processors into a CPU-local machine model that is parameterized
+over the behaviors of other processors,
+where the switch points only appear at shared operations. This new machine
+model allows us to reason about programs running on different processors locally,
+and later compose them formally to reason about the whole program.
+
+On top of this abstract machine model, the code of the concurrent kernel is specified and 
+verified through 59 abstraction (logical) layers. For each CPU,
+we introduce the atomic (ticket and MCS) spinlock objects
+(\cf Section~\ref{sec:base:lock} and \ref{sec:con:mcs}).
+On top of that, the device drivers running inside kernel are verified
+(\cf Section~\ref{sec:con:device}).
+Then there are multiple layers used to introduce memory management units (\cf Section~\ref{sec:con:mem}),
+the thread context, atomic queue object (\cf Section~\ref{sec:con:queue}), and scheduler methods (\cf Section~\ref{sec:con:thread}).
+The \texttt{PThread} layer is the topmost layer built for a particular processor.
+There, the scheduler primitives like \texttt{yield} and \texttt{sleep}
+are specified in a small-step manner, similar to how they are implemented
+in C and assembly. Their specifications do not follow the C calling conventions
+and thus cannot be called by C code. Above \texttt{PThread}, we then build up the 
+per-thread layers that support thread-local reasoning for each CPU.
+We first introduce the layer \texttt{PHThread} which defines big-step semantics for
+the scheduler primitives that can be invoked from the C level (\cf Section~\ref{sec:con:thread}).
+Finally, above the \texttt{PHThread} layer, we verify the
+IPC and trap handler modules.
+
+The verified kernel source code (both C and assembly) is extracted using 
+Coq's extraction mechanism. The C source code is then compiled by the
+extracted verified compiler and merged with the extracted assembly source to
+produce the final assembly source code for our verified concurrent kernel. 
+
 
 More importantly, because $\sem{\rm{}x86mc}{K\join{}P}$ refines
 $\sem{\rm\cCTOS}{P}$ for any program $P$, we can also derive the
@@ -72,6 +126,7 @@ system-call specification level (including information-flow
 security~\cite{costanzo16}) can be transferred down to the lowest
 assembly machine.
 
+
 \ignore{
 Finally, we also proved that there is no stack overflow or memory
 exhaustion in the kernel using recent techniques developed by
@@ -83,61 +138,7 @@ Carbonneaux~{\em et al}~\cite{veristack,ccrb15}.
 
 
 \input{con-case/con-base}
-\input{con/con-prog}      % Layered Concurrent Programming (3-3.5 
-
-
-\begin{figure}[t]
-%\includegraphics[scale=0.1]{figs/layer_diagram.png}
-\includegraphics[width=1.0\textwidth]{figs/layer_diagram.pdf}
-\caption{Layer hierarchy of \cCTOS{} kernel}
-\label{fig:layer_diagram}
-\hrulefill
-\end{figure}
-
-In addition to all the concurrent objects described in Sec. \ref{sec:prog},
-the kernel also implements an MCS lock \cite{mcs91}, paging-based dynamically
-allocated virtual memory,
-a synchronous inter-process communication (IPC) protocol implemented using the
-queuing lock, and a shared-memory IPC protocol with a shared page.
-Using the techniques and strategies presented in the paper, we have
-successfully specified and verified the \cCTOS{} kernel in the Coq proof assistant.
-
-Fig.~\ref{fig:layer_diagram} shows the layer hierarchy of  \cCTOS{}.
-The gray boxes denote machine models, on top of which the
-per-CPU (blue) and per-thread (yellow) layers are built. Orange boxes
-are user threads.
-
-The bottom-left portion of the figure illustrates the contextual refinement
-among machine models, where we gradually turn the nondeterministic
-multicore machine model with arbitrary interleavings
-among different processors into a CPU-local machine model that is parameterized
-over the behaviors of other processors,
-where the switch points only appear at shared operations. This new machine
-model allows us to reason about programs running on different processors locally,
-and later compose them formally to reason about the whole program.
-
-On top of this abstract machine model, the code of the concurrent kernel is specified and 
-verified through 59 abstraction (logical) layers. For each CPU,
-we introduce the atomic (ticket and MCS) spinlock objects following
-the techniques presented in Sec.~\ref{sec:prog}.
-On top of that, the device drivers running inside kernel are verified.
-Then there are multiple layers used to introduce memory management units,
-the thread context, atomic queue object, and scheduler methods (\cf Sec.~\ref{sec:prog}).
-The \texttt{PThread} layer is the topmost layer built for a particular processor.
-There, the scheduler primitives like \texttt{yield} and \texttt{sleep}
-are specified in a small-step manner, similar to how they are implemented
-in C and assembly. Their specifications do not follow the C calling conventions
-and thus cannot be called by C code. Above \texttt{PThread}, we then build up the 
-per-thread layers that support thread-local reasoning for each CPU.
-We first introduce the layer \texttt{PHThread} which defines big-step semantics for
-the scheduler primitives that can be invoked from the C level (\cf Sec.~\ref{sec:prog}).
-Finally, above the \texttt{PHThread} layer, we verify the
-IPC and trap handler modules.
-
-The verified kernel source code (both C and assembly) is extracted using 
-Coq's extraction mechanism. The C source code is then compiled by the
-extracted verified compiler and merged with the extracted assembly source to
-produce the final assembly source code for our verified concurrent kernel. 
+%\input{con/con-prog}      % Layered Concurrent Programming (3-3.5 
 
 \input{con/con-comp}      % Certified Compilation and Linking (1-1.5 pages)
 
@@ -159,7 +160,7 @@ Layering allows us to perform incremental refinement of machine
   models. Real world CPUs are far from ideal for reasoning
 purposes, so we abstract the realistic
 machine model into a simpler one.
-As indicated in Fig.~\ref{fig:layer_diagram}, the per-CPU layers are built on top
+As indicated in Figure~\ref{fig:layer_diagram}, the per-CPU layers are built on top
 of an abstract machine model that supports CPU-local reasoning. Through
 multiple contextual refinements, we have proved that the underlying
 nondeterministic hardware machine model refines the abstract model. Furthermore, 
@@ -183,7 +184,7 @@ multiple events to occur. Then, through a separate contextual refinement
 that does not involve any code verification, we abstract the environment
 context to obtain a new, atomic specification generating only a single event.
 In this way, we manage to cleanly separate concurrency reasoning 
-(e.g., interleaved executions) from code verification.
+(\eg, interleaved executions) from code verification.
 
 \ignore{
 {\it Layering facilitates the invariant preservation proof.}
