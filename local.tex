@@ -33,7 +33,6 @@
 \newcommand\ClightX[1]{\textrm{ClightX(}#1\textrm{)}}
 \newcommand\CompCertX[1]{\textrm{CompCertX(}#1\textrm{)}}
 \usepackage{multirow}
-\newtheorem{invariant}{Invariant}
 \newcommand\ignore[1]{}
 \newcommand{\code}[1]{{\texttt{#1}}}
 
@@ -65,7 +64,7 @@
 \newcommand{\Ev}{\mathbb{E}} % the set of events
 \newcommand{\Prog}{\mathbb{P}} % a set of programs
 \newcommand{\Lang}{\mathbb{L}} % a language with log
-\newcommand{\Mach}{\mathcal{M}} % a machine
+\newcommand{\Mach}{\machx} % a machine
 \newcommand{\Env}{\mathcal{E}} % an environment context
 \newcommand{\refines}{\sqsubseteq} % refinement relation
 \newcommand{\EC}[1]{{\kw{EC}({#1})}} % encironment contexts of a partial machine
@@ -93,8 +92,10 @@
 \newcommand\state{s}
 \newcommand\push{\mathsf{push}}
 \newcommand\pull{\mathsf{pull}}
-\newcommand\abst{\mathcal{A}}
-\newcommand\primt{\mathcal{P}}
+\newcommand\abst{\mathbb{A}}
+\newcommand\primt{\mathbb{P}}
+\newcommand\invt{\textsf{INV}}
+\newcommand\mat{\textsf{MA}}
 
 \newcommand\incticket{\mathsf{inc\_t}}
 \newcommand\incnow{\mathsf{inc\_n}}
@@ -141,7 +142,7 @@
 \newcommand\perm[1]{\mathsf{perm}(#1)}
 \newcommand\LAsm{\mathsf{LAsm}}
 \newcommand\TAsm{\mathsf{TAsm}}
-\newcommand\boot{\mathsf{boot}}
+\newcommand\boot{\mathsf{preinit}}
 
 %\newcommand\sem[1]{\llbracket{} #1 \rrbracket{}}
 
@@ -188,3 +189,4 @@
 
 \newcommand\mimp{M_C}
 \newcommand\mabs{M_A}
+\newcommand\localvariable{\iota}

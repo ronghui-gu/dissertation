@@ -13,7 +13,8 @@
 \usepackage[hyphenbreaks]{breakurl}
 \usepackage{xspace}
 \usepackage{graphicx}
-%\usepackage{amssymb}
+\usepackage{amssymb}
+\usepackage{amsmath}
 %\usepackage{amsmath, mathptmx}
 \usepackage{subfig}
 \usepackage[algoruled,vlined,ruled]{algorithm2e}
@@ -28,7 +29,6 @@
 \usepackage{multirow}
 \usepackage{amsfonts}
 \usepackage{colortbl}
-\usepackage{amsmath}
 
 \usepackage{appendix}
 
@@ -70,11 +70,20 @@
 \usepackage{paralist}
 \usepackage{enumitem}
 \theoremstyle{newstyle}
+
 \newtheorem{lemma}{Lemma}
+\numberwithin{lemma}{section}
 \newtheorem{corollary}{Corollary}
+\numberwithin{corollary}{section}
 \newtheorem{definition}{Definition}
+\numberwithin{definition}{section}
 \newtheorem{theorem}{Theorem}
+\numberwithin{theorem}{section}
 \newtheorem{proposition}{Proposition}
+\numberwithin{proposition}{section}
+\newtheorem{invariant}{Invariant}
+\numberwithin{invariant}{section}
+
 \newcommand*{\Scale}[2][4]{\scalebox{#1}{$#2$}}
 \usepackage{mathpartir}
 \usepackage{multirow}

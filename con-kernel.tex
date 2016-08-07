@@ -1,18 +1,99 @@
 \chapter{Case Study: Building Certified Concurrent OS Kernels}
 \label{chap:conkernel}
 
-\begin{figure*}
+To demonstrate our concurrent framework,
+we extend the \mCTOS{} single-core verified kernel into a
+concurrent kernel \cCTOS{} running on multi-core hardware.
+\ronghui{Fix the road map}
+
+\section{Overview of the \cCTOS\ kernel}
+\label{sec:con:overview}
+
+\begin{figure}[t]\centering
+\includegraphics[scale=.78]{figs/sysarch}
+\caption{System architecture for the \cCTOS\ kernel.}
+%\rule[0in]{\columnwidth}{.15mm}
+\label{fig:sysarch}
+\hrulefill
+\end{figure}
+
+Figure~\ref{fig:sysarch} shows the system architecture of the
+\cCTOS\ kernel. The \cCTOS\ system was initially developed in the
+context of a large DARPA-funded research project.  
+\ronghui{Fix}
+It is a concurrent
+OS kernel that can also double as a hypervisor.  It runs on a military
+land vehicle with a multicore Intel Core i7 machine. On top of the
+\cCTOS\ kernel, we run 6 Ubuntu Linux systems as guests (one each on
+the first six cores). Each virtual machine runs several RADL (The
+Robot Architecture Definition Language) nodes that have fixed hardware
+capabilities such as access to GPS, radar, \etc{}  The kernel also
+contains a few simple device drivers (\eg, interrupt controllers,
+serial and keyboard devices). More complex devices are either
+supported at the user level, or directly passed through (via
+IOMMU) to various guest Linux VMs. By running different RADL nodes in
+different VMs, \cCTOS\ provides strong isolation support so that even
+if attackers take control of one VM, they still cannot break into
+other VMs to compromise the overall mission of the drone.
+%\vilhelm{Maybe cut this paragraph, and drop the ``-like''? The figure does not mention 
+%the VMs, GPS, etc, and the text creates the impression that 
+%we ran the certified version on the vehicle. }
+
+Within \cCTOS, we have various shared objects such as lock modules
+(Ticket, MCS), sleep queues (SleepQ) for implementing queueing locks
+and condition variables, message queues (MsgQ) for waking up a
+thread on another CPU, container-based physical and virtual memory
+management modules (Container, PMM, VMM), a Lib Mem module for
+implementing shared-memory IPC, synchronization modules (FIFOBBQ,
+CV), and an IPC module. Within each core (the purple box), we have
+the per-CPU scheduler, the kernel-thread management module, the process
+management module, and the virtualization module (VM Monitor). Each
+kernel thread has its own TCB, context, and stack.
+
+\vspace{-5pt}
+\paragraph{What have we proved?}
+Using \CTOS framework, we have successfully built a fully certified version of
+the \cCTOS\ kernel and proved its contextual refinement property with
+respect to a high-level deep specification for \cCTOS.  This important
+functional correctness property implies that all system calls and
+traps will strictly follow the high-level specification and always run
+{\em safely} and {\em terminate} eventually; and there will be no data
+race, no code injection attacks, no buffer overflows, no null pointer
+access, no integer overflow, \etc{}
+
+More importantly, because $\sem{\rm{}x86mc}{K\join{}P}$ refines
+$\sem{\rm\cCTOS}{P}$ for any program $P$, we can also derive the
+important {\em behavior equivalence} property for $P$, that is,
+whatever behavior a user can deduce about $P$ based on the high-level
+specification for the \cCTOS\ kernel $K$, the actual linked
+system $K\join{}P$ running on the concrete x86mc machine would indeed
+behave exactly the same.  All global properties proved at the
+system-call specification level (including information-flow
+security~\cite{costanzo16}) can be transferred down to the lowest
+assembly machine.
+
+\ignore{
+Finally, we also proved that there is no stack overflow or memory
+exhaustion in the kernel using recent techniques developed by
+Carbonneaux~{\em et al}~\cite{veristack,ccrb15}.
+\vilhelm{Maybe omit this paragraph, it draws attention to the fact that stack usage is 
+  not tracked by CompCert. We mention it later in the text when talking about the Thread management module.}
+}
+
+
+
+\input{con-case/con-base}
+\input{con/con-prog}      % Layered Concurrent Programming (3-3.5 
+
+
+\begin{figure}[t]
 %\includegraphics[scale=0.1]{figs/layer_diagram.png}
 \includegraphics[width=1.0\textwidth]{figs/layer_diagram.pdf}
-\vspace{-20pt}
 \caption{Layer hierarchy of \cCTOS{} kernel}
 \label{fig:layer_diagram}
-\vspace{-10pt}
-\end{figure*}
+\hrulefill
+\end{figure}
 
-We demonstrate our new technology
-by extending the \mCTOS{} single-core verified kernel \cite{dscal15} into a
-concurrent kernel \cCTOS{} running on multi-core hardware.
 In addition to all the concurrent objects described in Sec. \ref{sec:prog},
 the kernel also implements an MCS lock \cite{mcs91}, paging-based dynamically
 allocated virtual memory,
@@ -58,7 +139,8 @@ Coq's extraction mechanism. The C source code is then compiled by the
 extracted verified compiler and merged with the extracted assembly source to
 produce the final assembly source code for our verified concurrent kernel. 
 
-\input{con-case/con-base}
+\input{con/con-comp}      % Certified Compilation and Linking (1-1.5 pages)
+
 
 \paragraph{Verification Effort and Lessons Learned}
 Our team completed verification of the \cCTOS{} kernel in about 2 person years.

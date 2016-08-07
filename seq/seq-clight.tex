@@ -77,10 +77,10 @@ precise.
 \begin{definition}[Primitive specification] \label{def:c-prim}
 Let $\textsf{mem}$ denote the type of memory state, and
 let $\textsf{val}$ denote the type of concrete values.
-A \emph{primitive specification} $\sigma$ over the abstract state type $A$
-is a predicate on $(\textsf{val}^* \times \textsf{mem} \times A) \times
+A \emph{primitive specification} $\sigma$ over the abstract state type $\abst$
+is a predicate on $(\textsf{val}^* \times \textsf{mem} \times \abst) \times
 (\textsf{val} \times \textsf{mem} \times
-A)$: when $\sigma(\mathit{args}, m, a, \mathit{res}, m', a')$ holds, we say
+\abst)$: when $\sigma(\mathit{args}, m, a, \mathit{res}, m', a')$ holds, we say
 that the primitive takes arguments $\mathit{args}$, memory state
 $m$ and abstract state $a$, and returns a result $\mathit{res}$, a
 memory state $m'$ and an abstract state $a'$.
@@ -91,10 +91,11 @@ will constitute our notion of layer interface.
 
 %\vspace*{-3pt}
 \begin{definition}[Layer interface] \label{def:c-layer}
-A layer interface $L$ is a tuple $ L = (A, P) $
-where $A$ is the type of abstract state, and $P$ is the set of
+A layer interface $L$ is a tuple $ L = (\abst, \primt, \invt) $
+where $\abst$ is the type of abstract state, $\primt$ is the set of
 primitives as a finite map from identifiers to primitive specifications
-over the abstract state $A$.
+over the abstract state $\abst$,
+and $\invt$ is the invariant over the abstract state $\abst$.
 \end{definition}
 
 
@@ -157,8 +158,8 @@ A \emph{module} $M$ is a finite map from identifiers to ClightX functions.
 \paragraph{Semantics}
 
 Compared with Clight, the semantics of $\text{ClightX}(L)$ adds a
-notion of abstract state, and permits calls to the primitives of $L$.
-We will write $L(i)(\mathit{args}, m, a, \mathit{res}, m', a')$ to
+notion of abstract state with type $L.\abst$, and permits calls to the primitives of $L$.
+We will write $L.\primt(i)(\mathit{args}, m, a, \mathit{res}, m', a')$ to
 denote the semantics of the primitive associated with identifier $i$
 in $L$.
 
@@ -183,17 +184,129 @@ v & \in & \textsf{val} & \text{Values} \\
 \end{array}
 \]
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[t]
+	\begin{mathpar}
+\inferrule{
+\llbracket{} e_1 \rrbracket^\triangleleft(\localvariable, \tau, m) = (b, \mathit{ofs}) \\
+\llbracket{} e_2 \rrbracket^\triangleright(\localvariable, \tau, m) = v \\
+m' = m[ (b, \mathit{ofs}) \leftarrow v ]
+}{
+  \Gamma, L, M, \localvariable \vdash e_1 = e_2 : (\tau, m, a) \downarrow
+  (\cdot; \tau, m', a)
+} 
+\and
+\inferrule{
+\llbracket{} e_1 \rrbracket^\triangleleft(\localvariable, \tau, m) = (b, \mathit{ofs}) \\
+\llbracket{} e_2 \rrbracket^\triangleright(\localvariable, \tau, m) = v \\
+m' = m[ (b, \mathit{ofs}) \leftarrow v ]
+}{
+  \Gamma, L, M, \localvariable \vdash e_1 = e_2 : (\tau, m, a) \downarrow
+  (\cdot; \tau, m', a)
+} 
+\and
+\inferrule{
+\llbracket{} e \rrbracket^\triangleright(\localvariable, \tau, m) = v \\
+\tau' = \tau[ t \leftarrow v ]
+}{
+  \Gamma, L, M, \localvariable \vdash t := e : (\tau, m, a) \downarrow
+  (\cdot; \tau', m, a)
+}
+\and
+\inferrule{
+  \Gamma, L, M, \localvariable \vdash S_1 : (\tau, m, a) \downarrow
+  (\cdot; \tau_1, m_1, a_1) \\
+  \Gamma, L, M, \localvariable \vdash S_2 : (\tau_1, m_1, a_1) \downarrow
+  (\mathit{res}; \tau_2, m_2, a_2)
+}{
+  \Gamma, L, M, \localvariable \vdash S_1; S_2 : (\tau, m, a) \downarrow
+  (\mathit{res}; \tau_2, m_2, a_2)
+}
+\and
+\inferrule{
+  \Gamma, L, M, \localvariable \vdash S_1 : (\tau, m, a) \downarrow
+  (\mathit{res}; \tau', m', a') \\
+  \mathit{res} \neq \cdot
+}{
+  \Gamma, L, M, \localvariable \vdash S_1; S_2 : (\tau, m, a) \downarrow
+  (\mathit{res}; \tau', m', a')
+}
+\and
+\inferrule{
+  \llbracket{} e \rrbracket^\triangleright(\localvariable, \tau, m) = v \\
+  v \neq 0 \\
+  \Gamma, L, M, \localvariable \vdash S_1 : (\tau, m, a) \downarrow
+  (\mathit{res}; \tau', m', a')
+}{
+  \Gamma, L, M, \localvariable \vdash \texttt{if}(e) S_1 \texttt{else} S_2 : (\tau, m, a) \downarrow
+  (\mathit{res}; \tau', m', a')
+}
+\and
+\inferrule{
+  \llbracket{} e \rrbracket^\triangleright(\localvariable, \tau, m) = 0 \\
+}{
+  \Gamma, L, M, \localvariable \vdash \texttt{while}(e) S : (\tau, m, a) \downarrow
+  (\cdot; \tau, m, a)
+}
+\and
+\inferrule{
+  \llbracket{} e \rrbracket^\triangleright(\localvariable, \tau, m) = v \\
+  v \neq 0 \\
+  \Gamma, L, M, \localvariable \vdash S : (\tau, m, a) \downarrow
+  (\cdot; \tau_1, m_1, a_1) \\
+  \Gamma, L, M, \localvariable \vdash \texttt{while}(e) S : (\tau_1, m_1, a_1) \downarrow
+  (\mathit{res}; \tau_2, m_2, a_2)
+}{
+  \Gamma, L, M, \localvariable \vdash \texttt{while}(e) S : (\tau, m, a) \downarrow
+  (\mathit{res}; \tau_2, m_2, a_2)
+}
+\and
+\inferrule{
+  \llbracket{} e \rrbracket^\triangleright(\localvariable, \tau, m) = v \\
+  v \neq 0 \\
+  \Gamma, L, M, \localvariable \vdash S : (\tau, m, a) \downarrow
+  (\mathit{res}; \tau', m', a') \\
+  \mathit{res} \neq \cdot
+}{
+  \Gamma, L, M, \localvariable \vdash \texttt{while}(e) S : (\tau, m, a) \downarrow
+  (\mathit{res}; \tau', m', a')
+}
+\and
+\inferrule{
+  \llbracket{} e \rrbracket^\triangleright(\localvariable, \tau, m) = \mathit{res} \\
+}{
+  \Gamma, L, M, \localvariable \vdash \texttt{return}(e) : (\tau, m, a) \downarrow
+  (\mathit{res}; \tau, m, a)
+}
+\and
+\inferrule{
+  \forall i, \llbracket{} e_i \rrbracket^\triangleright(\localvariable, \tau, m) = v_i \\
+  \llbracket{} e \rrbracket^\triangleleft(\localvariable, \tau, m) = (b, 0) \\
+  \Gamma(f) = b \\
+  \Gamma, L, M \vdash f : (v_1, \dots, v_n; m, a) \Downarrow (\mathit{res}; m', a') \\
+  \tau' = \tau[t \leftarrow \mathit{res}]
+}{
+  \Gamma, L, M, \localvariable \vdash t \leftarrow e(e_1, \dots, e_n) : (\tau, m, a) \downarrow
+  (\cdot; \tau', m', a')
+}
+	\end{mathpar}
+    \caption{ClightX big-step semantics}
+    \label{fig:clightx:sem}
+\hrulefill
+    \afterpage{\FloatBarrier}
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-We present the semantics of ClightX under the form of a big-step
-semantics. We fix an injective mapping $\Gamma$ from global variables
+The semantics of ClightX under the form of a big-step
+semantics are presented in Figure~\ref{fig:clightx:sem}. We fix an injective mapping $\Gamma$ from global variables
 to memory block identifiers.
-We write $\llbracket e \rrbracket(l, \tau, m)$ for the
-  evaluation of expression $e$ under local variables $l$,
+We write $\llbracket e \rrbracket(\localvariable, \tau, m)$ for the
+  evaluation of expression $e$ under local variables $\localvariable$,
   temporaries $\tau$ and memory state $m$.
-We write $\Gamma, L, M, l \vdash S:
+We write $\Gamma, L, M, \localvariable \vdash S:
 (\tau, m, a) \downarrow (\mathit{res}; \tau', m', a')$
 for the semantics of statements:
-from the local environment $l$, the temporary environment $\tau$, the
+from the local environment $\localvariable$, the temporary environment $\tau$, the
 memory state $m$, and the abstract state $a$, execution of $S$
 terminates and yields result $\mathit{res}$ (or $\cdot$ if no result),
 temporary environment $\tau'$, memory state $m'$, and abstract state
@@ -210,145 +323,30 @@ right-hand-side of an assignment operation, or as an operand to
 
 As expressions have no side effects, their (lvalue or rvalue)
 semantics takes a memory state $m$ and an abstract state $a$, as well
-as the local environment $l$ (mapping from local stack-allocated
+as the local environment $\localvariable$ (mapping from local stack-allocated
 variables to memory block identifiers) and the temporary environment
 $\tau$ (mapping from temporaries to values), and returns a value.
-
-\begin{small}
 \[
-\begin{array}{cll}
-  \llbracket{} n \rrbracket{}^\triangleright & = n \\
-  \llbracket{} q \rrbracket{}^\triangleright & = q \\
-  \llbracket{} x \rrbracket{}^\triangleleft & = (l(x), 0) \\
-  \llbracket{} x \rrbracket{}^\triangleleft & = (\Gamma(x), 0) & \text{if} ~ x \not\in \mathrm{dom}(l) \\
-  \llbracket{} t \rrbracket{}^\triangleright & = \tau(t) \\
-  \llbracket{} \texttt{\&}e \rrbracket{}^\triangleright & = \llbracket{} e \rrbracket{}^\triangleleft \\
-  \llbracket{} \texttt{*}e \rrbracket{}^\triangleleft & = \llbracket{} e \rrbracket{}^\triangleright \\
-  \llbracket{} e \rrbracket{}^\triangleright & = m(\llbracket{} e \rrbracket{}^\triangleleft) & \text{if} ~ \llbracket{} e \rrbracket{}^\triangleleft ~ \text{defined} \\
-  \llbracket{} e_1 + e_2 \rrbracket{}^\triangleright & = (b, \mathit{ofs} + n) & \text{if} ~ \llbracket{} e_1 \rrbracket{}^\triangleright = (b, \mathit{ofs}) \\ & & \text{and} ~ \llbracket{} e_2 \rrbracket{}^\triangleright = n \\
-  \llbracket{} e_1 - e_2 \rrbracket{}^\triangleright & = \mathit{ofs_1} - \mathit{ofs_2} & \text{if} ~ \llbracket{} e_1 \rrbracket{}^\triangleright = (b, \mathit{ofs}_1) \\ & & \text{and} ~ \llbracket{} e_2 \rrbracket{}^\triangleright = (b, \mathit{ofs}_2)
+\begin{array}{ll}
+  \llbracket{} n \rrbracket{}^\triangleright  = n &
+  \llbracket{} q \rrbracket{}^\triangleright  = q \\
+  \llbracket{} x \rrbracket{}^\triangleleft = (\Gamma(x), 0) & \text{if} ~ x \not\in \mathrm{dom}(\localvariable) \\
+  \llbracket{} x \rrbracket{}^\triangleleft = (\localvariable(x), 0)  
+  &
+  \llbracket{} t \rrbracket{}^\triangleright  = \tau(t) \\
+  \llbracket{} \texttt{\&}e \rrbracket{}^\triangleright  = \llbracket{} e \rrbracket{}^\triangleleft &
+  \llbracket{} \texttt{*}e \rrbracket{}^\triangleleft  = \llbracket{} e \rrbracket{}^\triangleright \\
+  \llbracket{} e \rrbracket{}^\triangleright  = m(\llbracket{} e \rrbracket{}^\triangleleft) & \text{if} ~ \llbracket{} e \rrbracket{}^\triangleleft ~ \text{defined} \\
+  \llbracket{} e_1 + e_2 \rrbracket{}^\triangleright  = (b, \mathit{ofs} + n) & \text{if} ~ \llbracket{} e_1 \rrbracket{}^\triangleright = (b, \mathit{ofs})  \text{ and} ~ \llbracket{} e_2 \rrbracket{}^\triangleright = n \\
+  \llbracket{} e_1 - e_2 \rrbracket{}^\triangleright  = \mathit{ofs_1} - \mathit{ofs_2} & \text{if} ~ \llbracket{} e_1 \rrbracket{}^\triangleright = (b, \mathit{ofs}_1)  \text{ and} ~ \llbracket{} e_2 \rrbracket{}^\triangleright = (b, \mathit{ofs}_2)
 \end{array}
 \]
-\end{small}
-
 As we can see, the abstract state plays no role in the evaluation of
 expressions.
 
-\begin{small}
-\[
-\inferrule{
-\llbracket{} e_1 \rrbracket^\triangleleft(l, \tau, m) = (b, \mathit{ofs}) \\
-\llbracket{} e_2 \rrbracket^\triangleright(l, \tau, m) = v \\
-m' = m[ (b, \mathit{ofs}) \leftarrow v ]
-}{
-  \Gamma, L, M, l \vdash e_1 = e_2 : (\tau, m, a) \downarrow
-  (\cdot; \tau, m', a)
-}
-\]
-
-\[
-\inferrule{
-\llbracket{} e \rrbracket^\triangleright(l, \tau, m) = v \\
-\tau' = \tau[ t \leftarrow v ]
-}{
-  \Gamma, L, M, l \vdash t := e : (\tau, m, a) \downarrow
-  (\cdot; \tau', m, a)
-}
-\]
-\end{small}
-
-We first present structured control.
-
-\begin{small}
-\[
-\inferrule{
-  \Gamma, L, M, l \vdash S_1 : (\tau, m, a) \downarrow
-  (\cdot; \tau_1, m_1, a_1) \\
-  \Gamma, L, M, l \vdash S_2 : (\tau_1, m_1, a_1) \downarrow
-  (\mathit{res}; \tau_2, m_2, a_2)
-}{
-  \Gamma, L, M, l \vdash S_1; S_2 : (\tau, m, a) \downarrow
-  (\mathit{res}; \tau_2, m_2, a_2)
-}
-\]
-
-\[
-\inferrule{
-  \Gamma, L, M, l \vdash S_1 : (\tau, m, a) \downarrow
-  (\mathit{res}; \tau', m', a') \\
-  \mathit{res} \neq \cdot
-}{
-  \Gamma, L, M, l \vdash S_1; S_2 : (\tau, m, a) \downarrow
-  (\mathit{res}; \tau', m', a')
-}
-\]
-
-\[
-\inferrule{
-  \llbracket{} e \rrbracket^\triangleright(l, \tau, m) = v \\
-  v \neq 0 \\
-  \Gamma, L, M, l \vdash S_1 : (\tau, m, a) \downarrow
-  (\mathit{res}; \tau', m', a')
-}{
-  \Gamma, L, M, l \vdash \texttt{if}(e) S_1 \texttt{else} S_2 : (\tau, m, a) \downarrow
-  (\mathit{res}; \tau', m', a')
-}
-\]
-
-
-\[
-\inferrule{
-  \llbracket{} e \rrbracket^\triangleright(l, \tau, m) = 0 \\
-}{
-  \Gamma, L, M, l \vdash \texttt{while}(e) S : (\tau, m, a) \downarrow
-  (\cdot; \tau, m, a)
-}
-\]
-
-\[
-\inferrule{
-  \llbracket{} e \rrbracket^\triangleright(l, \tau, m) = v \\
-  v \neq 0 \\
-  \Gamma, L, M, l \vdash S : (\tau, m, a) \downarrow
-  (\cdot; \tau_1, m_1, a_1) \\
-  \Gamma, L, M, l \vdash \texttt{while}(e) S : (\tau_1, m_1, a_1) \downarrow
-  (\mathit{res}; \tau_2, m_2, a_2)
-}{
-  \Gamma, L, M, l \vdash \texttt{while}(e) S : (\tau, m, a) \downarrow
-  (\mathit{res}; \tau_2, m_2, a_2)
-}
-\]
-
-\[
-\inferrule{
-  \llbracket{} e \rrbracket^\triangleright(l, \tau, m) = v \\
-  v \neq 0 \\
-  \Gamma, L, M, l \vdash S : (\tau, m, a) \downarrow
-  (\mathit{res}; \tau', m', a') \\
-  \mathit{res} \neq \cdot
-}{
-  \Gamma, L, M, l \vdash \texttt{while}(e) S : (\tau, m, a) \downarrow
-  (\mathit{res}; \tau', m', a')
-}
-\]
-\end{small}
-
-Then, function return.
-\begin{small}
-\vspace*{-1ex}
-\[
-\inferrule{
-  \llbracket{} e \rrbracket^\triangleright(l, \tau, m) = \mathit{res} \\
-}{
-  \Gamma, L, M, l \vdash \texttt{return}(e) : (\tau, m, a) \downarrow
-  (\mathit{res}; \tau, m, a)
-}
-\]
-\vspace*{-.5ex}
-\end{small}
-
-We write $\Gamma, L, M \vdash f : (\mathit{args};
-m, a) \Downarrow (\mathit{res}; m', a')$ to say that a function $f$
+To define the semantics for function invocation, 
+we introduce the function judgment $\Gamma, L, M \vdash f : (\mathit{args};
+m, a) \Downarrow (\mathit{res}; m', a')$, which states that a function $f$
 defined either as an internal function in the module $M$, or as a
 primitive in the layer interface $L$, called with list of arguments
 $\mathit{args}$, from memory state $m$ and abstract state $a$, returns
@@ -361,9 +359,6 @@ callee ($\mathsf{next}(m)$ denotes the next available block
 identifier in memory $m$, not yet allocated). Then, we execute the
 body. Finally, we deallocate the stack-allocated variables of the
 callee.
-
-\begin{small}
-\vspace*{-1ex}
 \[
 \inferrule{
   M(f) = ((t_1, \dots, t_n), ((x_1, \mathit{sz}_1), \dots, (x_k, \mathit{sz}_k)),  S) \\
@@ -376,51 +371,23 @@ callee.
   \Gamma, L, M \vdash f : (v_1, \dots, v_n; m, a) \Downarrow (\mathit{res}; m', a')
 }
 \]
-\vspace*{-.5ex}
-\end{small}
-
 \noindent{}For primitive calls, we simply query the layer interface $L$:
-
-\begin{small}
-\vspace*{-1ex}
 \[
 \inferrule{
-  L(f)(\mathit{args}, m, a, \mathit{res}, m', a')
+  L.\primt(f)(\mathit{args}, m, a, \mathit{res}, m', a')
 }{
   \Gamma, L, M \vdash f : (\mathit{args}; m, a) \Downarrow (\mathit{res}; m', a')
 }\]
-\vspace*{-.5ex}
-\end{small}
 
-\noindent{}Using the function judgment, we can state the rule for function call statements as:
-
-\begin{small}
-\vspace*{-1ex}
-\[
-\inferrule{
-  \forall i, \llbracket{} e_i \rrbracket^\triangleright(l, \tau, m) = v_i \\
-  \llbracket{} e \rrbracket^\triangleleft(l, \tau, m) = (b, 0) \\
-  \Gamma(f) = b \\
-  \Gamma, L, M \vdash f : (v_1, \dots, v_n; m, a) \Downarrow (\mathit{res}; m', a') \\
-  \tau' = \tau[t \leftarrow \mathit{res}]
-}{
-  \Gamma, L, M, l \vdash t \leftarrow e(e_1, \dots, e_n) : (\tau, m, a) \downarrow
-  (\cdot; \tau', m', a')
-}
-\]
-\vspace*{-.5ex}
-\end{small}
-
+\noindent{}Using the function judgment, we can state the rule for function call statements shown in Figure~\ref{fig:clightx:sem}.
 
 \begin{definition}[Semantics of a module]
-Let $M$ be a ClightX module, and $L$ be a layer interface. Let $\Gamma$ be a mapping from global variables to memory blocks.
+Let $M$ be a ClightX module, and $L$ be a layer interface. 
+\ignore{Let $\Gamma$ be a mapping from global variables to memory blocks.}
 The semantics of a module $M$ in ClightX($L$), written $\llbracket{} M \rrbracket{}L$, is the layer interface defined as follows:
 \begin{itemize}
 \item the type of abstract state is the same as in $L$;
 \item the semantics of primitives are defined by the following rule:
-
-\begin{small}
-\vspace*{-1ex}
 \[
 \inferrule{
   f \in \mathrm{dom}(M) \\
@@ -429,8 +396,6 @@ The semantics of a module $M$ in ClightX($L$), written $\llbracket{} M \rrbracke
   (\llbracket{}M\rrbracket{}L)(f)(\mathit{args}, m, a, \mathit{res}, m', a')
 }
 \]
-\vspace*{-.5ex}
-\end{small}
 \end{itemize}
 \end{definition}
 
@@ -458,23 +423,15 @@ The semantics of a module $M$ in ClightX($L$), written $\llbracket{} M \rrbracke
     where $L_1$ is the underlay, the module $M = \bigoplus_i i \mapsto \kappa_i$, the intermediate layer $L_1' = \bigoplus_i i \mapsto \sigma'_i$, and the overlay $L_2 = \bigoplus_i i \mapsto \sigma_i$.
     \caption{Building a certified ClightX layer}
     \label{fig:lprooftree}
+\hrulefill
+    \afterpage{\FloatBarrier}
 \end{figure}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % XXX: update for m_1 m_2 vs m_L m_H
 
-\begin{figure}[tp]
-\begin{center}
-\includegraphics[scale=.7]{figs/layersimulation}
-\caption{Layer simulation relation}
-\label{fig:layersimulation}
-%\vspace*{-7pt}
-\end{center}
-\afterpage{\FloatBarrier}
-\end{figure}
-
 To construct a certified abstraction layer $\layer{L_1}{M}{L_2}$, we
 need to find a simulation $R$ such that $\ltyp{L_1}{R}{M}{L_2}$ holds.
-Fig.~\ref{fig:lprooftree} gives an overview of this process.  We write
+Figure~\ref{fig:lprooftree} gives an overview of this process.  We write
 $M = \bigoplus_i i \mapsto \kappa_i$, where $i$ ranges over the
 function identifiers defined in module $M$, and $\kappa_i$ is the
 corresponding implementation.  Global variables in $M$ should not
@@ -514,7 +471,7 @@ to deduce $\ltyp{L_1}{R}{M}{L_2}$.
 \paragraph{Verifying ClightX functions}
 $L_1$ and $L_1'$ share the same views of both concrete and abstract states,
 so no simulation relation is involved during this step of verification
-(the \rulename{Fun} rule in Sec.~\ref{ssec:layer-langsem}).
+(\cf the \rulename{Fun} rule in Figure~\ref{fig:clightx:sem}).
 Using Coq's tactical language,
 we have developed a proof automation engine
 that can handle most of the functional correctness proofs of
@@ -543,13 +500,20 @@ complex formulas in our setting.
 
 %\vspace*{-3pt}
 \paragraph{Data abstraction}
+\begin{figure}[t]\centering
+\includegraphics[scale=1]{figs/layersimulation}
+\caption{Layer simulation relation}
+\label{fig:layersimulation}
+\hrulefill
+    \afterpage{\FloatBarrier}
+\end{figure}
 Since primitives in $L_1'$ and $L_2$ are atomic, we prove the
 single-step downward simulation between $L_1'$ and $L_2$ only at the
 specification level.  The simulation proof for the abstraction can be
 made language independent.  The simulation relation $R$ captures the
 relation between the underlay state (concrete memory and abstract
 state) and the overlay state, and can be decomposed as $R_\text{mem}$
-and $R_\text{abs}$ (see Fig.~\ref{fig:layersimulation}). The relation
+and $R_\text{abs}$ (\cf Figure~\ref{fig:layersimulation}). The relation
 $R_\text{mem}$ ensures that the concrete memory states $m_1$ and $m_2$
 contain the same values, while making sure the memory permissions for
 the part to be abstracted are erased in the overlay memory $m_2$.  The
@@ -563,6 +527,24 @@ via $R_\text{mem}$), and the abstract state in the overlay is actually
 implementable by the concrete memory and abstract state in the
 underlay (via $R_\text{abs}$).
 
+\begin{figure}[t]\centering
+\subfloat[Concrete implementation in C]{
+\label{fig:queue:a}
+    \begin{minipage}{0.5\textwidth}
+    \centering
+\lstinputlisting [language = C] {source_code/seq-AT.c}
+    \end{minipage}
+}
+\subfloat[Abstract specification in Coq]
+{\label{fig:queue:b}
+    \begin{minipage}{0.5\textwidth}
+    \centering
+\lstinputlisting [language = C] {source_code/seq-AT.v}
+  \end{minipage}
+}\caption{Concrete (C) vs. abstract (Coq) memory allocation table}
+\label{fig:alt}
+\end{figure}
+\ignore{
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{figure}[t]\scriptsize
 $$
@@ -598,8 +580,40 @@ $$
 \caption{Concrete (C) vs. abstract (Coq) memory allocation table}
 \label{fig:alt}
 \end{figure}
+}
 
-\begin{figure}[t]\scriptsize
+\begin{figure}[t]\centering
+\subfloat[Concrete implementation in C]{
+\label{fig:get:a}
+    \begin{minipage}{0.5\textwidth}
+    \centering
+\lstinputlisting [language = C] {source_code/seq-AT-get.c}
+    \end{minipage}
+}
+\subfloat[Abstract specification in Coq]
+{\label{fig:get:b}
+    \begin{minipage}{0.5\textwidth}
+    \centering
+\lstinputlisting [language = C] {source_code/seq-AT-get.v}
+  \end{minipage}
+}\caption{Concrete vs. abstract getter-setter functions for \textsf{AT}}
+\label{fig:alt:gettersetter}
+\hrulefill
+\end{figure}
+
+\begin{figure}[t]\centering
+\lstinputlisting [language = C, multicols=2] {source_code/seq-AT-set.v}
+\caption{High level and low level specification for \textsf{at\_set}}
+\label{fig:alt:spec}
+\end{figure}
+\begin{figure}[t]\centering
+\lstinputlisting [language = C, multicols=2] {source_code/seq-palloc.c}
+\caption{Concrete (in C) vs. abstract (in Coq) \textsf{palloc} function}
+\label{fig:palloc}
+\hrulefill
+\end{figure}
+
+\ignore{\begin{figure}[t]\scriptsize
 $$
 \begin{array}{l|l}
 \hspace*{-3ex}
@@ -638,9 +652,9 @@ $$
 $$ 
 \caption{Concrete vs. abstract getter-setter functions for \textsf{AT}}
 \label{fig:alt:gettersetter}
-\end{figure}
+\end{figure}}
  
-\begin{figure}[t]\scriptsize
+\ignore{\begin{figure}[t]\scriptsize
 $$
 \begin{array}{l|l}
 \begin{array}[t]{l}
@@ -665,7 +679,7 @@ $$
 $$ 
 \caption{High level and low level specification for \textsf{at\_set}}
 \label{fig:alt:spec}
-\end{figure}
+\end{figure}}
 
 %\vspace*{-3pt}
 \paragraph{Common patterns}
@@ -682,28 +696,43 @@ not touch concrete memory state. Instead, it only accesses the states
 that have already been abstracted, and it only does
 so using the primitives provided by the underlay interface.
 
-Figs.~\ref{fig:alt}-\ref{fig:palloc:spec} show how we use the two
+Figures~\ref{fig:alt}-\ref{fig:palloc:spec} show how we use the two
 patterns to implement and verify a simplified physical memory
 allocator $\textsf{palloc}$, which allocates and returns the
 first free entry in the physical memory allocation table.
-Fig.~\ref{fig:alt}-\ref{fig:alt:spec} shows how we follow
+Figures~\ref{fig:alt}-\ref{fig:alt:spec} show how we follow
 the {\it getter-setter} pattern
 to abstract the allocation table into a new abstract state.
-As shown in Fig.~\ref{fig:alt}, we first turn the concrete C
+As shown in Figure~\ref{fig:alt}, we first turn the concrete C
 memory allocation table implementation into an abstract Coq data
 type. Then we implement the getter and setter functions for the
-memory allocation table, both in C and Coq (see Fig.~\ref{fig:alt:gettersetter}). 
+memory allocation table, both in C and Coq (\cf Figure~\ref{fig:alt:gettersetter}). 
 The Coq functions $\hat{\sigma}_\textsf{at\_get}$ and $\hat{\sigma}_\textsf{at\_set}$
 are just intermediate specifications that are used
 later in the overlay specifications.
 The actual underlay and overlay specifications of the setter
-function $\textsf{at\_set}$ are shown in Fig.~\ref{fig:alt:spec}.
+function $\textsf{at\_set}$ are shown in Figure~\ref{fig:alt:spec}.
 
-We then prove
-$\ltyp{L_1}{\id}{\textsf{at\_set} \mapsto \kappa_\textsf{at\_set}}{\textsf{at\_set} \mapsto \sigma'_\textsf{at\_set}}$,
-and also 
-$\textsf{at\_set} \mapsto \sigma_\textsf{at\_set}\lpath{R}\textsf{at\_set} \mapsto \sigma'_\textsf{at\_set}$.
+To show the getter-setter functions are correct, we then prove\begin{align}
+\ltyp{L_1}{\id}{\textsf{at\_set} \mapsto \kappa_\textsf{at\_set}}{\textsf{at\_set} \mapsto \sigma'_\textsf{at\_set}}
+\label{eq:at_set:code}
+\\
+\textsf{at\_set} \mapsto \sigma_\textsf{at\_set}\lpath{R}\textsf{at\_set} \mapsto \sigma'_\textsf{at\_set}
+\label{eq:at_set:ref}
+\end{align}
+The code verification (\ref{eq:at_set:code}) is easy for this pattern
+because the memory load and store operations in the underlay
+match the source code closely.
+The proof can be discharged by our automation tactic.
+The main task of this pattern is to prove refinement (\ref{eq:at_set:ref}):
+we design a simulation relation $R$
+relating the memory storing the global variable at underlay
+with its corresponding abstract data at overlay.
+The component $R_\text{mem}$ ensures that there is no permission
+for allocation table \verb"AT" in overlay memory state $m_2$, 
+while the component $R_\text{abs}$ is defined as follows:
 
+\ignore{
 \begin{figure}[t]\scriptsize
 $$
 \begin{array}{l|l}
@@ -746,9 +775,19 @@ $$
 $$ 
 \caption{Concrete (in C) vs. abstract (in Coq) \textsf{palloc} function}
 \label{fig:palloc}
+\end{figure}}
+
+\begin{figure}[t]\centering
+\begin{minipage}{0.55\textwidth}
+\lstinputlisting [language = C] {source_code/seq-palloc.v} 
+\end{minipage}
+\caption{High level and low level specification for palloc function}
+\label{fig:palloc:spec}
+\hrulefill
 \end{figure}
 
-\begin{figure}[t]\scriptsize
+\ignore{
+\begin{figure}[t]
 $$
 \begin{array}[t]{l}
 \verb+Inductive +\sigma'_\textsf{palloc}\verb+ : spec :=+\\
@@ -762,21 +801,11 @@ $$
 $$ 
 \caption{High level and low level specification for palloc function}
 \label{fig:palloc:spec}
-\end{figure}
+\end{figure}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-The code verification (first part) is easy for this pattern
-because the memory load and store operations in the underlay
-match the source code closely.
-The proof can be discharged by our automation tactic.
-The main task of this pattern is to prove refinement (second part):
-we design a simulation relation $R$
-relating the memory storing the global variable at underlay
-with its corresponding abstract data at overlay.
-The component $R_\text{mem}$ ensures that there is no permission
-for allocation table \verb"AT" in overlay memory state $m_2$, 
-while the component $R_\text{abs}$ is defined as follows:
+
 \begin{itemize}%[noitemsep,nolistsep]
 \item $\forall i \in [0, 2^{20})$, $R_\text{abs}$ enforces the {\em writable}
 permission on \verb"AT[i]" at underlay memory state $m_1$, and requires
@@ -795,28 +824,34 @@ After we abstract the memory and get/set operations,
 we implement $\textsf{palloc}$ on top of $L_2$,
 following the {\it abs-fun} pattern.
 The previous overlay now becomes the new underlay (``$L_1$'').
-Fig.~\ref{fig:palloc} shows both the implementation of
+Figure~\ref{fig:palloc} shows both the implementation of
 $\textsf{palloc}$ in ClightX and the abstract function in Coq.
-As before, we separately show that
-$\ltyp{L_1}{\id}%
+As before, we separately prove that
+\begin{align}
+\ltyp{L_1}{\id}%
 	{\textsf{palloc} \mapsto \kappa_\textsf{palloc}}%
-	{\textsf{palloc} \mapsto \sigma'_\textsf{palloc}}$,
-and 
-$\textsf{palloc} \mapsto \sigma_\textsf{palloc}\lpath{R}
-\textsf{palloc} \mapsto \sigma'_\textsf{palloc}$
-holds.
-For the {\it abs-fun} pattern, the refinement proof is easy.
+	{\textsf{palloc} \mapsto \sigma'_\textsf{palloc}}
+	\label{eq:palloc:code}
+\\
+\textsf{palloc} \mapsto \sigma_\textsf{palloc}\lpath{R}
+\textsf{palloc} \mapsto \sigma'_\textsf{palloc}
+\label{eq:palloc:ref}
+\end{align}%
+For the {\it abs-fun} pattern, the refinement proof 
+(\ref{eq:palloc:ref}) is easy.
 Since we do not introduce any new abstract states in this pattern,
 the implementation only manipulates the abstract states through the
-primitive calls of the underlay. Thus, as shown in Fig. \ref{fig:palloc:spec},
+primitive calls of the underlay. Thus, as shown in 
+Figure~\ref{fig:palloc:spec},
 the corresponding underlay and overlay specifications are exactly the same,
 so the relation $R$ here is the identity (\id) and 
 the proof of refinement is trivial.
 The main task for the {\it abs-fun}
-pattern is to verify the code, which is done using our automation tactic. 
+pattern is to verify the code
+(\ref{eq:palloc:code}), which is done using our automation tactic. 
 
 
-Due to the presence of a loop in the C code (see Fig.~\ref{fig:palloc}), 
+Due to the presence of a loop in the C code (\cf Figure~\ref{fig:palloc}), 
 the automation tactic is not able to automate the proofs completely.
 Since the big-step semantics only specifies the infinite loop,
 naive applications of the semantic constructors of loops as
@@ -835,7 +870,7 @@ pattern, the main task is to do simple program verification.  These
 two tasks are well understood and manageable, so the decoupling (via
 these two patterns) makes the layer construction much easier. 
 
-
+\ignore{
 It means that although
 the proof of $\ltyp{L_1}{R}{M}{L_2}$ is separated into two disjoint
 tasks, by following the two patterns, the proof is merely focused
@@ -868,10 +903,6 @@ It directly utilizes the constructors of the CompCert ClightX big-step
 semantic rules to interpret the statements of the function body, while
 using it's back-end theorem proving engines to automatically discharge
 the verification conditions generated by applying the semantic constructors.
-
-Talk about the verification condition generation here...
-
-Talk about the tautology solver, advanced arithmetic theory solver, term rewritter and so on...
 
 This is possible thanks to the analogy between the deep specification and the concrete
 implementation.
@@ -1011,5 +1042,5 @@ $$
 \caption{Concrete (in C) vs. abstract (in Coq) page maps}
 \label{fig:pmap}
 %\vspace*{-7pt}
-\end{figure}
+\end{figure}}
 

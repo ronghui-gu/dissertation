@@ -58,11 +58,11 @@ Specifically,
 in the remainder of this section we will assume that
 the following are given:
 \begin{itemize}
-\item a set of identifiers $i \in \mathbb{I}$
+\item a set of identifiers $i \in \integer$
     which will be used to name variables, functions, and primitives
     (\eg, \textsf{deQ} and \textsf{tcbp} in Figure~\ref{fig:queue});
-\item sets of function definitions $\kappa \in \mathrm{K}$, and
-    variable definitions $\nu \in \mathrm{T}$,
+\item sets of function definitions $\kappa \in \mathbb{K}$, and
+    variable definitions $\nu \in \mathbb{T}$,
     as specified by the language
     (\eg, $\kappa_\textsf{deQ}$ and $\nu_\textsf{tcbp}$ in Figure~\ref{fig:queue});
 % XXX: identifiers?
@@ -105,7 +105,7 @@ However, note that at this stage,
 the elements of $\mathbb{R}$ are entirely abstract,
 and we require only that the composition operator $\circ$
 and identity element $\id$ satisfy the monoid laws
-$R \circ (S \circ T) = (R \circ S) \circ T$ and
+$R_1 \circ (R_2 \circ R_3) = (R_1 \circ R_2) \circ R_3$ and
 $R \circ \id = \id \circ R = R$.
 
 Finally,
@@ -192,7 +192,7 @@ it should be the case that $\sigma_1 \lpath{S \circ R} \sigma_3$.
 \end{figure}
 
 The syntax of the calculus is defined as follows:
-\begin{align*}
+\[\begin{array}{rl}
     L &::= \varnothing
             \ |\ i \mapsto \sigma
             \ |\ i \mapsto \nu
@@ -201,7 +201,7 @@ The syntax of the calculus is defined as follows:
             \ |\ i \mapsto \kappa
             \ |\ i \mapsto \nu
             \ |\ M_1 \oplus M_2
-\end{align*}
+\end{array}\]
 \noindent{}The layer interfaces $L$ and modules $M$
 are essentially finite maps;
 constructions of the form $i \mapsto \_$
@@ -409,17 +409,11 @@ semantics.
 
 Once a language semantics is given, we introduce a
 language-specific rule to prove the correctness of individual functions: 
-
-\vspace*{-1.5ex}
-\begin{small}
-%\begin{prooftree}
     \AxiomC{$\text{VC}(L, \kappa, \sigma)$}
     \RightLabel{\rulename{Fun}}
     \UnaryInfC{$\ltyp{L}{\id}{i \mapsto \kappa}{i \mapsto \sigma}$}
     \[ \DisplayProof \]
 %\end{prooftree}
-\end{small}%
-
 The \emph{semantics layer unit} $\text{VC}(L, \kappa, \sigma)$
 is a language-specific predicate, 
 which asserts that the function body $\kappa$ faithfully implements the
@@ -467,7 +461,7 @@ P@L_2$.
 \section{Soundness of Layer Calculus}
 \label{sec:seq:sound}
 The \emph{soundness} of the layer calculus 
-can be proved by case analysis for all the rules.
+can be proved by case analysis over all the rules.
 First,
     under our interpretation of the typing judgment,
     \rulename{Empty} corresponds directly to \rulename{LLe-Ub-Left}.

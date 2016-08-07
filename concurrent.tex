@@ -1,9 +1,29 @@
 \chapter{Concurrent CertiKOS Framework}
 \label{chap:con}
 
-\input{con/con-overview}  % Informal Development (1.5 pages)
+In this Chapter, we will show how to
+extend the sequential \CTOS{} framework
+with the global log
+to support concurrent program reasoning.
+Section~\ref{sec:layer} introduces
+the concurrent abstract machine with
+global log, which extends the layer calculus
+to support concurrent abstraction layers.
+In Section~\ref{sec:mach},
+we show a chain of concurrent
+machine models from
+multicore hardware machine
+to a CPU-local machine.
+Therefore,  most of the concurrent code
+can be verified similar to sequential code,
+making it possible to reuse lots of tools
+developed in the sequential \CTOS{} framework.
+\ignore{In Section~\ref{sec:comp},
+we show how to equip CompCertX
+with algebraic memory model to form a verified \emph{thread-safe} C compiler.}
+
+%\input{con/con-overview}  % Informal Development (1.5 pages)
 \input{con/con-layer}     % Concurrent Abstraction Layers (1.5 pages)
 \input{con/con-mach}     % Concurrent Abstraction Layers (1.5 pages)
-\input{con/con-mach2}     % Concurrent Abstraction Layers (1.5 pages)
-\input{con/con-prog}      % Layered Concurrent Programming (3-3.5 pages)
-\input{con/con-comp}      % Certified Compilation and Linking (1-1.5 pages)
+%\input{con/con-mach2}     % Concurrent Abstraction Layers (1.5 pages)
+

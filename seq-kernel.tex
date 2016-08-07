@@ -1,11 +1,10 @@
 \chapter{Case Study: Building Certified Sequential OS Kernels}
-\label{chap:seqkernel}
-
-\section{Overview of certified sequential kernels}
+\label{chap:seq:kernel}
+\ignore{\section{Overview of Certified Sequential Kernels}}
 To demonstrate the power of our new languages and tools,
 we have applied our new layered approach to specify and
-verify four variants of \mCTOS{} kernels in the Coq proof assistant.
-This section describes these kernels and the benefits of the approach.
+verify four variants of sequential \mCTOS{} kernels in the Coq proof assistant.
+This Chapter presents how to verify  these kernels as a case study and the benefits of our layered approach.
 
 The \mCTOSbase{} base kernel is a simplified uniprocessor version of
 the CertiKOS kernel~\cite{gu11} designed for the 32 bit x86
@@ -23,6 +22,210 @@ virtualization, virtual memory, and user-space interrupt handling.
 This results in a minimal operating system suitable for embedded
 environments.
 
+This Chapter is organized as below:
+In Section~\ref{sec:seq:design}, we present
+our principles to introduce new layers.
+Section~\ref{sec:seq:base} shows
+how to build certified layers for  a sequential kernel
+\mCTOS{}.
+Based on this one,
+Section~\ref{sec:seq:extend}
+describes how to build variants of different sequential
+kernels in our layered approach.
+
+\input{seq-case/seq-design}
+\input{seq-case/seq-base}
+
+
+
+\section{Extensions to \mCTOS{}}
+\label{sec:seq:extend}
+
+One primary advantage of our extensible architecture is that it makes
+certified kernel extension and reasoning much easier and more principled. 
+In this section, we first describe three alternative \mCTOSbase{} kernels
+that we created through relatively minor changes to the base kernel. We
+then present a specific example of global reasoning over the \mCTOSbase{} 
+kernel~--- a simple notion of address space isolation that will serve as 
+a starting point for a full-fledged security proof in the future.
+
+\ignore{
+  \begin{figure}
+  \begin{center}
+  \includegraphics[scale=0.4]{figs/guestosrun}	
+  \caption{An execution of guest OS in \mCTOShyper{}}
+  \label{fig:adapt:guest}
+  \end{center}
+  \vspace*{-14pt}
+  \end{figure}
+}
+
+% \subsection{Alternative \mCTOSbase{} kernels}
+
+\paragraph{\mCTOShyper{}: supporting virtualization}
+We augmented \mCTOSbase{} to support the two hardware-assisted
+virtualization technologies Intel VT-x and AMD SVM, and built a
+certified hypervisor \mCTOShyper{}.
+%To build a certified hypervisor, \mCTOSbase{} is augmented with the
+%supports for the two hardware assistant technologies -- Intel VT-x and AMD SVM.
+%The \mCTOShyper{} kernel provides core primitives to build full-fledged user
+%level hypervisors including the operations for manipulating the
+%virtual machine (VM) status, handling VM exits, starting/stopping a virtual
+%machine, {\it etc}.
+%It also hides the internal virtual machine control block
+%and the nested page table from the guest applications.
+%The current version supports one virtual machine.
+
+Figure~\ref{fig:base:vm:layers} shows the 7 layers of the virtual
+machine management of \mCTOShyper{} on the Intel platform.
+%The virtual machine management utilizes the Intel hardware
+%virtualization technology VT-x.
+\ignore{
+whose hardware behaviors were not modeled in \mCTOSbase{}
+, such as the host/guest mode and the instructions to transfer between
+host and guest mode (e.g., VMRUN, VMEXIT).
+}
+%In Fig. \ref{fig:base:vm:layers},
+\code{VMInfo} is the layer object
+that axiomatizes some of the hardware specific features needed
+for the virtualization support. 
+Since it is orthogonal to memory and process management,
+the \code{VMInfo} object can be horizontally composed with the layers 
+below \code{PProc} in \mCTOSbase{}.
+On top of this extended \code{PProc} layer,
+the virtual machine management extends the \emph{abstract memory model}
+with the notions of Extended Page Table (EPT), the virtual machine
+control structure (VMCS), and the virtual machine extension meta data (VMX),
+which are abstracted into corresponding layer objects.
+These objects are again orthogonal to the trap module above and can be
+horizontally composed to export related system calls
+%The VM related system calls are further exported to the trap module
+with minimal cost.
+ 
+\begin{figure}[t]\centering
+\includegraphics[scale=0.5]{figs/intel_layer}	
+%\vspace*{-14pt}
+\caption{Layers of virtual machine management}
+\label{fig:base:vm:layers}
+\hrulefill
+\end{figure}
+
+\ignore{
+The issue is
+that \mCTOSbase{} does not have support for starting a kernel module
+that can be scheduled by the scheduler.  This can be addressed using
+the notion of {\it ring 0 process} described in the next section.
+}
+\ignore{
+A certified plug-in for supporting INTEL VMX virtualization is under
+development.  As the virtualization interfaces are developed in an
+architecture-independent way, replacing the SVM module with the VMX
+one does not require much change to the proof side.
+}
+\ignore{
+We can also slide in a thin
+layer in between the process management and the virtualization module
+to detect appropriate vendor information so that \mCTOShyper{}
+can support both architectures.
+}
+
+\ignore{
+\paragraph{Interesting Examples}
+\begin{itemize}
+
+\item For the address translation for guest OS, we introduce the abstract nested page table \verb"npt", which is a partial map from guest physical page index to a part of host physical page index and the permission. Since a guest OS can only be spawned by a user-level program, the domain of the \verb"npt" is in the high memory part and a subset of the physical pages allocated for the owner process. Since the virtual memory management guarantees that the physical memory of all user processes are disjoint, if we extend to support more than one virtual machines, the isolation of guest OS can be proved easily. 
+\end{itemize}
+}
+
+%\vspace*{-10pt}
+\paragraph{\mCTOSringz{}: supporting ring 0 processes}
+
+Thanks to the contextual refinement relation we have proved for
+\mCTOSbase{}, one can certify user programs using our formal
+specifications of system calls. This gives end-to-end proofs on
+the behaviors of user programs when they run on \mCTOSbase{}.  
+Furthermore, once certified, these processes can safely run in
+the privileged ring 0 mode.  We extended \mCTOSbase{} into
+\mCTOSringz{} by adding support for spawning ``in-kernel
+processes'' that run in the privileged ring 0 mode. 
+Ring 0 processes get much
+better system call performance by directly calling kernel
+functions and avoiding ring switch and interrupt processing. 
+%A user process can run in the ring 0 mode
+%only if it is verified for its safety,
+%and stack consumption. 
+%The latter property can be verified using techniques
+%such as the one by Carbonneaux~\cite{veristack}.
+
+To introduce ring 0 processes to \mCTOSbase{},
+we added a single layer on top of the existing process management module:
+Spawning a ring 0 process sets the initial \code{ESP} register to a
+preallocated memory region and then spawns a proper kernel thread. The
+memory region must be verifiably sufficient for the entire execution
+of the process. 
+
+%\vspace*{-10pt}
+\paragraph{\mCTOSembed{}: embedded systems}
+The \mCTOSembed{} kernel is intended for embedded settings. To develop
+this kernel we started with \mCTOSringz{} and removed the virtual machine management, the virtual
+memory management, and some of the process management layers that are
+related to user contexts and user process management.  Thus
+\mCTOSembed{} only supports ring 0 processes which run directly inside
+the physical kernel address space instead of the user-level paged
+virtual address space.
+
+Removing plug-ins or layers does not take much effort.
+We only need to alter the contextual refinement proof 
+at the boundary so we can glue them back together.
+
+\paragraph{Isolation in \mCTOSbase{}}
+\label{security}
+We have begun exploring the verification of a global security 
+property on top of \mCTOSbase{}. As a starting point, we proved a basic notion of 
+isolation between user-level processes running in different virtual 
+address spaces. This isolation property is composed of two theorems:
+one regarding integrity (write protection), and another regarding
+confidentiality (read protection, or noninterference). 
+The statements of these two theorems are as follows:
+suppose the top layer abstract machine takes
+one step, changing the machine state from $S$ to
+$S'$, and let $p$ be the id of the currently-running process 
+(which can be found in $S$).
+\begin{description}
+  \item[Integrity:]
+If the value at some non-kernel memory location $l$ differs between
+$S$ and $S'$, then $l$ belongs to a page that is mapped in the 
+virtual address space of $p$.
+\item[Confidentiality:]
+\label{confidential}
+If the step taken
+is not a primitive call to an IPC syscall (send, recv, etc.), then the values
+of memory in any address space other than $p$'s cannot have an effect on the
+result of the step. In other words, if we altered $S$ 
+by changing data in a different process's address space, the step would still 
+have the same effect on $p$'s address space.
+\end{description}
+
+In the future, we plan to provide a more detailed
+security policy by describing what can happen to confidentiality when IPC is used.
+This description will be expressed in terms of propagation of security labels
+on the IPC data. Note, however, that our framework allows for security labels
+to be specified at a purely logical level~--- there is no need for
+concrete representation and manipulation of labels at run time.
+
+Noninterference properties are 
+generally not preserved across refinement due to nondeterminism. It may therefore 
+seem that the aforementioned \emph{confidentiality} holds only at the topmost layer, but not at
+lower layers. It turns out, however, that our notion of deep specification
+is strong enough to preserve noninterference. Essentially, to give 
+a deep specification to a nondeterministic semantics, we must first externalize
+the source of nondeterminism (\eg, into an oracle). The noninterference property
+then becomes parameterized over this source of nondeterminism, which allows the
+parameterized property to be preserved across refinement. This relationship 
+between deep specification, noninterference, and refinement will be explored
+comprehensively in future work.
+\ronghui{Fix}
+\ignore{
 The layer structures of these kernels are shown in the top half of
 Fig.\ \ref{fig:kernel-layers};
 each block in the top half represents a collection
@@ -69,14 +272,15 @@ This is especially important for calls like \textsf{proc\_exit} to
 so different that direct translation is not feasible.
 
 \begin{figure}[t]
-\center
+\centering
 %\includegraphics[scale=0.3]{figs/layers}
-\includegraphics[scale=0.31]{figs/layers2} 
+\includegraphics[scale=0.5]{figs/layers2} 
 \caption{Various \mCTOS{} layer structures.
 Layer short-hands: TRAP: interrupt handling; VIRT: virtualization;
 PROC: process management; THR: thread management;
 VM: virtual memory; MM: physical memory management.}
 \label{fig:kernel-layers}
+\hrulefill
 \end{figure}
 
 Finally, kernel initialization is another difficult task
@@ -161,6 +365,6 @@ are suitable for both internal reasonings and external descriptions.  Thread and
 management layers now sit directly on top of physical memory
 management; virtual memory is never enabled.  The
 layers remain largely the same barring the removal of primitives
-mentioning page tables.
+mentioning page tables.}
 
-\input{seq-case/seq-base}
+

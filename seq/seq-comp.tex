@@ -43,40 +43,39 @@ we have to ``compile'' --- in fact, reinterpret
 instantiated by the layer interface as well. However, remember that, contrary to
 ClightX, the semantics of memory accesses in LAsm is entirely
 parameterized by the layer interface $L$. Thus, it becomes necessary to prove
-that, for every access to the memory state in ClightX, the
-corresponding semantics of $\mathit{execLoad}$ and
-$\mathit{execStore}$ specified by the assembly layer interface $L$
+that, for every access (\ie, load and store)
+to the memory state in ClightX, the
+corresponding semantics of $L.\mat.\mathit{load}$ and
+$L.\mat.\mathit{store}$ specified by the assembly layer  $L$
 will actually operate on the memory state rather than on the abstract
 state.
 
 To this end, we require each layer interface to define a predicate
-$\mathit{kernelMode}$ on the type $A$ of abstract state specified by
-the layer interface $L$, with the following properties:
+$\textsf{kernel\_mode}$ on the type $L.\abst$ of abstract state specified by
+the layer  $L$, with the following properties:
 
 \begin{itemize}
 \item for code in kernel mode, load and store memory accesses are
-  performed in the memory state, and the abstract state is unchanged
+  performed in the memory, and the abstract state is unchanged
   (and hence, stays in kernel mode):
 \[
-\begin{array}{lll}
-& \multicolumn{2}{l}{L = (\_, \_, \_, \mathit{execLoad}, \mathit{execStore})} \\
-\land & {\mathit{kernelMode}(a)} \\
-\Rightarrow & \mathit{execLoad}(v; \rho, m, a) & = m(v) \\
-\land & \mathit{execStore}(v_s, v; \rho, m, a) & = (\rho, m[v_s \leftarrow v], a)
+\begin{array}{ll}
+ \multicolumn{2}{l}{
+L.\textsf{kernel\_mode}(a)} \\
+\Rightarrow & L.\mat.load(v; \rho, m, a)  = m(v) \\
+& \land  \quad L.\mat.store(v_s, v; \rho, m, a) = (\rho, m[v_s \leftarrow v], a)
 \end{array}
 \]
 
 \item every C-style primitive preserves kernel mode:
 \[
-\begin{array}{ll}
-& L = (\_, P, \_, \_, \_) \\
-\land & P(\mathit{args}, m, a, \mathit{res}, m', a') \\
-\land & {\mathit{kernelMode}(a)} \\
-\Rightarrow & {\mathit{kernelMode}(a')}
+\begin{array}{l}
+ L.\primt_{\mathrm{ClightX}}(\mathit{args}, m, a, \mathit{res}, m', a')
+\land {L.\textsf{kernel\_mode}(a)} \\
+\Rightarrow  {L.\textsf{kernel\_mode}(a')}
 \end{array}
 \]
-\end{itemize}
-
+\end{itemize}%
 These requirements illustrate the fact that address translation is an
 identity function during kernel code execution.
 
@@ -165,10 +164,10 @@ can be roughly summarized as this commutative diagram and formally defined below
 \ar@{_{(}-->}[dd]^j
 \ar@<3ex>@{==}[dd]
 \\
-\genfrac{}{}{0pt}{0}{l}{\rho}, m, a
-\ar[ur]^{L_\text{C}(f)}
-\ar@{-->}[dr]^{L_\text{Asm}(f)} \\
-l \approx m(\rho(\textsf{ESP}))
+\genfrac{}{}{0pt}{0}{\mathit{args}}{\rho}, m, a
+\ar[ur]^{L_\text{C}.\primt(f)}
+\ar@{-->}[dr]^{L_\text{Asm}.\primt(f)} \\
+\mathit{args} \approx m(\rho(\textsf{ESP}))
 & \rho', m'', a'
 }
 \]
@@ -177,13 +176,13 @@ l \approx m(\rho(\textsf{ESP}))
 Let $L_\text{C}$ be a C layer interface, and $L_{\text{Asm}}$ be an
 assembly layer interface. We say that $L_C$ is simulated by
 $L_{\text{Asm}}$ by compilation, written $L_{\text{C}}
-\leqslant^{\textrm{comp}} L_{\text{Asm}}$, if and only if, for any $\Gamma$, and for any execution $L_C(f)(l, m, a, v, m', a')$ of a primitive $f$ of $L_C$ for some list $l$ of arguments and some return value $v$, from  memory state $m$ and abstract state $a$ to $m'$ and $a'$, and for any register map $\rho$ such that the following requirements hold:
+\leqslant^{\textrm{comp}} L_{\text{Asm}}$, if and only if, for any $\Gamma$, and for any execution $L_C.\primt(f)(\mathit{args}, m, a, v, m', a')$ of a primitive $f$ of $L_C$ for some list $\mathit{args}$ of arguments and some return value $v$, from  memory state $m$ and abstract state $a$ to $m'$ and $a'$, and for any register map $\rho$ such that the following requirements hold:
 \begin{enumerate}
-\item the memory $m$ contains the arguments $l$ in the stack pointed to by $\rho(\mathsf{ESP})$
+\item the memory $m$ contains the arguments $\mathit{args}$ in the stack pointed to by $\rho(\mathsf{ESP})$
 \item $\mathsf{EIP}$ points to the function $f$ being called: $\rho(\mathsf{EIP}) = (\Gamma(f), 0)$
 %% \item $kernelMode(a)$ holds
 \end{enumerate}
-Then, there is a primitive execution $L_{\text{Asm}}(f)(\rho, m, a,
+Then, there is a primitive execution $L_{\text{Asm}}.\primt(f)(\rho, m, a,
 \rho', m'', a')$ and a memory injection $j$ from $m'$ to $m''$
 preserving the addresses of $m$ such that the following holds:
 \begin{itemize} %\itemsep 0pt
@@ -218,7 +217,7 @@ the abstract state, as such pointer changes during compilation.
 
 To be able to use CompCertX, ClightX code can only call
 \emph{well-behaved} external functions. The operational semantics of
-ClightX described in Section~\ref{sec:prog} of this paper already
+ClightX described in Section~\ref{sec:seq:clight} already
 guarantees that ClightX code will not call assembly-style primitives. Thus,
 ClightX, similarly to CompCert Clight, does not support primitives
 that do not follow a clear function call/return discipline, such as
@@ -235,7 +234,7 @@ introduced by the compiler, such as memory injections or extensions.
 
 \paragraph{Memory model and treatment of abstract state}
 
-It is interesting that CompCertX correctness proofs are agnostic to
+It is interesting that the correctness proofs  of CompCertX are agnostic to
 the semantics of external functions (besides their compilability
 requirements): in fact, they are not even aware of the presence of
 abstract state along with physical memory, because abstract state can
@@ -251,14 +250,15 @@ abstract state at all in compiler correctness proofs. We proceed in four steps:
 \item Then, we parameterize the compiler correctness proofs of
   CompCertX over such memory model by means of type classes.
 \item Independently of compiler correctness proofs, we provide a
-  way to lift any memory model along a lens and show that, if $M'
-  \stackrel{\pi}{\longrightarrow} M$ is a lens, then, $M'$ is a valid
-  memory model whenever $M$ is a valid memory model.
+  way to lift any memory model along a lens and show that, if 
+  $\textsf{mem}'
+  \stackrel{\pi}{\longrightarrow} \textsf{mem}$ is a lens, then, $\textsf{mem}'$ is a valid
+  memory model whenever $\textsf{mem}$ is a valid memory model.
 \item Finally, once the compiler correctness is obtained, we
-  instantiate it for any abstract state type $A$ with the memory model $M \times A$
-  where $M$ is the concrete memory model implementation of CompCert,
-  thanks to the fact that $M \times A
-  \stackrel{\pi_1}{\longrightarrow} M$ is a lens.
+  instantiate it for any abstract state type $\abst$ with the memory model $\textsf{mem} \times \abst$
+  where $\textsf{mem}$ is the concrete memory model implementation of CompCert,
+  thanks to the fact that $\textsf{mem} \times \abst
+  \stackrel{\pi_1}{\longrightarrow} \textsf{mem}$ is a lens.
 \end{enumerate}
 
 
@@ -287,7 +287,7 @@ We successfully investigated two ways to ensure this guarantee:
 \item To avoid such deep changes, we instead disable writing on blocks
   that are valid at module entry but do not correspond to global
   variables. A further advantage of this method is that blocks that will be
-  created by the module being compiled (e.g. local stack-allocated
+  created by the module being compiled (\eg, local stack-allocated
   variables) may still be written to.
 \end{itemize}
 
@@ -295,27 +295,25 @@ We successfully investigated two ways to ensure this guarantee:
 Then, the statement execution rules of ClightX become parameterized
 over the per-module initial memory $m_0$ received at module entry. Thus,
 the memory assignment rule becomes:
-
 \[
 \inferrule{
-\llbracket{} e_1 \rrbracket^\triangleleft(l, \tau, m) = (b, \mathit{ofs}) \\
-\llbracket{} e_2 \rrbracket^\triangleright(l, \tau, m) = v \\
+\llbracket{} e_1 \rrbracket^\triangleleft(\localvariable, \tau, m) = (b, \mathit{ofs}) \\
+\llbracket{} e_2 \rrbracket^\triangleright(\localvariable, \tau, m) = v \\
 b \not\in \mathrm{dom}(m_0) \backslash \mathrm{dom}(\Gamma) \\
 m' = m[ (b, \mathit{ofs}) \leftarrow v ]
 }{
-  \Gamma, L, M, m_0, l \vdash e_1 = e_2 : (\tau, m, a) \downarrow
+  \Gamma, L, M, m_0, \localvariable \vdash e_1 = e_2 : (\tau, m, a) \downarrow
   (\cdot; \tau, m', a)
 }
 \]
 
 and the semantics of a ClightX module $M$ becomes:
-
 \[
 \inferrule{
   f \in \mathrm{dom}(M) \\
   \Gamma, L, M, m \vdash f : (\mathit{args}; m, a) \Downarrow (\mathit{res}; m', a')
 }{
-  (\llbracket{}M\rrbracket{}L)(f)(\mathit{args}, m, a, \mathit{res}, m', a')
+  (\llbracket{}M\rrbracket{}L).\primt(f)(\mathit{args}, m, a, \mathit{res}, m', a')
 }
 \]
 
@@ -362,12 +360,46 @@ the composed memory injection $j \circ j_0$.
 \end{proof}
 
 \paragraph{Summary of the refinement proof with compilation and linking}
+
+\begin{figure}[t]
+\[
+\xymatrix@R=12pt@C=3pt{
+%
+L_{2, \text{C}} \ar[d]^{\leqslant_R}_{\text{\tiny 2.}} &
+\bigoplus^{\text{\tiny 1.}} &
+L_{2, \text{Asm}} \ar[d]^{\leqslant_R}_{\text{\tiny 2.}} &
+= L_2 \\
+%
+L'_{1, \text{C}} \ar[d]^{\leqslant_\id}_{\text{\tiny 3.}} & &
+L'_{1, \text{Asm}} \ar[dd]^{\leqslant_\id}_{\text{\tiny 3.}} \\
+%
+\llbracket M_\text{C} \rrbracket L_1
+\ar[d]^{\leqslant^{\textrm{comp}}}_{\text{\tiny 4.}} \\
+%
+\llbracket \textrm{CompCertX}(M_\text{C}) \rrbracket L_1 &
+\bigoplus \ar[d]^{\leqslant_\id}_{\text{\tiny 6.}} &
+\llbracket M_\text{Asm} \rrbracket L_1 \\
+%
+& \save[]+<-37.90pt,0pt>*\txt{
+$\llbracket M \rrbracket L_1 =
+ \llbracket \textrm{CompCertX}(M_\text{C}) \oplus M_\text{Asm} \rrbracket L_1$
+}
+\ar@{<-} `_r[rr] [uuuurr]_{\leqslant_R}^{\txt{\tiny 5.\\ \tiny 7.}}
+\restore
+& &
+}
+\]
+\caption{Proof steps of layer refinement $L_1 \vdash_R M : L_2$}
+\label{fig:layer-refinement-proof}
+\hrulefill
+\end{figure}
+
+
 Finally, the outline of proving layer refinement $L_1 \vdash M : L_2$,
 where $M = \textrm{CompCertX}(M_\text{C}) \oplus M_\text{Asm}$ is the union
 of a compiled ClightX module and an LAsm module,
 is summarized in the following steps, also shown in
-Fig.\ \ref{fig:layer-refinement-proof}:
-
+Figure~\ref{fig:layer-refinement-proof}:
 \begin{enumerate}   
 %\begin{compactenum}
 \item Split the overlay $L_2$ into two layer interfaces
@@ -379,12 +411,12 @@ Fig.\ \ref{fig:layer-refinement-proof}:
   memory accessors and the whole-machine initial state specification).
 \item For each such part of the overlay, design an intermediate layer interface
   $L'_{1, \text{C}}$ and $L'_{1, \text{Asm}}$ with the same abstract state type as
-  $L_1$ (see Section \ref{sec:clightx-prog}), and
+  $L_1$ (\cf Section \ref{sec:clightx-prog}), and
   prove $L_{2, \text{C}} \leqslant_R L'_{1, \text{C}}$ and $L_{2, \text{Asm}} \leqslant_R
-  L'_{1, \text{Asm}}$ independently of the implementation. (In
+  L'_{1, \text{Asm}}$ independently of the implementation. In
   particular, the proof of $L_{2, \text{Asm}} \leqslant_R
   L'_{1, \text{Asm}}$ will also involve the refinement proofs for memory
-  accessors and whole-machine initial states)
+  accessors and whole-machine initial states.
 \item For both intermediate layer interfaces, prove that they are implemented by
   modules $M_\text{C}$ and $M_\text{Asm}$ on top of
   $L_1$ respectively, i.e.  $L'_{1, \text{C}} \leqslant_\id \llbracket M_\text{C} \rrbracket L_1$ and
@@ -403,7 +435,7 @@ L_{2, \text{C}} \oplus L_{2, \text{Asm}}
 \leqslant_\id
   \llbracket M_\text{C} \rrbracket L_1 \oplus
   \llbracket M_{\text{Asm}} \rrbracket L_1
-$
+$.
 
 On the C side (left of $\oplus$), Lemma~\ref{lem:sim-absorb-comp} shows that
 $\leqslant_R$ absorbs $\leqslant^{\textrm{comp}}$.  By 4.:
@@ -411,16 +443,16 @@ $
 L_{2, \text{C}} \oplus L_{2, \text{Asm}} \leqslant_R
   \llbracket \textrm{CompCertX}(M_\text{C}) \rrbracket L_1 \oplus 
   \llbracket M_{\text{Asm}} \rrbracket L_1
-$
+$.
 
 \item From the soundness of 
 \rulename{Hcomp}, 
-and because $M = \textrm{CompCertX}(M_\text{C}) \oplus M_\text{Asm}$,
+and the fact that  $M = \textrm{CompCertX}(M_\text{C}) \oplus M_\text{Asm}$,
 we have:
-\[\llbracket \textrm{CompCertX}(M_\text{C}) \rrbracket L_1 \oplus
+$\llbracket \textrm{CompCertX}(M_\text{C}) \rrbracket L_1 \oplus
 \llbracket M_\text{Asm} \rrbracket L_1 \leqslant_\id \llbracket
 M \rrbracket
-L_1 \]
+L_1$.
 \item
 Finally, by combining 5. and 6., we have 
 $L_{2, \text{C}} \oplus L_{2, \text{Asm}}
@@ -447,37 +479,7 @@ thus we get ~$L_1 \vdash_R M : L_2$.
 %\end{compactenum}
 \end{enumerate} 
 
-\begin{figure}[!ht]
-\[
-\xymatrix@R=12pt@C=3pt{
-%
-L_{2, \text{C}} \ar[d]^{\leqslant_R}_{\text{\tiny 2.}} &
-\bigoplus^{\text{\tiny 1.}} &
-L_{2, \text{Asm}} \ar[d]^{\leqslant_R}_{\text{\tiny 2.}} &
-= L_2 \\
-%
-L'_{1, \text{C}} \ar[d]^{\leqslant_\id}_{\text{\tiny 3.}} & &
-L'_{1, \text{Asm}} \ar[dd]^{\leqslant_\id}_{\text{\tiny 3.}} \\
-%
-\llbracket M_\text{C} \rrbracket L_1
-\ar[d]^{\leqslant^{\textrm{comp}}}_{\text{\tiny 4.}} \\
-%
-\llbracket \textrm{CompCertX}(M_\text{C}) \rrbracket L_1 &
-\bigoplus \ar[d]^{\leqslant_\id}_{\text{\tiny 6.}} &
-\llbracket M_\text{Asm} \rrbracket L_1 \\
-%
-& + \save[]+<-37.90pt,0pt>*\txt{
-$\llbracket M \rrbracket L_1 =
- \llbracket \textrm{CompCertX}(M_\text{C}) \oplus M_\text{Asm} \rrbracket L_1$
-}
-\ar@{<-} `_r[rr] [uuuurr]_{\leqslant_R}^{\txt{\tiny 5.\\ \tiny 7.}}
-\restore
-& &
-}
-\]
-\caption{Proof steps of layer refinement $L_1 \vdash_R M : L_2$}
-\label{fig:layer-refinement-proof}
-\end{figure}
+
 
 \subsection{Linking across layers before compiling}
 
@@ -493,12 +495,11 @@ M_i^{\mathit{lang}}: L_{i+1}^{\mathit{lang}}$ for each $i \in \{1,2
 Then, on each side, we can do vertical composition and obtain
 $L_1^{\mathit{lang}} \vdash_{R_2 \circ R_1} M_1^{\mathit{lang}} \oplus
 M_2^{\mathit{lang}} : L_3$. We can then follow the process described
-in subsection~\ref{sec:linking} with $H = L_3$, $L = L_1$ and
+in Section~\ref{sec:linking} with $H = L_3$, $L = L_1$ and
 $M^{\mathit{lang}} = M_1^{\mathit{lang}} \oplus M_2^{\mathit{lang}}$, so that we obtain:
 \[
 L_1 \vdash_{R_2 \circ R_1} \mathrm{CompCertX}(M_1^C \oplus M_2^C) \oplus M_1^{\mathrm{Asm}} \oplus M_2^{\mathrm{Asm}}: L_3
 \]
-
 This shows that compiling before linking is possible as soon as
 ClightX supports vertical composition with refinement. The
 corresponding Coq proof is underway. Thus, because CompCertX already
