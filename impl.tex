@@ -56,11 +56,61 @@ interface invariants are preserved during any execution, for all
 programs (including the context) running on top of the layer
 interface.
 
+
+\paragraph{Proof effort}
 With the help of the layer calculus and automation libraries
 introduced in the new implementation, we successfully reduced the work
 of adding one new layer from 4,000 lines of Coq code to 500 lines on
 average.  The rough compilation time for a layer was reduced from a
 few minutes to less than a minute.
+
+The verification effort roughly falls into three categories: layer
+design with specification and invariants, refinement proofs between
+the layers, and verification of C and assembly code with respect to
+the specifications. The time needed for each of the categories depends
+largely on the layer.  For instance, at the boundary of physical and
+virtual memory management ({\code{MPTIntro}}), almost all effort
+is in the refinement proof, due to the proof for the refinement between
+two completely different memory models. More effort went into the
+refinement proof when we introduced the Intel \emph{virtual machine
+memory model}, where we proved the refinement between the concrete
+four level extended page table structure in memory and the abstract
+mapping from the guest addresses to the host addresses.
+In contrast, for the layer {\code{MATOp}},
+which initializes physical memory allocation,
+most of the time was spent on verifying
+the non-trivial nested loops present in the C code,
+while the refinement proofs were derived automatically. 
+
+The proofs were facilitated by automation tools for C
+code, layer design patterns, and tactics libraries developed in
+recent years \cite{dscal15}. These tools have greatly
+reduced the amount of work needed to verify extensions of the kernel.
+\ignore{
+\jeremie{I do not understand what the following sentence mean
+(developing the module vs. ``plugging'' it),
+I'm also not sure how it fits with the previous one,
+I suggest we just drop it (or move it to Sec.5) and end the paragraph here.}
+For example, developing the Intel virtualization module as a certified
+kernel plug-in cost over 2 pm. However, plugging this module into
+\mCTOSbase{} was done within a person week. \ignore{It took another 2 pm to
+link all the proofs together and extract a runnable \mCTOShyper{}
+assembly code using the Coq's extraction mechanism.} Modifying and
+removing the existing modules does not take much effort either, as
+demonstrated by the realization of \mCTOSringz{} and \mCTOSembed{},
+which cost 0.5 pm each.
+}
+
+
+
+\paragraph*{Deployment}
+An extended version of \mCTOShyper{} was deployed in context of a large
+DARPA-funded research project. It runs on a military land vehicle
+using the same hardware configuration we used in the experiments. On
+top of the extended version run 6 Ubuntu Linux systems as guests. Each virtual
+machine runs several RADL (The Robot Architecture Definition Language)
+nodes that have fixed hardware capabilities such as access to GPS,
+radar, \etc.\\
 
 \ignore{
 This section describes our Coq implementation and provides some

@@ -15,22 +15,35 @@
 %\end{itemize}
 %}
 
-\paragraph{Trusted computing base}
+\paragraph{Trusted computing base (TCB)}
 Currently, there is still some gap between the bottommost layer of our
-verified kernel, {\it PreInit}, and the real X86 hardware.
+verified kernel, {\it PreInit}, and the real x86 hardware.
 In the {\it PreInit} layer, some of the hardware virtualization
 instructions such as {\it vmrun}, {\it vmload}, {\it vmsave}
-are not modeled. It also lacks the model for interrupt related hardware
-instruction like {\it cli}, and {\it sti}. The code that
-is used to load the ELF binaries is also axiomatized in the layer.
+are not modeled. 
+What's more,
+for the concurrent framework,
+the multicore hardware machine model $\mach{x86mc}$
+is also part of the TCB.
+It assumes the sequential consistency,
+and leaves the consideration of relax memory model
+to the future work.
 
-The \mCTOS{} kernel also relies on a bootloader, and a pre-initialization
-module, which initializes the drivers, e.g.,
-serial, disk, console, {\it etc}, required by \mCTOS{}.
+\ignore{It also lacks the model for interrupt related hardware
+instruction like {\it cli}, and {\it sti}. }
+
+
+Outside our verified kernels,
+(\mCTOShyper{} consists of about 6000 lines of C and assembly), there
+are 300 lines of C and 170 lines of x86 assembly code that are not
+verified yet: the ELF loader used by user
+process creation,
+and the preinit procedure, which initializes the drivers, \eg,
+disk, console, {\it etc}.
 The verification of these modules are
-left for future work. Device drivers are not verified
+left for future work. \ignore{Device drivers are not verified
 because our current machine semantics lacks device models for
-expressing the corresponding semantics.
+expressing the corresponding semantics.}
 
 Finally, the CompCert assembler for converting assembly into machine
 code is also not verified. We also assume the correctness of the Coq
@@ -60,6 +73,7 @@ only apply to programs in this subset. However, additional instructions
 and features can be easily added if they have simple or no interaction
 with our kernel. 
 
+\ignore{
 \paragraph{Concurrency}
 Our current certified kernels assume a runtime environment consisting
 of a single processor, but extending it to support multicore
@@ -92,19 +106,19 @@ interleavings inside the implementation of each kernel object within a
 single layer. Non-blocking fine-grained concurrent data structures can have
 very sophisticated local invariants, but they are not exported to
 other parts of the kernel. This makes the \CTOS\ architecture much
-more appealing and extensible.
+more appealing and extensible.}
 
 \paragraph{Interrupts} Like most existing verified kernel efforts,
-we assume that interrupts are only enabled in user or guest mode. The
-challenges in handling interrupts and preemption are similar to those
-for concurrency. Feng {\em et al.}~\cite{feng08:vstte} verified a
-practical thread implementation with hardware interrupts and
-preemption~\cite{feng08:aim} by using a variant of concurrent
-separation logic~\cite{ohearn:concur04}. Their proofs are interesting
-in that they decompose the thread implementation into one sequential
-layer (with interrupts disabled) and another concurrent one
-(with interrupts enabled). We believe that similar approaches can
-be readily supported in our \CTOS\ framework.
+we do not allow preemptive interrupts inside the kernel. The
+challenges in handling preemption are similar to those
+for concurrency. 
+We believe that
+we can model different devices
+as virtual CPUs,
+and utilize the hardware scheduler
+to capture the
+preemptive interrupts between devices and the kernel.
+
 
 % This part is mostly covered in Section 5 now, we shouldn't need it anymore
 \begin{comment}
@@ -149,7 +163,7 @@ process, we also anticipate that security policies (given through
 specifications) will become clearer and more declarative.
 \end{comment}
 
-
+\ignore{
 \paragraph{Evaluation and limitations} 
 The planning and development of \mCTOSbase{} took 9.5 person months plus
 2 person months on linking and code extraction.
@@ -223,5 +237,5 @@ LAsm does not cover the full x86 instruction sets and many other
 hardware features.  This means that our correctness results only apply
 to programs in this subset. However, additional instructions and
 features can be easily added if they have simple or no interaction
-with our kernel.
+with our kernel.}
 

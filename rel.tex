@@ -18,9 +18,9 @@ Our layer language can be viewed as a novel way of imposing a module
 system over Hoare-style program verification. We insist on using
 interfaces with deep specifications and we address the ``conflicting
 abstract states'' problem mentioned in
-Sec.~\ref{sec:overview}. Traditional program verification does not
+Section~\ref{sec:seq:overview}. Traditional program verification does not
 always use deep specification (for pre- and post-conditions) so the
-module interfaces (e.g., $[P,Q]$) may allow some safe but unwanted
+module interfaces (\eg, $[P,Q]$) may allow some safe but unwanted
 behaviors. Such gap is fine if the goal is to just prove safety (as in
 static type-checking), but if we want to prove the strong contextual
 correctness property across module boundaries, it is important that
@@ -35,13 +35,13 @@ which is then used to implement layers at even higher
 levels. As we move up the layer hierarchy, our programming language
 gets closer and closer to the specification language---it can call
 primitives at higher abstraction levels but it still supports
-general-purpose programming (e.g., in ClightX).
+general-purpose programming (\eg, in ClightX).
 
 Interestingly, we did not need to introduce any program logic to
 verify our OS kernel code. Instead, we verify it directly using the
 ClightX (or LAsm) language semantics (which is already conveniently
 parameterized over a layer interface).  In fact, unlike Hoare logic
-which shows that a program (e.g., $C$) refines a specification (e.g.,
+which shows that a program (\eg, $C$) refines a specification (\eg,
 $[P,Q]$), we instead show there is a downward simulation from the
 specification to the program. As in CompCert, we found this easier to
 prove and we can do this because both our specification and language
@@ -83,12 +83,21 @@ fully implemented in the CompCert compiler.  While our CompCertX
 compiler proves a stronger correctness theorem for each ClightX layer,
 the ClightX language is subtly different from the original
 full-featured Clight language. Within each ClightX layer, all locally
-allocated memory blocks (e.g., stack frames) cannot be updated by
+allocated memory blocks (\eg, stack frames) cannot be updated by
 functions defined in another layer. This means that ClightX does not
 support the same general ``stack-allocated data structures'' as in
 Clight. This is fine for our OS kernels since they do not allocate any
 data structures on stack, but it means that CompCertX can not be
 regarded as a full featured separate compiler for CompCert.
+
+
+As for the concurrency, \citet{stewart15} developed a new compositional extension of the
+original CompCert compiler~\cite{compcert} with the goal of providing
+thread-safe compilation of concurrent Clight programs.  Their
+interaction semantics also treats all calls to synchronization
+primitives as external calls. Their compiler does not support a layered
+ClightX language as our CompCertX does, so it is unclear how it can
+be used to build concurrent layers involving a stack of atomic objects.
 
 %
 % Previous work on object invariants have also considered how to specify
@@ -123,7 +132,18 @@ regarded as a full featured separate compiler for CompCert.
 % programs should only depend on the functionality of an abstract
 % datatype, not the actual representation type.
 %
+\paragraph{OS kernel verification} There has been a large body
+of recent work on OS kernel verification including
+seL4~\cite{klein2009sel4,klein14}, Verve~\cite{hawblitzel10},
+and Ironclad~\cite{ironclad14}. None of these works have addressed the
+issues on concurrency with fine-grained locking. Very recently,
+\citet{xu16} developed a new verification framework based on RGSim
+and Feng~{et~al.}'s program logic~\cite{feng08:aim} for reasoning
+about interrupts; they have successfully verified many key modules
+(in C) in the $\mu$C/OS-II kernel, though so far, they have not proved
+any progress properties.
 
+\ignore{
 \paragraph{OS kernel verification} The seL4
 team~\cite{klein2009sel4} were the first to build a proof of
 functional correctness for a realistic microkernel.  The seL4 work is
@@ -171,13 +191,13 @@ the rigid safety conditions used in traditional extension mechanisms
 type-safe~\cite{bershad95,hunt07}), our approach will assure both the
 safety and semantic {\em correctness} of extensions with respect to
 appropriate specifications.
-
+}
 
 \paragraph{Modular verification of low-level code} 
 Vaynberg and Shao~\cite{vaynberg12} also used a layered approach to
 verify a small virtual memory manager. Their layers are not linearly
 ordered; instead, their seven abstract machines form a DAG with
-potential upcalls (i.e., calls from a lower layer to upper ones). As a
+potential upcalls (\ie, calls from a lower layer to upper ones). As a
 result, their initialization function (an upcall) was much harder to
 verify. Their refinement proofs between layers are insensitive to
 termination, from which they can only prove partial correctness but
@@ -194,11 +214,11 @@ implementation into a sequential layer (with interrupts disabled)
 and a concurrent layer (with interrupts enabled).
 Chlipala~\cite{BedrockPLDI11} developed Bedrock, an automated
 Coq library to support verified low-level programming. All these
-systems aimed to prove {\em partial correctness} only, so they are
-quite different from the layered 
-simulation proofs given in this paper.
+systems
+are purely sequential, 
+and lack the support for concurrency.
 
-\paragraph{Certified abstraction layers} \citet{dscal15}
+\ignore{\paragraph{Certified abstraction layers} \citet{dscal15}
 presented the first formal account of certified abstraction layers and
 showed how to apply layer-based techniques to build certified system
 software. The layer-based approach differs from Hoare-style program
@@ -227,7 +247,7 @@ method call would need to {\em replay} the entire global log to find
 out the return value.  This seemingly ``inefficient'' way of treating
 shared atomic objects is actually great for compositional
 specification. Indeed, it allows us to apply game-semantic ideas and
-define a general semantics that supports parallel layer composition.
+define a general semantics that supports parallel layer composition.}
 
 \paragraph{Abstraction for concurrent objects}
 \citet{herlihy90} introduced {\em linearizability} as a key technique
@@ -273,12 +293,12 @@ provide a standalone (total) specification for each lock acquire
 method.  Indeed, all examples in their paper are code fragments that
 must acquire a lock, then perform critical-section tasks, and then release the
 lock. In contrast, our environment context can specify the full
-strategies (i.e., both the past and the future behaviors) of all
+strategies (\ie, both the past and the future behaviors) of all
 environment threads and the scheduler, so we can readily impose
 temporal invariants over the environment. Within each thread-modular
-layer $L[t]$, we can show that each lock acquire primitive (e.g., for
+layer $L[t]$, we can show that each lock acquire primitive (\eg, for
 ticket locks) always returns as long as its environment is cooperative
-(e.g., always releases its acquired lock), even if $t$ itself may not
+(\eg, always releases its acquired lock), even if $t$ itself may not
 be cooperative.
 In other words, the termination of $t$'s lock acquire
 operation does not depend on whether $t$ itself will release the lock
@@ -289,11 +309,11 @@ after first acquiring it.
 Most concurrent languages (including those used by RGSim) use a
 parallel composition command $(C_1 \| C_2)$ to create and terminate
 new threads.  In contrast, we provide thread spawn and join
-primitives, and assign every new thread a unique ID (e.g., $t$, which
-must be a member of the full thread-ID domain set $D$). Parallel layer
+primitives, and assign every new thread a unique $id$ (\eg, $t$, which
+must be a member of the full thread-$id$  domain set $D$). Parallel layer
 composition in our work is always done over the whole program $P$ over
 all members of $D$. This allows us to reason about the current
-thread's behaviors over the environment's full strategies (i.e., both
+thread's behaviors over the environment's full strategies (\ie, both
 its past and future behaviors). Even if a thread $t$ is never
 created, the semantics for running $P$ over $L[t]$ is still well
 defined since it will simply always query its environment context to
@@ -305,7 +325,7 @@ logics~\cite{ohearn:concur04,brookes:concur04,SAGL,vafeiadis:marriage,LRG,verifa
 have been developed to support modular verification of shared-memory
 concurrent programs. Most of these follow Hoare-style logics so they
 do not prove the same strong contextual simulation properties as RGSim
-and our layered framework do. Very few of them (e.g.,~\cite{pinto16})
+and our layered framework do. Very few of them (\eg,~\cite{pinto16})
 can reason about progress properties. Nevertheless, many of these
 logics support advanced language features such as high-order functions
 and sophisticated non-blocking synchronization, both of which will be
@@ -317,17 +337,9 @@ difference is again that our environment context can talk about both
 past and future behaviors but a history trace can only specify past
 behaviors. 
 
-\paragraph{Compositional CompCert}
-\citet{stewart15} developed a new compositional extension of the
-original CompCert compiler~\cite{compcert} with the goal of providing
-thread-safe compilation of concurrent Clight programs.  Their
-interaction semantics also treats all calls to synchronization
-primitives as external calls. Their compiler does not support a layered
-ClightX language as our CompCertX does, so it is unclear how it can
-be used to build concurrent layers involving a stack of atomic objects.
 
 \paragraph{Connection to game semantics} Even though we have used
-the game-semantic concepts (e.g., strategies) to describe the
+the game-semantic concepts (\eg, strategies) to describe the
 construction of our environment contexts and compositional semantics,
 our concurrent machine is still defined using traditional small-step
 semantics.  This is in contrast to several past
@@ -341,14 +353,3 @@ believe that there are great synergies between the two communities
 waiting to be explored and we hope that our current work can serve as
 a basis for promoting such interaction.
 
-\paragraph{OS kernel verification} There has been a large body
-of recent work on OS kernel verification including
-seL4~\cite{klein2009sel4,klein14},
-CertiKOS~\cite{dscal15,chen16,costanzo16}, Verve~\cite{hawblitzel10},
-and Ironclad~\cite{ironclad14}. None of these works have addressed the
-issues on concurrency with fine-grained locking. Very recently,
-\citet{xu16} developed a new verification framework based on RGSim
-and Feng~{et~al.}'s program logic~\cite{feng08:aim} for reasoning
-about interrupts; they have successfully verified many key modules
-(in C) in the $\mu$C/OS-II kernel, though so far, they have not proved
-any progress properties.

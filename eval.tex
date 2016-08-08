@@ -1,12 +1,188 @@
 
 \chapter{Evaluation and Lessons Learned}
 \label{chap-eval}
+To evaluate
+our CertiKOS framework
+and a series of verified kernels,
+we have analyzed the performance of the \mCTOShyper{} hypervisor kernel and the  \cCTOS{} concurrent kernel
+with a thorough experimental benchmark evaluation.
+Furthermore, an extended version of \mCTOShyper{}
+was deployed in a practical system that is used in the context of a
+large DARPA-funded research project. Our experiments with benchmarks
+confirm the observations made during deployment: the performance
+overhead of \mCTOShyper{} is moderate. We are convinced that it is
+practical to use our verification framework to produce competitive
+real-world kernels with acceptable effort.
+
+\ronghui{Fix the road map}
+
+\section{Performance Evaluation} 
+Although the performance is not the main emphasis of this paper, we
+have run a number of micro and macro benchmarks to measure the
+overhead of {\mCTOS} and {\cCTOS}
+to compare them to existing systems such
+as KVM and seL4. All experiments have been performed on an Intel Core
+i7-2600 S (4 cores / 8 threads) with 8 MB L3 cache, 16 GB memory, and
+a 120 GB Intel 520 SSD. Since the power control code has not been
+verified, we disabled the turbo boost and power management features of
+the hardware during experiments.
+A comparison of the performance of seL4 and \cCTOS{} is not
+straightforward since the verified \cCTOS{} kernels run on 
+multicore
+x86
+platforms but the verified seL4 runs on ARMv6
+and ARMv7 hardware and only supports single-core. Moreover, the
+verified version of seL4 does not have virtualization support and
+cannot boot Linux. As a result, we do not compare hypervisor
+performance but instead focus on a comparison of the IPC performance
+of {\cCTOS} and an \emph{unverified} x86 version of seL4.
+
+
+\paragraph{IPC Performance}
+We use seL4's IPC benchmark
+sel4bench-manifest\footnote{https://github.com/smaccm/sel4bench-manifest}
+with processes in different address spaces and with identical
+scheduler priorities, both in \emph{slowpath} and \emph{fastpath}
+configurations. To run this benchmark on {\cCTOS}, we replaced seL4's
+\emph{Call} and \emph{ReplyWait} system calls with \cCTOS's
+synchronous \emph{send} and \emph{receive} calls.  On {\cCTOS}, we
+measure latency of IPC in both settings when the sender and receiver
+are running on the same CPU or across different CPUs.
+Figure~\ref{fig:eval_ipc} contains a compilation of our results. It
+shows the average number of clock cycles needed for the operations for
+message sizes of 0 and 10. The IPC system calls in seL4 and {\cCTOS}
+are quite different, and they are running in different machine
+settings (single- vs. multicore), which makes the precise
+comparison very complicated.  Still, as shown in the figure, IPC
+performance of {\cCTOS} is relatively slower than that of seL4. The
+gap is not fundamental to our verification approach.  Because seL4
+follows the microkernel design philosophy, its IPC performance is
+critical. IPC implementations in seL4 are highly optimized, and
+heavily tailored to specific hardware platforms.
+Verification not only
+should not hinder application of similar performance optimizations,
+but instead provide a safety net for more aggressive optimizations, if
+it is required for application scenarios of the kernel we have in
+mind.
+
+On {\cCTOS}, the performance of inter-core IPC is worse than that of
+intra-core IPC.  The reason is that, after the receiver thread is
+woken up, it is first pushed onto the \emph{pending queue} of the
+corresponding CPU, which gets pushed back to the scheduler's ready
+queue at the subsequent scheduling point. Furthermore, as shown in the
+figure, the performance of the send call is not affected by the buffer
+size. That is because the send system call simply saves the virtual
+address and size of the user buffer into the channel.  The actual
+copying of data is all done by the receive call.  Before copying the
+data, the receive call needs to switch the page map to an identity
+map, copy the data, and switch the page map back before it goes back
+to user. Note that switching page map causes TLB flushes, which
+imposes extra performance overhead to the receive call in addition to
+the overhead of copying the data.
+
+\begin{figure}\centering
+		\includegraphics[width=10cm]{figs/ipc.pdf}
+		\caption{IPC performance between \cCTOS{} and  seL4 x86.}
+		\label{fig:eval_ipc}
+		\hrulefill
+\end{figure}
+
+
+\paragraph{Spinlock Performance}
+\begin{figure}\centering
+		\includegraphics[width=12cm]{figs/locks.pdf}
+		\caption{Latency and throughput of ticket and MCS lock in \cCTOS{}.}
+		\label{fig:eval_spin}
+\end{figure}
+
+Figure~\ref{fig:eval_spin} shows the latency and throughput of the two
+spinlock implementation in \cCTOS. The latency is measured when an
+empty critical section (payload) is executed by the protection of the
+same lock. We take a sample of 10,000 consecutive lock acquiring and
+releasing as one round.  The throughput is measured by the
+number of the payload executed per millisecond. Without locking, the
+throughput of the payload is 73,500 times per millisecond.  As shown
+in Figure~\ref{fig:eval_spin}, MCS lock performs much worse than the
+ticket lock on a single-core or a dual-core machine, but its
+performance gets better as the number of cores increases.
+
+
+\paragraph{Hypervisor Performance} 
+\begin{figure}\centering
+		\includegraphics[width=12cm]{figs/hyp_macro.pdf}
+		\caption{Normalized macro benchmarks: Linux on KVM and \mCTOShyper{}, baseline is Linux on bare metal}
+		\label{fig:eval_macro}
+		\hrulefill
+\end{figure}
+
+To evaluate \mCTOShyper{} as a hypervisor, we measure the performance of
+some macro benchmarks on Ubuntu 12.04.2 LTS running as a guest.  We ran the
+benchmarks on Linux as guest in KVM and \mCTOShyper{}, as well as on the bare metal.
+Figure~\ref{fig:eval_macro} contains a compilation of standard macro
+benchmarks: unpacking of the Linux 4.0-rc4 kernel, compilation of the
+Linux 4.0-rc4 kernel, Apache HTTPerf~\cite{mosberger1998} (running on
+loopback), and DaCaPo Benchmark 9.12~\cite{dacapo2006}.
+
+\ignore{
+To begin with a sanity check, McVoy's LMbench (version 3-alpha1) is used to
+measure the micro-level metrics of operating system and hardware, which includes
+the bandwidths and latency of several file system, local communication systems,
+virtual memory, context switch and, basic arithmetic operations. The results
+show that 34 out of 60 benchmarks of \mCTOShyper{} are very close to the bare
+metal (within the range of 5\%), and the others are listed in the Table . These
+results shows that there is no significant overhead of \mCTOShyper{}.
+}
+
+In Figure~\ref{fig:eval_macro} we normalize the running time of the benchmarks
+using the bare metal performance as the baseline (100\%). The overhead of
+\mCTOShyper{} is moderate and comparable to KVM. In some cases, \mCTOShyper{}
+performs better than KVM, which is mainly because KVM has a Linux host, and thus has a
+larger cache footprint. In other cases, which involve a large amount of file
+operations, such as decompressing Linux source and Tomcat server, \mCTOShyper{}
+performs worse. This is due to idiosyncrasies of the VirtIO interface. In
+\mCTOShyper{}, we expose the raw disk interface to the guest via VirtIO; when
+there is a disk I/O request in the \texttt{vring}, \mCTOShyper{} immediately
+pulls it and issues a disk command to handle that request and polls until the
+command finishes. This leads problems with the guest linux VirtIo driver, since,
+when the guest Linux uses VirtIO, it always sends disk I/O request of length
+4KB.
+
+Figure~\ref{fig:eval_disk} (b) shows the throughput of the SSD used in our
+benchmark against the size of data for each command when writes a large (1GB)
+sequential block. This figure indicates that the disk can only reach the top
+rate (read 270MB/s, write 90MB/s) when the data size for each command is at
+least 8KB for reads and 512KB for writes.
+Thus, disk access becomes a bottleneck.
+The disk dump benchmark in Figure~\ref{fig:eval_disk} (a)
+further demonstrates this issue.
+
+\begin{figure}\centering
+		\includegraphics[width=14cm]{figs/disk.pdf}
+		\caption{Disk performance: (a). \texttt{lmdd} of vary size files; (b). the SSD throughput used in the benchmarks}
+		\label{fig:eval_disk}
+		\hrulefill
+\end{figure}
+
+
+The VM monitor in \mCTOShyper{} is running as a user
+process in the ring 3 mode. This leads to a smaller kernel
+size and makes it possible to use emulated devices and unverified
+drivers at the user level.  The downside is that each
+VM entry and exit causes an additional ring switch, and VM-related
+information must be copied to the monitor process in order for it to
+process the exit. Therefore, it may have an impact on performance,
+especially for those guest programs that frequently cause VM exits,
+such as web servers, which generate frequent network-related external
+interrupts.  Another approach is to verify the virtual machine monitor
+code and run it inside a kernel module, \eg, in a ring 0 process.
+
+
 
 
 \input{impl}
 
 \section{Execution Model and Completeness}
-The majority of the {\mCTOS} kernel is implemented and verified 
+The majority of the {\mCTOS} and \cCTOS{} kernels are implemented and verified 
 at the C level, and then compiled by a modified version of the CompCert verified
 compiler~\cite{dscal15}.  The entire kernel (both C and assembly)
 source code, together with the source code for the verified compiler,
@@ -22,14 +198,12 @@ the actual hardware satisfies the high-level specification.
 
 The verified assembly code is then linked with the rest of the kernel code
 (the bootloader and remaining unverified drivers) to produce the
-actual binary image of the OS. The resulting kernel is practical: .
-\ignore{
-it
+actual binary image of the OS. The resulting kernels are practical.
+\ignore{it
 runs on stock x86 hardware and can successfully boot a guest version
-of Linux.
-}
+of Linux.}
 
-\section{Proof effort}
+\ignore{\section{Proof effort}
 We take the mCertiKOS kernel presented by Gu {\it et al}
 \cite{dscal15}, and extend the kernel with various features such as
 dynamic memory management, container support for controlling resource
@@ -109,7 +283,7 @@ developed the multicore linking framework; we spent 3 person weeks to
 improve the initial design through multiple iterations.  The main
 challenge was finding the right invariants for the environment
 context, such that we could successfully establish starvation-freedom.
-
+}
 
 \ignore{
 \paragraph{Abstraction Layers}
@@ -150,7 +324,7 @@ reduced the amount of work needed to verify extensions of the kernel.
 }
 
 
-\section{Extension and adaptation}
+\ignore{\section{Extension and adaptation}
 We augmented \mCTOSbase{} to support the hardware-assisted
 virtualization technology Intel VT-x, and built a certified hypervisor
 \mCTOShyper{}.  We have also built certified kernels with ring-0
@@ -169,206 +343,8 @@ memory management.
 Removing plug-ins or layers are achieved simply by 
 altering the contextual refinement proof 
 at the boundary so that we can glue them back together.
-
-
-\section{Performance evaluation} 
-Although the performance is not the main emphasis of this paper, we
-have run a number of micro and macro benchmarks to measure the
-overhead of {\mCTOS} and to compare {\mCTOS} to existing systems such
-as KVM and seL4. All experiments have been performed on an Intel Core
-i7-2600 S (4 cores / 8 threads) with 8 MB L3 cache, 16 GB memory, and
-a 120 GB Intel 520 SSD. Since the power control code has not been
-verified, we disabled the turbo boost and power management features of
-the hardware during experiments.
-A comparison of the performance of seL4 and \mCTOShyper{} is not
-straightforward since the verified \mCTOS{} kernels run on 
-multicore
-x86
-platforms but the verified seL4 runs on ARMv6
-and ARMv7 hardware and only supports single-core. Moreover, the
-verified version of seL4 does not have virtualization support and
-cannot boot Linux. As a result, we do not compare hypervisor
-performance but instead focus on a comparison of the IPC performance
-of {\mCTOS} and an \emph{unverified} x86 version of seL4.
-
-
-\paragraph{IPC Performance}
-We use seL4's IPC benchmark
-sel4bench-manifest\footnote{https://github.com/smaccm/sel4bench-manifest}
-with processes in different address spaces and with identical
-scheduler priorities, both in \emph{slowpath} and \emph{fastpath}
-configurations. To run this benchmark on {\mCTOS}, we replaced seL4's
-\emph{Call} and \emph{ReplyWait} system calls with \mCTOS's
-synchronous \emph{send} and \emph{receive} calls.  On {\mCTOS}, we
-measure latency of IPC in both settings when the sender and receiver
-are running on the same CPU or across different CPUs.
-Figure~\ref{fig:eval_ipc} contains a compilation of our results. It
-shows the average number of clock cycles needed for the operations for
-message sizes of 0 and 10. The IPC system calls in seL4 and {\mCTOS}
-are quite different, and they are running in different machine
-settings (single- vs. multicore), which makes the precise
-comparison very complicated.  Still, as shown in the figure, IPC
-performance of {\mCTOS} is relatively slower than that of seL4. The
-gap is not fundamental to our verification approach.  Because seL4
-follows the microkernel design philosophy, its IPC performance is
-critical. IPC implementations in seL4 are highly optimized, and
-heavily tailored to specific hardware platforms.
-Verification not only
-should not hinder application of similar performance optimizations,
-but instead provide a safety net for more aggressive optimizations, if
-it is required for application scenarios of the kernel we have in
-mind.
-
-On {\mCTOS}, the performance of inter-core IPC is worse than that of
-intra-core IPC.  The reason is that, after the receiver thread is
-woken up, it is first pushed onto the \emph{pending queue} of the
-corresponding CPU, which gets pushed back to the scheduler's ready
-queue at the subsequent scheduling point. Furthermore, as shown in the
-figure, the performance of the send call is not affected by the buffer
-size. That is because the send system call simply saves the virtual
-address and size of the user buffer into the channel.  The actual
-copying of data is all done by the receive call.  Before copying the
-data, the receive call needs to switch the page map to an identity
-map, copy the data, and switch the page map back before it goes back
-to user. Note that switching page map causes TLB flushes, which
-imposes extra performance overhead to the receive call in addition to
-the overhead of copying the data.
-
-\begin{figure}
-	\begin{center}
-		\vspace{-.2cm}
-		\hspace{-.2cm}
-		\includegraphics[width=8cm]{figs/ipc.pdf}
-		\hspace{-.2cm}
-		\vspace{.0cm}
-		\vspace{-10pt}	
-		\caption{IPC performance between \mCTOS{} and  seL4 x86.}
-		\label{fig:eval_ipc}
-	\end{center}
-\vspace{-20pt}
-\end{figure}
-
-
-\vspace{-3pt}
-\paragraph{Spinlock Performance}
-\begin{figure}
-	\begin{center}
-		\vspace{-.2cm}
-		\hspace{-.2cm}
-		\includegraphics[width=8cm]{figs/locks.pdf}
-		\hspace{-.2cm}
-		\vspace{.0cm}
-\vspace{-5pt}
-		\caption{Latency and throughput of ticket and MCS lock in \mCTOS{}.}
-		\label{fig:eval_spin}
-	\end{center}
-		\vspace{-10pt}
-\end{figure}
-
-Figure~\ref{fig:eval_spin} shows the latency and throughput of the two
-spinlock implementation in \mCTOS. The latency is measured when an
-empty critical section (payload) is executed by the protection of the
-same lock. We take a sample of 10,000 consecutive lock acquiring and
-releasing as one round.  The throughput is measured by the
-number of the payload executed per millisecond. Without locking, the
-throughput of the payload is 73,500 times per millisecond.  As shown
-in Fig.~\ref{fig:eval_spin}, MCS lock performs much worse than the
-ticket lock on a single-core or a dual-core machine, but its
-performance gets better as the number of cores increases.
-
-
-\vspace{-4pt}
-\paragraph{Hypervisor Performance} 
-\begin{figure}
-	\begin{center}
-		\vspace{-.2cm}
-		\hspace{-.2cm}
-		\includegraphics[width=8cm]{figs/hyp_macro.pdf}
-		\hspace{-.2cm}
-		\vspace{.0cm}
-		\caption{Normalized macro benchmarks: Linux on KVM and mCTOS, baseline is Linux on bare metal}
-		\label{fig:eval_macro}
-	\vspace{-20px}
-	\end{center}
-\end{figure}
-
-To evaluate \mCTOShyper{} as a hypervisor, we measure the performance of
-some macro benchmarks on Ubuntu 12.04.2 LTS running as a guest.  We ran the
-benchmarks on Linux as guest in KVM and \mCTOShyper{}, as well as on the bare metal.
-Figure~\ref{fig:eval_macro} contains a compilation of standard macro
-benchmarks: unpacking of the Linux 4.0-rc4 kernel, compilation of the
-Linux 4.0-rc4 kernel, Apache HTTPerf~\cite{mosberger1998} (running on
-loopback), and DaCaPo Benchmark 9.12~\cite{dacapo2006}.
-
-\ignore{
-To begin with a sanity check, McVoy's LMbench (version 3-alpha1) is used to
-measure the micro-level metrics of operating system and hardware, which includes
-the bandwidths and latency of several file system, local communication systems,
-virtual memory, context switch and, basic arithmetic operations. The results
-show that 34 out of 60 benchmarks of \mCTOShyper{} are very close to the bare
-metal (within the range of 5\%), and the others are listed in the Table . These
-results shows that there is no significant overhead of \mCTOShyper{}.
 }
 
-In Fig.~\ref{fig:eval_macro} we normalize the running time of the benchmarks
-using the bare metal performance as the baseline (100\%). The overhead of
-\mCTOShyper{} is moderate and comparable to KVM. In some cases, \mCTOShyper{}
-performs better than KVM, which is mainly because KVM has a Linux host, and thus has a
-larger cache footprint. In other cases, which involve a large amount of file
-operations, such as decompressing Linux source and Tomcat server, \mCTOShyper{}
-performs worse. This is due to idiosyncrasies of the VirtIO interface. In
-\mCTOShyper{}, we expose the raw disk interface to the guest via VirtIO; when
-there is a disk I/O request in the \texttt{vring}, \mCTOShyper{} immediately
-pulls it and issues a disk command to handle that request and polls until the
-command finishes. This leads problems with the guest linux VirtIo driver, since,
-when the guest Linux uses VirtIO, it always sends disk I/O request of length
-4KB.
-
-Fig.~\ref{fig:eval_disk} (b) shows the throughput of the SSD used in our
-benchmark against the size of data for each command when writes a large (1GB)
-sequential block. This figure indicates that the disk can only reach the top
-rate (read 270MB/s, write 90MB/s) when the data size for each command is at
-least 8KB for reads and 512KB for writes.
-Thus, disk access becomes a bottleneck.
-The disk dump benchmark in Fig.~\ref{fig:eval_disk} (a)
-further demonstrates this issue.
-
-\begin{figure}
-	\begin{center}
-		\vspace{-.2cm}
-		\hspace{-.2cm}
-		\includegraphics[width=8cm]{figs/disk.pdf}
-		\hspace{-.2cm}
-		\vspace{.0cm}
-		\caption{Disk performance: (a). \texttt{lmdd} of vary size files; (b). the SSD throughput used in the benchmarks}
-		\label{fig:eval_disk}
-	\end{center}
-\end{figure}
-
-
-The VM monitor in \mCTOShyper{} is running as a user
-process in the ring 3 mode. This leads to a smaller kernel
-size and makes it possible to use emulated devices and unverified
-drivers at the user level.  The downside is that each
-VM entry and exit causes an additional ring switch, and VM-related
-information must be copied to the monitor process in order for it to
-process the exit. Therefore, it may have an impact on performance,
-especially for those guest programs that frequently cause VM exits,
-such as web servers, which generate frequent network-related external
-interrupts.  Another approach is to verify the virtual machine monitor
-code and run it inside a kernel module, \eg, in a ring 0 process.
-
-
-\ignore{
-\paragraph*{Deployment}
-An extended version of \mCTOShyper{} was deployed in context of a large
-DARPA-funded research project. It runs on a military land vehicle
-using the same hardware configuration we used in the experiments. On
-top of the extended version run 6 Ubuntu Linux systems as guests. Each virtual
-machine runs several RADL (The Robot Architecture Definition Language)
-nodes that have fixed hardware capabilities such as access to GPS,
-radar, etc.
-}
 
 
 %Bugs were found in the original design of $mCertiKOS$ during
