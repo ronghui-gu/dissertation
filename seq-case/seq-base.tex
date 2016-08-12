@@ -145,46 +145,29 @@ The pre-initialization module only contains the bottom-most layer
 \code{PreInit}, which is shown at the bottom of Figure~\ref{fig:base:pmm:layers} outside the red dashed box. It is used to model the x86 hardware and axiomatizes the
 hardware behaviors that are necessary to obtain end-to-end behaviors
 across the kernel and the user space. These behaviors include page
-table walk upon memory load when paging is turned on, saving and
-restoring part of the trap frame in the case of interrupts, and switching
-the stack in the case of ring switch.
-
+table walk upon memory load when paging is turned on, 
+address save during the page fault,
+and the mode change made by the ring switch.
+\ignore{
 The \code{x86} object is the only layer object in the \code{PreInit} layer.
 It extends the CompCert assembly semantics
-to model the low-level features of the machine.
-Its abstract state consists of control registers,
+to model the low-level features of the machine.}
+Its abstract state consists of a kernel mode flag \code{ikern},
+an initialization flag \code{init},
 a physical memory map \code{MM},
-and a kernel mode flag \code{ikern}.
+and control registers.
 Its primitives consist of
-getter-setter functions for control registers and \code{MM},
-and a function models the transition between user and kernel mode.
+a function models the transition between user and kernel mode,
+and 
+getter-setter functions for control registers and \code{MM}.
 
-The state component \code{MM} is the abstraction of the
-E820 memory map provided by the bootloader.
-The control registers \code{CR0}, \code{CR2}, and \code{CR3},
-are used to model the behavior
-of the processor's memory management unit (MMU),
-which is specified by the \emph{memory accessors}
-of \code{PreInit}.
-When paging is enabled (as indicated by \code{CR0}),
-memory accesses (\ie, load and store) made by both the kernel and the user programs
-are translated using the page map pointed to by \code{CR3}
-(shown in Figure~\ref{fig:seq:mem1}).
-When a page fault occurs,
-the corresponding information is stored in \code{CR2}
-and the page fault handler is invoked.
-
-\begin{figure*}[t]\centering
-\includegraphics[scale=.55]{figs/mem_model_1} 
-\caption{Address translation at \code{PreInit} layer}
-\label{fig:seq:mem1}
-\hrulefill
-\end{figure*}
-
-The logical flag \code{ikern} indicates
+\paragraph{Kernel mode} The logical flag \code{ikern} indicates
 whether the processor is currently in kernel or user mode.
 The \code{kernel\_mode} predicate of \code{PreInit}
 is defined as $``\code{ikern} =\code{true}"$.
+Actually, all the sequential layers for \mCTOS{} use the same
+ \code{kernel\_mode} predicate
+ (\mCTOShyper{} uses a different one).
 Some privileged
 memory regions (\eg, allocation table) and 
 instructions (\eg, modifying control registers)
@@ -197,11 +180,113 @@ and dispatch over the trap type,
 are verified at the assembly level.
 }
 
-The initialization primitive at this bottom-most layer is the bootloader,
+
+
+\paragraph{Initialization} The initialization primitive 
+$\code{preinit}$
+at this bottom-most layer models the bootloader,
 which initializes \code{MM} and necessary drivers
 (\eg, timer, keyboard, serial, {\it etc.}),
 loads the kernel into the memory,
 and sets the initialization flag $\code{init}$ to be \code{true}.
+The state component \code{MM} is the abstraction of the
+E820 memory map provided by the bootloader.
+It can be accessed only when 
+$\code{init}$ is $\code{true}$.
+
+\paragraph{Memory accessor} 
+The control registers \code{CR0}, \code{CR2},  \code{CR3},
+and \code{OEIP}
+(a pseudo-register to save the \emph{old $\code{EIP}$} when exception happens
+)
+are used to model the behavior
+of the processor's memory management unit (MMU),
+which is specified by the \emph{memory accessors}
+of \code{PreInit}.
+The rules for the load accessor are shown as below
+(the store accessor ones are similar).
+
+\begin{mathpar}
+\inferrule{ 
+a.\code{CR0} = \code{false}
+}{ \Gamma \vdash\code{PreInit}.\mat.load(v; \rho, m, a)  = (m(v); \rho, m, a)}
+\and
+\inferrule{ 
+a.\code{CR0} = \code{true}
+\\
+\code{addr\_trans}(a,v) = \code{Some}\ v'
+}{ \Gamma \vdash\code{PreInit}.\mat.load(v; \rho, m, a)  = (m(v'); \rho, m, a)}
+\and
+\inferrule{ a.\code{CR0} = \code{true}
+\\
+\code{addr\_trans}(a,v) = \code{None}\\
+a' = a \set{\code{CR2}: v}\set{\code{OEIP}: \rho(\code{EIP})}\\
+\rho' = \rho\set{\code{EIP}: (\Gamma(\code{PF\_handler}),0)}
+}{ \Gamma \vdash\code{PreInit}.\mat.load(v; \rho, m, a)  = (\cdot; \rho', m, a')}
+\end{mathpar}
+When paging is enabled (as indicated by \code{CR0}),
+memory accesses (\ie, load and store) made by both the kernel and the user programs
+are translated using the page map pointed to by \code{CR3}.
+The address translation function
+$\code{addr\_trans}$ is
+shown in Figure~\ref{fig:seq:mem1}.
+When a page fault occurs,
+the corresponding information is stored in \code{CR2}
+and \code{OEIP},
+and then the page fault handler $\code{PF\_handler}$ is invoked.
+
+\paragraph{Layer invariant}
+To make sure that it is safe to compile
+kernel code with CompcertX,
+we have to show that, in the kernel mode,
+the memory accessors are equal to the Compcert accessors
+(\cf Section~\ref{sec:seq:comp:concrete}).
+It is state as a layer invariant of \code{PreInit}.
+\begin{invariant}[Valid memory accessors]
+If $a.\code{CR0} = \code{true}$
+and $a.\code{ikern} = \code{true}$,
+we have $\code{addr\_trans}(a,v) = \code{Some}\ v$,
+ meaning that the address translation is identity.
+\end{invariant}
+
+To prove this invariant holds for \code{PreInit},
+we have to add pre-conditions
+to the primitives that change $\code{CR0}$ and $\code{CR3}$
+registers:
+1) paging is enabled only if this invariant
+holds;
+and 2) in the kernel mode,
+the page table pointed by $\code{CR3}$
+has to be an identity map
+after paging is enabled.
+At upper layers,
+we have to show that
+these pre-conditions
+are satisfied
+when invoking setter primitives for $\code{CR0}$ and $\code{CR3}$.
+
+What's more,
+we also need an invariant that there is enough
+physical memory to boot \mCTOS{}.
+Currently, we set 1GB as the minimal requirement,
+and all the kernel code and data are stored below
+1GB. The actual memory usage of our \mCTOS{}
+is much less than this requirement.
+\begin{invariant}[Enough memory space]
+If $a.\code{init} = \code{true}$,
+the memory space indicated by $a.\code{MM}$
+is within the range
+$[1GB, 4GB]$.
+\end{invariant}
+
+\begin{figure*}[t]\centering
+\includegraphics[scale=.55]{figs/mem_model_1} 
+\caption{Address translation at \code{PreInit} layer}
+\label{fig:seq:mem1}
+\hrulefill
+\end{figure*}
+
+
 
 
 \subsection{Physical memory management}
@@ -218,8 +303,8 @@ and sets the initialization flag $\code{init}$ to be \code{true}.
 
 Based on the pre-initialization layer and its memory
 accessors,
-the physical memory management abstracts the physical page allocation table
-into \code{page} objects.
+the physical memory management introduces the physical page,
+which supports dynamic allocation.
 To better reason about access control and isolation in the case of
 the dynamic resource allocation, each physical page
 object maintains a \emph{logical} state containing ownership information,
@@ -228,6 +313,34 @@ and the page is only allowed to be accessed by its owners.
 The physical memory management of \mCTOSbase{}
 consists of  3 layers, which are shown in the red dashed box in
 Figure~\ref{fig:base:pmm:layers}.
+The module introduces three new abstract states: 
+\code{nps} (the number
+of physical pages),
+\code{AT} (the page allocation table
+indicating the physical page information),
+and \code{cn} (the page usage of each thread).  
+
+\paragraph{Layer hierarchy}
+Layer $\code{MATIntro}$
+introduces the getter-setter methods
+for these newly introduced abstract states.
+These states are initialized by \code{meminit} using the information
+stored in \code{MM}, provided by the layer
+$\code{MATInit}$. 
+Besides this initialization primitive,
+the topmost layer $\code{MAT}$ in this module
+also exports two more primitives
+\code{palloc} and \code{pfree},
+which allocate and free physical pages,
+respectively.
+
+\begin{figure}[t]
+\lstinputlisting [language = C, multicols=2] {source_code/seq-palloc2.c}
+\caption{Pseudocode of \texttt{palloc} in \mCTOS{}}
+\label{fig:seq:palloc}
+\hrulefill
+\end{figure}
+
 \ignore{
 The module first
 defines a getter-setter layer \verb"MATIntro", followed by an
@@ -235,14 +348,83 @@ abs-kernel-fun layer \verb"MATOp" where a new initializer is defined,
 and then another abs-kernel-fun layer \verb"MAT" which provides the
 physical page allocator.
 }
-The module introduces two new abstract states: \verb"nps", the number
-of physical pages, as well as \verb"AT", the page allocation table
-indicating whether a memory page is free or not.  The states \verb"AT"
-and \verb"nps" are initialized using in \verb"meminit" using the information
-in \verb"MM". The module also exports two primitives
-\verb"palloc" and \verb"pfree", allocating and freeing memory pages,
-respectively.
 
+\paragraph{Enforcing memory quotas}
+One important function of the physical memory management is to dynamically
+track and bound the memory usage of each thread. A \emph{container}
+object $\code{cn}$ is used to record information for each thread (represented as the array \code{cn}
+in Figure~\ref{fig:seq:palloc}); one piece of information tracked is the
+thread's \emph{quota}. Inspired by the notions of containers and
+quotas in HiStar~\cite{zeldovich06}, a thread
+in {\mCTOS} is spawned with some quota specifying the maximum number
+of pages that the thread will ever be allowed to allocate. As can be
+seen in Figure~\ref{fig:exp:palloc}, \code{palloc} returns an error
+code if the requesting thread has no remaining quota (lines~2 and 3), 
+and the quota is decremented when a page is successfully allocated (line~16).
+Quota enforcement allows the kernel to prevent a denial-of-service attack,
+where one thread repeatedly allocates pages and uses up all available
+memory (thus denying other threads from allocating pages). From a security
+standpoint, it also prevents the undesirable information channel between 
+different threads that occurs due to such an attack.
+
+\paragraph{Primitives}
+Section~\ref{sec:clightx-prog}
+already provides
+a detailed procedure
+to build layers for a simplified version of
+$\code{palloc}$.
+The design pattern
+is shared for most of the primitives:
+first introducing getter-setter methods,
+and hiding the concrete memory;
+then verifying the primitive using
+getter-setter methods.
+To improve
+readability,
+in the rest of this thesis,
+we will omit
+this design pattern,
+and only show the primitives' specifications
+in terms of inference rules.
+For example,
+the rules for $\code{palloc}$ primitive are shown as below.
+\begin{mathpar}
+\inferrule{
+q = a.\code{cn}(\mathit{tid}).\code{quota} \ge 1 \\
+0 \le \mathit{freei} < a.\code{nps}\\ 
+a.\code{AT}(\mathit{freei}).\code{is\_alloc} = \false \\
+\forall 0 \le i < \mathit{freei}, a.\code{AT}(i).\code{is\_alloc} = \true \\
+a' = a \set{\code{AT},\mathit{freei}: (\true, 1,\mathit{tid})}
+\set{\code{cn}.\code{quota},\mathit{tid}: q - 1}
+}{
+\Gamma  \vdash  \spec_{\code{palloc}}([\mathit{tid}],m, a, \mathit{freei}, m, a')
+}
+\and
+\inferrule{
+(a.\code{cn}(\mathit{tid}).\code{quota} < 1)
+\vee
+(\forall 0 \le i < a.\code{nps}, a.\code{AT}(i).\code{is\_alloc} = \true)
+}{
+\Gamma  \vdash  \spec_{\code{palloc}}([\mathit{tid}],m, a, \code{ERROR}, m, a)
+}
+\end{mathpar}
+
+
+\paragraph{Layer invariant}
+Since the allocation table is set up using $\code{MM}$,
+we have to guarantee that these two tables
+are consistent.
+\begin{invariant}[Valid physical memory management]
+If $a.\code{init} = \code{true}$,
+we have 
+1) $2^{18} \le a.\code{nps} \le 2^{20}$;
+2) $\forall 0 \le i \le 2^{18},  a.\code{AT}(i).\code{is\_alloc} = \true$;
+and 3) for any invalid page $i$ indicated by $a.\code{MM}$
+(e.g., reserved for devices),
+$a.\code{AT}(i).\code{is\_alloc} = \true$.
+\end{invariant}
+
+\ignore{
 \paragraph{Enforcing memory quotas}
 
 Another function of the physical memory management is to dynamically
@@ -283,7 +465,7 @@ We plan to extend the concept of containers to other types of
 resources in the future. For example, we could maintain a time-slice quota
 for each agent.  This would provide a foundation for reasoning about
 liveness properties for processes and security breaches via timing
-channels.
+channels.}
 
 
 \ignore{
@@ -354,23 +536,30 @@ We still focus on memory in the next module, however, we turn our
 attention to user programs' needs.  
 }
 On top of physical memory management,
-the virtual memory management provides consecutive virtual address spaces.
+the virtual memory management implements
+the 2-level \emph{page map}, which
+provides consecutive virtual address spaces.
+
+\paragraph{Layer hierarchy}
 As shown in
 Figure~\ref{fig:base:vmm:layers}, the virtual memory management of
-\mCTOSbase{} consists of 7 layers: getter-setter layer \verb"MPTIntro"
+\mCTOSbase{} consists of 6 layers: 1) getter-setter layer \verb"MPTIntro"
 defines two new abstract states, the page map pool \verb"pmp" (which
-consists of 64 page tables) and the page map index \verb"pmi" (which
-points the current page table); abs-kernel-fun layer \verb"MPTOp"
-introduces primitives on page maps including \verb"pt_insrt" and
-\verb"pt_read"; the following three abs-kernel-fun layers
-\verb"MPTComm", \verb"MPTKern", and \verb"MPTInit" build up the
-initialization function \verb"PTInit"; getter-setter layer \verb"MBit"
-creates bitmap for page map availability; and, finally,
-abs-kernel-fun layer \verb"MPMap" wraps up page map allocation and
-release.
+consists of 73 page tables) and the page map index \verb"pmi" (which
+points the current page table); 
+2) abs-kernel-fun layer \verb"MPTOp"
+introduces primitives to access page maps including \verb"pt_insrt" and
+\verb"pt_read"; 3) the following three abs-kernel-fun layers
+\verb"MPTComm", \verb"MPTKern", and \verb"MPTInit" build the
+initialization primitive \verb"PTInit" to initialize the page map pool;
+and 4) abs-kernel-fun layer \verb"MPMap" 
+provides wrapper primitives
+for user process to allocate a page and insert to its page map.
 
+\paragraph{Memory accessors}
 Starting from the \verb"MPTIntro" layer, we 
-introduce a new memory accessors.
+introduce new memory accessors
+using page maps.
 As shown in Figure~\ref{fig:seq:mem2},
 the
 address translation at this layer is defined
@@ -387,6 +576,7 @@ a well-formed page table.
 \hrulefill
 \end{figure*}
 
+\paragraph{Initialization primitive}
 We proved not only that the primitives of virtual memory management
 manipulate the address space correctly,
 but also that the initialization procedure sets up the two-level page maps properly
@@ -784,7 +974,7 @@ a user context, and an IPC channel.
 The trap module specifies the behaviors of exception handlers and
 \mCTOSbase{} system calls.
 The trap handler module of \mCTOSbase{} consists of 3 abs-kernel-fun
-layers, shown in Fig\ ~\ref{fig:base:trap:layers}.  It specifies the
+layers, shown in Figure~\ref{fig:base:trap:layers}.  It specifies the
 trap handler module in the standard operating system.  The
 \verb"TTrapArg" layer introduces primitives to manage the system call
 arguments and return values, while the \verb"TTrap" layer implements
@@ -829,7 +1019,7 @@ the behavior is interpreted using its abstract atomic specification.
 \ignore{
 For the exception handler, we
 implement the standard page fault handler which dynamically allocates
-the user memory in the page table.  Fig.~\ref{fig:base:trap:pagefault}
+the user memory in the page table.  Figure~\ref{fig:base:trap:pagefault}
 shows the call graph of our page fault handler. 
 
 Here, red

@@ -423,10 +423,38 @@ complete certified layer implementations.
 
 Similarly, given a concrete language semantics, we will want to tie
 the calculus back into the framework of abstract machines and program
-transformations.  For a layer interface $L$, we will define a
-corresponding abstract machine meant to execute programs written in a
+transformations.  
+The \emph{abstract machine}
+we use is defined as below:
+\begin{definition}[Abstract Machine]
+\label{def:mach}
+An \emph{abstract machine} is a tuple $\Mach = (\statet, \rightarrow, I, F)$
+where $\statet$ is a set of states,
+$\rightarrow \, \subseteq \statet \times \statet$ is a transition relation,
+$I \subseteq \statet$ is a set of initial states, and
+$F \subseteq \statet$ is a set of final states.
+\end{definition}
+
+\ignore{
+\begin{definition}[Safety]
+Given a machine $\Mach$,
+we say that $s \in S$ is a \emph{stuck state}
+if $s \notin F$ and there is no $s'$ such that $s \rightarrow s'$.
+Then, a \emph{safe state} is a state $s$ such that there is no
+stuck state $s'$ with $s \rightarrow^* s'$.
+%A \emph{safe machine} is a machine which has at least one initial state,
+%and for which all initial states are safe.
+\end{definition}
+}
+
+\noindent{}Thus, for a layer interface $L$, we define a
+corresponding abstract machine 
+\[P@L:= (\statet(L), 
+\stackrel{L}{\rightarrow}, I(P), F)\]
+, which means to execute program $P$ written in a
 version of the language augmented with the primitives specified in
-$L$.  The program transformation associated with a module $M$ will
+$L$. 
+ The program transformation associated with a module $M$ will
 simply concatenate the code of $M$ to the client program.  Then, for a
 particular notion of refinement $\sqsubseteq$, we will want to prove
 that the typing judgments entail the contextual refinement property:

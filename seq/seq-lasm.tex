@@ -387,7 +387,7 @@ specification of the primitive in $L$.
 \inferrule{
   \rho(\mathsf{EIP}) = (b, 0) \\
   \Gamma(f) = b \\
-  L.\primt_{\mathrm{LAsm}}(f)(\rho, m, a, \rho', m', a')
+  \Gamma \vdash L.\primt_{\mathrm{LAsm}}(f)(\rho, m, a, \rho', m', a')
 }{
   \Gamma, L, M \vdash (\rho, m, a) \rightarrow (\rho', m', a')
 }
@@ -405,7 +405,7 @@ contents of all non-callee-save registers in $\rho$.
 \inferrule{
   \rho(\mathsf{EIP}) = (b, 0) \\
   \Gamma(f) = b \\
-  L.\primt_{\mathrm{ClightX}}(f)(\mathit{args}, m, a, \mathit{res}, m', a') \\
+ \Gamma \vdash L.\primt_{\mathrm{ClightX}}(f)(\mathit{args}, m, a, \mathit{res}, m', a') \\
   \rho(\mathsf{ESP}) \neq \bot \\
   \mathsf{arguments}(\mathit{args}, m, \rho(\mathsf{ESP})) \\
   \rho(\mathsf{RA}) \neq \bot \\

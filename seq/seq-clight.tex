@@ -374,7 +374,7 @@ callee.
 \noindent{}For primitive calls, we simply query the layer interface $L$:
 \[
 \inferrule{
-  L.\primt(f)(\mathit{args}, m, a, \mathit{res}, m', a')
+\Gamma \vdash L.\primt(f)(\mathit{args}, m, a, \mathit{res}, m', a')
 }{
   \Gamma, L, M \vdash f : (\mathit{args}; m, a) \Downarrow (\mathit{res}; m', a')
 }\]

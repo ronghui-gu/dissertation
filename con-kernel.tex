@@ -4,7 +4,14 @@
 To demonstrate our concurrent framework,
 we extend the \mCTOS{} single-core verified kernel into a
 concurrent kernel \cCTOS{} running on multi-core hardware.
-\ronghui{Fix the road map}
+Section~\ref{sec:con:overview}
+gives an overview of the \cCTOS{} architecture.
+In Section~\ref{sec:con:base},
+we show the concurrent certified layers
+for the concurrent extensions of \cCTOS{}.
+Section~\ref{sec:comp} presents how
+to extend CompcertX to support
+thread-safe verified compilation.
 
 \section{Overview of the \cCTOS\ kernel}
 \label{sec:con:overview}
@@ -142,7 +149,7 @@ Carbonneaux~{\em et al}~\cite{veristack,ccrb15}.
 
 \input{con/con-comp}      % Certified Compilation and Linking (1-1.5 pages)
 
-
+\ignore{
 \paragraph{Verification Effort and Lessons Learned}
 Our team completed verification of the \cCTOS{} kernel in about 2 person years.
 The layered approach is key to the scalability and feasibility of such a
@@ -185,6 +192,7 @@ that does not involve any code verification, we abstract the environment
 context to obtain a new, atomic specification generating only a single event.
 In this way, we manage to cleanly separate concurrency reasoning 
 (\eg, interleaved executions) from code verification.
+}
 
 \ignore{
 {\it Layering facilitates the invariant preservation proof.}

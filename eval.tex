@@ -8,15 +8,20 @@ we have analyzed the performance of the \mCTOShyper{} hypervisor kernel and the 
 with a thorough experimental benchmark evaluation.
 Furthermore, an extended version of \mCTOShyper{}
 was deployed in a practical system that is used in the context of a
-large DARPA-funded research project. Our experiments with benchmarks
+large DARPA-funded research project. 
+Section~\ref{sec:eval:perform} shows our experiments with benchmarks, which
 confirm the observations made during deployment: the performance
-overhead of \mCTOShyper{} is moderate. We are convinced that it is
+overhead of \mCTOShyper{} is moderate. 
+In Section~\ref{sec:eval:impl},
+we presents the implementation and deployment of
+our verified kernels.
+All in all, we are convinced that it is
 practical to use our verification framework to produce competitive
 real-world kernels with acceptable effort.
 
-\ronghui{Fix the road map}
 
 \section{Performance Evaluation} 
+\label{sec:eval:perform}
 Although the performance is not the main emphasis of this paper, we
 have run a number of micro and macro benchmarks to measure the
 overhead of {\mCTOS} and {\cCTOS}
@@ -181,7 +186,7 @@ code and run it inside a kernel module, \eg, in a ring 0 process.
 
 \input{impl}
 
-\section{Execution Model and Completeness}
+\paragraph{Execution Model and Completeness}
 The majority of the {\mCTOS} and \cCTOS{} kernels are implemented and verified 
 at the C level, and then compiled by a modified version of the CompCert verified
 compiler~\cite{dscal15}.  The entire kernel (both C and assembly)

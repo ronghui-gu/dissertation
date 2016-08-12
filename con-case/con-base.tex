@@ -157,7 +157,7 @@
 In this section, we present the main components of the certified {\cCTOS} kernel. 
 The pre-initialization module is the bottom layer $L_\boot$
 that connects to the
- \emph{CPU-local machine model} $\mach{loc}$, instantiated with a 
+ \emph{CPU-local machine model} $\pmach{loc}$, instantiated with a 
  particular \emph{active CPU} (\cf Section~\ref{sec:con:lasm}).
 The trap handler contains the top layer that provides system call interfaces
 and serves as a specification of the whole kernel,
@@ -897,12 +897,11 @@ locks is guided by the order that the locks are introduced in the layers.
 This implicit order of lock acquisitions prevents \emph{deadlocks} in the
 {\mCTOS} kernel.
 
-\begin{figure}
+\begin{figure}[t]
 \lstinputlisting [language = C, multicols=2] {source_code/palloc.c}
-\vspace{-5pt}
 \caption{Pseudocode of \texttt{palloc}}
 \label{fig:exp:palloc}
-\vspace{-10pt}
+\hrulefill
 \end{figure}
 
 
@@ -910,12 +909,12 @@ This implicit order of lock acquisitions prevents \emph{deadlocks} in the
 Another function of the physical memory management is to dynamically
 track and bound the memory usage of each thread. A \emph{container}
 object is used to record information for each thread (array \code{cn}
-in Fig.~\ref{fig:exp:palloc}); one piece of information tracked is the
+in Figure~\ref{fig:exp:palloc}); one piece of information tracked is the
 thread's \emph{quota}. Inspired by the notions of containers and
 quotas in HiStar~\cite{zeldovich06}, a thread
 in {\mCTOS} is spawned with some quota specifying the maximum number
 of pages that the thread will ever be allowed to allocate. As can be
-seen in Fig.~\ref{fig:exp:palloc}, \code{palloc} returns an error
+seen in Figure~\ref{fig:exp:palloc}, \code{palloc} returns an error
 code if the requesting thread has no remaining quota (lines~4 and~5), 
 and the quota is decremented when a page is successfully allocated (line~17).
 Quota enforcement allows the kernel to prevent a denial-of-service attack,
@@ -925,20 +924,20 @@ standpoint, it also prevents the undesirable information channel between
 different threads that occurs due to such an attack.
 
 
-\begin{figure*}[th]
+\begin{figure}[t]
 $$
 \begin{array}{c|c}
 \begin{array}{cc}
 (a) &\
       \begin{array}{c}
-			\includegraphics[scale=.33]{figs/mem_model_1} 
+			\includegraphics[scale=.3]{figs/mem_model_1} 
 		\end{array}
 \end{array}
 & 
 \begin{array}{cc}
 (b) & 
 \begin{array}{c}
-\includegraphics[scale=.35]{figs/mem_model_2}
+\includegraphics[scale=.3]{figs/mem_model_2}
 \end{array}
 \end{array}
 \vspace*{-14pt}
@@ -946,8 +945,8 @@ $$
 $$
 \caption{(a) Hardware MMU using two-level page map; (b) Virtual address space $i$ set up by page map $i$.}
 \label{fig:spec:memmodel}
-\vspace*{-10pt}
-\end{figure*}
+\hrulefill
+\end{figure}
 
 \vspace{-3pt}
 \paragraph{Virtual memory management}
@@ -1045,8 +1044,8 @@ The local {\it enqueue} and {\it dequeue} operations
 are specified over the abstract lists.
 As usual, we associate each shared queue with a lock.
 The atomic interfaces for shared queue operations are represented by
-queue events $``\event{t.enQ\ i\ e}"$ and 
-$``\event{t.deQ\ i}"$,
+queue events ``$c.\mathsf{enq}(i,e)$" and 
+$``c.\mathsf{deq}(i)"$,
 which can be replayed to construct the shared queue. 
 For instance, starting from an empty initial queue,
 the resulting queue constructed from
@@ -1087,7 +1086,7 @@ Instead of directly verifying the function $\module_{\deq}$
 with fine-grained locking in one shot, we do it over
 multiple layers.
 We first introduce an intermediate function
-$\module_{\deq\comm{\_t}}$ (\cf Fig.~\ref{fig:exp:dequeue}), which contains
+$\module_{\deq\comm{\_t}}$ (\cf Figure~\ref{fig:exp:dequeue}), which contains
 the code that performs the local dequeue operation but assumes that
 the corresponding lock is held.
 Verification of the function $\module_{\deq\comm{\_t}}$ is now much
@@ -1101,7 +1100,7 @@ $\module_{\deq\comm{\_t}}$ and its specification
 $\spec_{\deq\comm{\_t}}$.
 
 The newly introduced $(abs_\comm{tdqp}: \integer \partf 
-\comm{List\ \integer})$ is a partial map from \emph{queue index}
+\comm{List\ }\integer)$ is a partial map from \emph{queue index}
 to the \emph{abstract queue}, which is represented as
 a list of indices to thread control blocks (\ie, $\comm{tcb}$).
 The specification $\spec_{\deq\comm{\_t}}$ is defined as below:
