@@ -182,7 +182,7 @@ are verified at the assembly level.
 
 
 
-\paragraph{Initialization} The initialization primitive 
+\paragraph{Initialization primitive}
 $\code{preinit}$
 at this bottom-most layer models the bootloader,
 which initializes \code{MM} and necessary drivers
@@ -214,12 +214,12 @@ a.\code{CR0} = \code{false}
 \inferrule{ 
 a.\code{CR0} = \code{true}
 \\
-\code{addr\_trans}(a,v) = \code{Some}\ v'
+\code{addr\_trans}(a,v) = \some{v'}
 }{ \Gamma \vdash\code{PreInit}.\mat.load(v; \rho, m, a)  = (m(v'); \rho, m, a)}
 \and
 \inferrule{ a.\code{CR0} = \code{true}
 \\
-\code{addr\_trans}(a,v) = \code{None}\\
+\code{addr\_trans}(a,v) = \None\\
 a' = a \set{\code{CR2}: v}\set{\code{OEIP}: \rho(\code{EIP})}\\
 \rho' = \rho\set{\code{EIP}: (\Gamma(\code{PF\_handler}),0)}
 }{ \Gamma \vdash\code{PreInit}.\mat.load(v; \rho, m, a)  = (\cdot; \rho', m, a')}
@@ -245,7 +245,7 @@ It is state as a layer invariant of \code{PreInit}.
 \begin{invariant}[Valid memory accessors]
 If $a.\code{CR0} = \code{true}$
 and $a.\code{ikern} = \code{true}$,
-we have $\code{addr\_trans}(a,v) = \code{Some}\ v$,
+we have $\code{addr\_trans}(a,v) = \some{v}$,
  meaning that the address translation is identity.
 \end{invariant}
 
@@ -367,7 +367,7 @@ memory (thus denying other threads from allocating pages). From a security
 standpoint, it also prevents the undesirable information channel between 
 different threads that occurs due to such an attack.
 
-\paragraph{Primitives}
+\paragraph{Page management}
 Section~\ref{sec:clightx-prog}
 already provides
 a detailed procedure
@@ -556,16 +556,38 @@ and 4) abs-kernel-fun layer \verb"MPMap"
 provides wrapper primitives
 for user process to allocate a page and insert to its page map.
 
-\paragraph{Memory accessors}
+\paragraph{Memory accessor}
 Starting from the \verb"MPTIntro" layer, we 
 introduce new memory accessors
 using page maps.
 As shown in Figure~\ref{fig:seq:mem2},
 the
-address translation at this layer is defined
+address translation $\code{pm\_addr\_trans}$ at this layer is defined
 using \verb"pmp" and \verb"pmi" instead of the physical two-level page
-table and the \verb"CR3" register.  The contextual refinement relation
-between these two kinds of address translations guarantees that the
+table and the \verb"CR3" register. 
+
+The page map pool $(\code{pmp}: \integer\partialf \code{pm})$
+is a partial function from the page map index $\code{pmi}$
+to a two-level page map $\code{pm}$.
+
+\begin{mathpar}
+\inferrule{
+a.\code{pmp}(a.\code{pmi})(v/\code{PgSize}) = \some{(i, p)} \\
+\code{perm\_allow}(a.\code{ikern}, p) \\
+v' = i \times \code{PgSize} + (v\ \code{mod}\  \code{PgSize})
+ }{\code{pm\_addr\_trans} (a, v) = \some{v'}}
+\end{mathpar}
+It first acquires the virtual page index and the page permission
+from the page map,
+then checks the permission,
+and finally translates the physical address
+to the virtual address.
+The default page size $\code{PgSize}$ is 4KB.
+Thus, the memory accessors of \code{MPTIntro} is defined
+using $\code{pm\_addr\_trans}$, instead of
+$\code{addr\_trans}$ used in \code{PreInit}.
+ The contextual refinement relation
+between these two kinds of memory accessors guarantees that the
 value in the \verb"CR3" register is always a valid starting address of
 a well-formed page table.
 

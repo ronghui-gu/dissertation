@@ -125,6 +125,21 @@ is:
 Since only atomic transitions generate events,
 this interleaving produces the logical log $[\event{0.\mathsf{atom}_1,1.\mathsf{atom}_2, 0.\pull_1,0.\push_1}]$.
 
+\paragraph{Sequential consistency}
+The \push/\pull{} memory model
+assumes that the memory of the multi-core hardware
+is \emph{sequentially consistent}~\cite{lamport1979make}.
+Previous works~\cite{steinke2004unified,
+boudol2009relaxed,owens2009better} have shown that,
+for data-race free programs,
+multiprocessor executions 
+can be modeled as a sequence of 
+shared memory access events,
+which is sequentially consistent.
+Therefore, by showing that the \cCTOS{}
+kernel is data-race free,
+we have that this sequential consistency assumption
+is valid.
 
 \subsection{Partial machine with hardware scheduler}
 As a first step toward abstracting away the low-level details of
