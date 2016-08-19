@@ -390,25 +390,32 @@ For example,
 the rules for $\code{palloc}$ primitive are shown as below.
 \begin{mathpar}
 \inferrule{
-q = a.\code{cn}(\mathit{tid}).\code{quota} \ge 1 \\
+q = a.\code{cn}(\ttid).\code{quota} \ge 1 \\
 0 \le \mathit{freei} < a.\code{nps}\\ 
 a.\code{AT}(\mathit{freei}).\code{is\_alloc} = \false \\
 \forall 0 \le i < \mathit{freei}, a.\code{AT}(i).\code{is\_alloc} = \true \\
-a' = a \set{\code{AT},\mathit{freei}: (\true, 1,\mathit{tid})}
-\set{\code{cn}.\code{quota},\mathit{tid}: q - 1}
+a' = a \set{\code{AT},\mathit{freei}: (\true, 1,\ttid, \code{freeable})}
+\set{\code{cn}.\code{quota},\ttid: q - 1}
 }{
-\Gamma  \vdash  \spec_{\code{palloc}}([\mathit{tid}],m, a, \mathit{freei}, m, a')
+\Gamma  \vdash  \spec_{\code{palloc}}([\ttid],m, a, \mathit{freei}, m, a')
 }
 \and
 \inferrule{
-(a.\code{cn}(\mathit{tid}).\code{quota} < 1)
+(a.\code{cn}(\ttid).\code{quota} < 1)
 \vee
 (\forall 0 \le i < a.\code{nps}, a.\code{AT}(i).\code{is\_alloc} = \true)
 }{
-\Gamma  \vdash  \spec_{\code{palloc}}([\mathit{tid}],m, a, \code{ERROR}, m, a)
+\Gamma  \vdash  \spec_{\code{palloc}}([\ttid],m, a, \error, m, a)
 }
 \end{mathpar}
-
+Each entry of allocation table is a tuple
+$(\code{is\_alloc}, \code{ref}, \code{owner}, \code{status})$,
+where $\code{is\_alloc}:\code{bool}$ indicating
+if the page is allocated or not,
+$\code{ref}$ is the number of references to the page,
+$\code{owner}$ is the page owner,
+and $\code{status}$ stores the page status
+(\eg, $\code{freeable}$ and $\code{writable}$).
 
 \paragraph{Layer invariant}
 Since the allocation table is set up using $\code{MM}$,
@@ -537,7 +544,7 @@ attention to user programs' needs.
 }
 On top of physical memory management,
 the virtual memory management implements
-the 2-level \emph{page map}, which
+the two-level \emph{page map}, which
 provides consecutive virtual address spaces.
 
 \paragraph{Layer hierarchy}
@@ -548,15 +555,24 @@ defines two new abstract states, the page map pool \verb"pmp" (which
 consists of 73 page tables) and the page map index \verb"pmi" (which
 points the current page table); 
 2) abs-kernel-fun layer \verb"MPTOp"
-introduces primitives to access page maps including \verb"pt_insrt" and
-\verb"pt_read"; 3) the following three abs-kernel-fun layers
+introduces primitives to access page maps including \verb"pt_insrt" and \verb"pt_read"; 3) the following three abs-kernel-fun layers
 \verb"MPTComm", \verb"MPTKern", and \verb"MPTInit" build the
 initialization primitive \verb"PTInit" to initialize the page map pool;
 and 4) abs-kernel-fun layer \verb"MPMap" 
 provides wrapper primitives
 for user process to allocate a page and insert to its page map.
 
+
+
 \paragraph{Memory accessor}
+
+\begin{figure}[t]\centering
+\includegraphics[scale=.55]{figs/mem_model_2} 
+\caption{Address translation at \code{MPTInit} layer}
+\label{fig:seq:mem2}
+\hrulefill
+\end{figure}
+
 Starting from the \verb"MPTIntro" layer, we 
 introduce new memory accessors
 using page maps.
@@ -568,8 +584,23 @@ table and the \verb"CR3" register.
 
 The page map pool $(\code{pmp}: \integer\partialf \code{pm})$
 is a partial function from the page map index $\code{pmi}$
-to a two-level page map $\code{pm}$.
+to a map $\code{pm}$.
+The  two-level page map $(\code{pm} : \integer\partialf \code{pde})$
+is a partial function  from page index to a pair 
+$(\code{pde}, \code{pde\_loc})$.
+The page directory entry 
+$\code{pde}$
+is a partial function from page index to a page table entry
+$\code{pte}:=(\mathit{vadr}, \mathit{perm})$.
+The physical page storing
+the page directory entry is represented
+as $\code{pde\_loc}$.
 
+The address translation walks through
+the page map and returns the page table entry if it exists.
+We write $a.\code{pmp}(a.\code{pmi})$ as a function to walk
+through the page map.
+Thus, the address translation function is shown as below.
 \begin{mathpar}
 \inferrule{
 a.\code{pmp}(a.\code{pmi})(v/\code{PgSize}) = \some{(i, p)} \\
@@ -591,12 +622,77 @@ between these two kinds of memory accessors guarantees that the
 value in the \verb"CR3" register is always a valid starting address of
 a well-formed page table.
 
-\begin{figure*}[t]\centering
-\includegraphics[scale=.55]{figs/mem_model_2} 
-\caption{Address translation at \code{MPTInit} layer}
-\label{fig:seq:mem2}
+
+
+\paragraph{Page map operation}
+
+\begin{figure}[t]\centering
+\includegraphics[scale=.8]{figs/page_status} 
+\caption{The state of page status related to page map}
+\label{fig:seq:pages}
 \hrulefill
-\end{figure*}
+\end{figure}
+
+In \mCTOS{},
+we statically reserve one page (\ie, 4KB)
+for each process to store  the first-level page table
+(\ie, page directory).
+The second-level page table (\ie, pointed by page directory entry)
+is dynamically allocated
+using $\code{pde\_alloc}$.
+It first allocates a free page,
+turns the page into an abstract page table,
+and set the page status to be $\code{hidden}$ (\cf Figure~\ref{fig:seq:pages}).
+\begin{mathpar}
+\inferrule{
+\Gamma  \vdash  \spec_{\code{palloc}}([\ttid],m, a, \mathit{freei}, m, a_0)\\
+\mathit{freei} \neq \error \\
+a' = a_0\set{\code{pmp}, \ttid, \mathit{vpi}: (\emptyset, \mathit{freei})}
+\set{\code{AT}, \mathit{freei}: (\true, 1,\ttid, \code{hidden})}
+}{
+\Gamma  \vdash  \spec_{\code{pde\_alloc}}([\ttid\cons \mathit{vpi}],m, a, \mathit{freei}, m, a')
+}
+\and
+\inferrule{
+\Gamma  \vdash  \spec_{\code{palloc}}([\ttid],m, a, \error, m, a)
+}{
+\Gamma  \vdash  \spec_{\code{pde\_alloc}}([\ttid\cons \mathit{vpi}],m, a, \error, m, a)
+}
+\end{mathpar}
+By setting the page status, the page contents can only be accessed
+by the page map primitives,
+instead of the regular memory manipulations.
+Different from the CompCert memory 
+permission,
+this page status is purely logical,
+and is organized in terms of the physical page
+rather than the CompCert memory block.
+
+To insert
+a virtual and physical page index pair
+$(\mathit{vpi}, \mathit{ppi})$ to the page map,
+$\code{pt\_insrt}$ has to guarantee that
+the second-level page table for $\mathit{vpi}$ 
+is presented,
+and the physical page $\mathit{ppi}$ has already been
+allocated.
+Then, the page status of $\mathit{ppi}$ is changed
+to $\code{writable}$,
+meaning that the page is writable through
+memory operations,
+but cannot be freed by $\code{pfree}$
+primitive (\cf Figure~\ref{fig:seq:pages}).
+ \begin{mathpar}
+\inferrule{
+a.\code{pmp}(tid)(\mathit{vpi}) = (\mathit{pde}, i)\\
+\mathit{pde}' = \mathit{pde}\set{\mathit{vpi}: (\mathit{ppi}, p)} \\
+a.\code{AT}(\mathit{ppi}) = (\true, r,\ttid, \code{freeable}) \\
+a' = a\set{\code{pmp}, \mathit{vpi}: (\mathit{pde}' , i)}
+\set{\code{AT}, \mathit{ppi}: (\true, r,\ttid, \code{writable})}
+}{
+\Gamma  \vdash  \spec_{\code{pt\_insrt}}([\mathit{tid}\cons \mathit{vpi}\cons \mathit{ppi} \cons p],m, a, \cdot, m, a')
+}
+\end{mathpar}
 
 \paragraph{Initialization primitive}
 We proved not only that the primitives of virtual memory management
@@ -610,10 +706,11 @@ management, we prove the following invariants :
 \begin{invariant}
 \label{inv:seq:virtual}
 1) paging is enabled only after the initialization of virtual memory management;
-2) the memory regions that store kernel-specific data must have the kernel-only 
+2) if $a.\code{init} =\true$, the memory regions (i.e., lower 1GB) that store kernel-specific data must have the kernel-only 
 permission in all page maps;
-3) the page map used by the kernel is an identity map
-4) the non-shared parts of user processes' memory are isolated.
+3) if $a.\code{init} =\true \wedge a.\code{ikern} =\true $, 
+the current page map $a.\code{pmp}(a.\code{pmi})$
+is an identity map.
 \end{invariant}
 
 Invariant~\ref{inv:seq:virtual} no longer holds 
@@ -632,9 +729,8 @@ This is one of the rare cases where performance overhead is introduced
 (one extra function call due to the wrapper).
 It is possible to use CompCertX's function-inlining optimization
 to remove this overhead (this is left as future work).
-\ronghui{Fix me}
 
-\paragraph{The shared memory management} provides a protocol to share physical
+\subsection{The shared memory management} provides a protocol to share physical
 pages among different user processes. 
 It provides an infrastructure to map a physical page into multiple
 processes' page maps in different address spaces.

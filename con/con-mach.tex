@@ -123,7 +123,9 @@ is:
 \includegraphics[scale=.93]{figs/machine1}
 \]
 Since only atomic transitions generate events,
-this interleaving produces the logical log $[\event{0.\mathsf{atom}_1,1.\mathsf{atom}_2, 0.\pull_1,0.\push_1}]$.
+this interleaving produces the logical log $(0.\mathsf{atom}_1)\cons
+(1.\mathsf{atom}_2) \cons (0.\pull_1)
+\cons (0.\push_1)$.
 
 \paragraph{Sequential consistency}
 The \push/\pull{} memory model
@@ -177,7 +179,12 @@ the log recorded by this execution is as follows:
 (0\switch 0) \cons (0.atom_1)
 \cons (0\switch 1) \cons (1\switch 1)
 \cons  (1\switch 1) \cons (1.atom_2)
-\cons (1\switch 0) \cons (0\switch 0)
+\cons (1\switch 0) \\
+\cons (0.\pull_1) 
+\cons (0\switch 0)
+\cons (0\switch 0)
+\cons (0\switch 0)
+\cons (0.\push_1) 
 \cons ( 0\switch 1)
 \end{array}
 \]
@@ -274,7 +281,7 @@ In other words, response function simulates the observable behavior
 of the context CPUs and the potential interleaving, while the invariant states the assumptions being 
 made over the context.
 The execution of CPU 0 in the previous example can be simulated
-with a $\oracle_{ec}$.
+with a $\oracle_{ec}\in\ectxt{\pmach{ec}^0}$.
 \ignore{$\oracle_{\overline{\set{0}}}$
 (\ie, $\oracle_{\set{1}}$, since there are only two CPUs).}
 \[
