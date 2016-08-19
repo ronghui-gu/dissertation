@@ -9,13 +9,14 @@ enumerative reasoning.}{\\ \hfill --- Edsger W. Dijkstra}}
 
 
 Operating System (OS) kernels and hypervisors form the backbone of
-every safety-critical software system in the world.  Hence it is highly
+ safety-critical software system in the world
+ \ronghui{Fix me\textsl{•}}.  Hence it is highly
 desirable to formally verify the correctness of these
 programs~\cite{shao10}.  
 Recent efforts
 ~\cite{klein2009sel4,hawblitzel10,klein14,ironclad14,fscq15,cogent16}
 have shown that it is feasible to formally prove the functional
-correctness property of simple general-purpose kernels, and file systems, but the cost of such verification is
+correctness of simple general-purpose kernels and file systems, but the cost of such verification is
 still quite prohibitive. For example,
 it took the seL4 team more than 11 person
 years (effort for tool development excluded) to verify 7500 lines of
@@ -33,7 +34,7 @@ software.
 What makes the verification of OS kernels so challenging?
 {\em First, OS kernels are complex artifacts; they contain many
   interdependent components that are difficult to untangle.} Their
-invariants can involve machine level details (\eg, how the virtual
+invariants can involve machine-level details (\eg, how the virtual
 memory hardware works) but can also cut across multiple
 abstraction boundaries (\eg, different views of an address space
 under kernel/user or host/guest modes).  Several
@@ -52,9 +53,9 @@ sequential kernel.
 First of all, concurrent kernels need to support all three types of
 concurrency (user, I/O, or multicore) and make them work coherently
 with each other. User and I/O concurrency rely on thread
-yield/sleep/wait primitives or interrupts to switch controls and
+yield/sleep/wait primitives or interrupts to switch control and
 support synchronization; these constructs are difficult to reason
-about since they transfer controls from one thread to another.
+about since they transfer control from one thread to another.
 Multicore concurrency with fine-grained locking requires sophisticated
 spinlock implementations such as MCS locks~\cite{mcs91}, which
  are also
@@ -89,14 +90,14 @@ entire kernel.
   limited forms of abstraction,
   but still lacks the ability to describe hardware details.}
 On one hand, the C language (especially ANSI C) is
-  too low level to abstract the data representations.
+  too low-level to abstract the data representations.
 Verifying C programs is
 especially hard if they manipulate low-level data structures (\eg,
 thread queues, allocation tables). The seL4 effort used an
 intermediate executable specification (derived from a Haskell
 prototype) to hide some messy C specifics, but this alone is not
 enough for enforcing abstraction among different kernel components;
-seL4 had to introduce capabilities which add significant
+seL4 had to introduce capabilities, which add significant
 implementation complexities to the kernel.
 On the other hand, the C language is
 too high level to describe the hardware details
@@ -122,6 +123,7 @@ proof assistant~\cite{coq}), and then verifying each kernel module at
 its {\em proper} abstraction level.
 These formally specified and verified layers
 are named as {\em certified abstraction layers}.
+\adam{Include an introduction to the idea of mechanized proof}
 
 \section{\CTOS{}: A New Layered Approach}
 \label{sec:intro:layer}
@@ -156,6 +158,10 @@ This overlay interface is called as
 a {\em deep specification} 
 to the underlay implementation,
 and client programs can be understood solely based on this interface, independent of implementation details.
+The contextual refinement proofs for sequential and concurrent
+layer interfaces focus on different aspects
+and can be described as below.
+
 
 \paragraph{Sequential layer interface}
  contains a  collection of abstract 
@@ -235,21 +241,22 @@ in both sequential and concurrent settings.
 Before getting into the formal details,
 Chapter~\ref{chap:overview}
 provides a high-level overview of
-\CTOS{} framework,
+the \CTOS{} framework
 and  shows how 
 certified
   abstraction layers  correspond to a {\em rigorous} 
   form of abstraction over deep specifications used widely
-  in the system community. A certified layer interface
+  in the systems community. A certified layer interface
   describes not only the precise functionality of any underlying
   implementation but also clear assumptions about its client contexts.
   Abstraction over deep specifications leads to the powerful
   {\em implementation independence} property: 
   any two implementations
   of the same layer interface have contextually equivalent behaviors.
+\adam{Nondeterminism?}
   
 Chapter~\ref{chap:seq} proposes 
-the \CTOS{} framework in the sequential setting,
+the \CTOS{} framework in the sequential setting
 and shows how to formally specify,
 program, verify, and compose sequential certified abstraction layers. 
 We have instantiated the framework on top of two core
@@ -303,7 +310,7 @@ into 33 certified abstraction layers \ronghui{Check the layer number}, and turn 
   Among these certified kernels,
   the most realistic one is \mCTOShyper{},
   which is written in 5,500 lines of C and x86
-assembly, and can boot a version of Linux as a guest.   
+assembly and can boot a version of Linux as a guest.   
   
  Chapter~\ref{chap:con} proposes 
 the \CTOS{} framework in the concurrent setting,
@@ -318,12 +325,12 @@ We show how the use of an environment context at each
   concurrent layer allows us to apply standard techniques for
   verifying sequential programs to verify concurrent programs.
    Indeed, most of our kernel programs are still written 
-   in ClightX, and are verified by building
+   in ClightX and are verified by building
    thread/core-modular ClightX layers.
  These ClightX layers are compiled
  into LAsm layers
-   with a {\em thread-safe} version of the CompCertX,
-   and are composed at the assembly-level to form
+   with a {\em thread-safe} version of CompCertX
+   and are composed at the assembly level to form
    a complete verified concurrent system.
  To support certified parallel composition of
   thread-modular layers (\ie, $L[t]$ for all $t$), we have developed
@@ -331,7 +338,7 @@ We show how the use of an environment context at each
   frames allocated for each thread can be combined to form a single
   coherent CompCert-style memory.
 
- Using the concurrent \CTOS framework, we have successfully developed a fully certified
+ Using the concurrent \CTOS{} framework, we have successfully developed a fully certified
   concurrent OS kernel (called {\bf \cCTOS}),
 which  supports both fine-grained locking and sleep-wakeup primitives and
   can run on stock x86 multicore hardware.

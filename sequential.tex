@@ -5,22 +5,22 @@ of our sequential \CTOS{} framework.
 Section~\ref{sec:seq:layer} introduces
 a layer calculus to compose
 sequential layers vertically and
-horizontally, starting from \emph{layer semantics unit}
-(which is language dependent).
+horizontally, starting from \emph{layer semantics units}
+(which are language-dependent).
 This layer calculus is general enough,
-such that it is not bounded to any specific language,
+such that it is not bound to any specific language,
 and the components of layer interfaces
 and types of primitives are treated as parameters. 
 In Section~\ref{sec:seq:sound},
 we show the proof structure for the soundness of layer calculus.
 Section~\ref{sec:seq:clight}
 and Section~\ref{sec:seq:lasm}
-show how to construct layer semantics unit
+show how to construct layer semantics units
 and apply layer calculus
 in ClightX (\ie, a C-like language) and LAsm (\ie, an assembly language), respectively.
 In Section~\ref{sec:seq:comp},
 we introduce CompCertX (\ie, a verified C compiler)
-to compile ClightX layers down to assembly-level,
+to compile ClightX layers down to assembly level,
 and show how to link the result layers with
 LAsm layers.
 

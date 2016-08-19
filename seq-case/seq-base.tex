@@ -135,9 +135,8 @@ primitives which are implemented in layers further down in the stack,
 or a function implementation (an actual piece of code) represented by
 a small blue box touching the top of the layer in which it is
 implemented.  A function may have outgoing arrows point to primitives
-it calls as illustrated in Figure\ \ref{fig:refine}c; those without
-outgoing arrows correspond to Figure\ \ref{fig:refine}b.
-\ronghui{Fix}
+it calls (\ie, \emph{abs-fun} pattern); those without
+outgoing arrows correspond to the \emph{getter-setter} pattern.
 
 \subsection{Pre-initialization}
 \label{sec:base:preinit}
@@ -157,7 +156,7 @@ an initialization flag \code{init},
 a physical memory map \code{MM},
 and control registers.
 Its primitives consist of
-a function models the transition between user and kernel mode,
+a function modeling the transition between user and kernel mode,
 and 
 getter-setter functions for control registers and \code{MM}.
 
@@ -197,13 +196,13 @@ $\code{init}$ is $\code{true}$.
 \paragraph{Memory accessor} 
 The control registers \code{CR0}, \code{CR2},  \code{CR3},
 and \code{OEIP}
-(a pseudo-register to save the \emph{old $\code{EIP}$} when exception happens
+(a pseudo-register to save the \emph{old $\code{EIP}$} when an exception happens
 )
 are used to model the behavior
 of the processor's memory management unit (MMU),
 which is specified by the \emph{memory accessors}
 of \code{PreInit}.
-The rules for the load accessor are shown as below
+The rules for the load accessor are shown below
 (the store accessor ones are similar).
 
 \begin{mathpar}
@@ -237,11 +236,11 @@ and then the page fault handler $\code{PF\_handler}$ is invoked.
 
 \paragraph{Layer invariant}
 To make sure that it is safe to compile
-kernel code with CompcertX,
+kernel code with CompCertX,
 we have to show that, in the kernel mode,
-the memory accessors are equal to the Compcert accessors
+the memory accessors are equal to the CompCert accessors
 (\cf Section~\ref{sec:seq:comp:concrete}).
-It is state as a layer invariant of \code{PreInit}.
+It is stated as a layer invariant of \code{PreInit}.
 \begin{invariant}[Valid memory accessors]
 If $a.\code{CR0} = \code{true}$
 and $a.\code{ikern} = \code{true}$,
@@ -260,7 +259,7 @@ the page table pointed by $\code{CR3}$
 has to be an identity map
 after paging is enabled.
 At upper layers,
-we have to show that
+we  show that
 these pre-conditions
 are satisfied
 when invoking setter primitives for $\code{CR0}$ and $\code{CR3}$.
@@ -270,7 +269,7 @@ we also need an invariant that there is enough
 physical memory to boot \mCTOS{}.
 Currently, we set 1GB as the minimal requirement,
 and all the kernel code and data are stored below
-1GB. The actual memory usage of our \mCTOS{}
+1GB. The actual memory usage of \mCTOS{}
 is much less than this requirement.
 \begin{invariant}[Enough memory space]
 If $a.\code{init} = \code{true}$,
@@ -358,9 +357,9 @@ thread's \emph{quota}. Inspired by the notions of containers and
 quotas in HiStar~\cite{zeldovich06}, a thread
 in {\mCTOS} is spawned with some quota specifying the maximum number
 of pages that the thread will ever be allowed to allocate. As can be
-seen in Figure~\ref{fig:exp:palloc}, \code{palloc} returns an error
+seen in Figure~\ref{fig:seq:palloc}, \code{palloc} returns an error
 code if the requesting thread has no remaining quota (lines~2 and 3), 
-and the quota is decremented when a page is successfully allocated (line~16).
+and the quota is decremented when a page is successfully allocated (line~14).
 Quota enforcement allows the kernel to prevent a denial-of-service attack,
 where one thread repeatedly allocates pages and uses up all available
 memory (thus denying other threads from allocating pages). From a security
@@ -408,9 +407,9 @@ a' = a \set{\code{AT},\mathit{freei}: (\true, 1,\ttid, \code{freeable})}
 \Gamma  \vdash  \spec_{\code{palloc}}([\ttid],m, a, \error, m, a)
 }
 \end{mathpar}
-Each entry of allocation table is a tuple
+Each entry of the allocation table is a tuple
 $(\code{is\_alloc}, \code{ref}, \code{owner}, \code{status})$,
-where $\code{is\_alloc}:\code{bool}$ indicating
+where $(\code{is\_alloc}:\code{bool})$ indicates
 if the page is allocated or not,
 $\code{ref}$ is the number of references to the page,
 $\code{owner}$ is the page owner,
@@ -425,7 +424,7 @@ are consistent.
 If $a.\code{init} = \code{true}$,
 we have 
 1) $2^{18} \le a.\code{nps} \le 2^{20}$;
-2) $\forall 0 \le i \le 2^{18},  a.\code{AT}(i).\code{is\_alloc} = \true$;
+2) $\forall 0 \le i \le 2^{18},  a.\code{AT}(i).\code{is\_alloc} = \true$ (i.e., reserved for the kernel);
 and 3) for any invalid page $i$ indicated by $a.\code{MM}$
 (e.g., reserved for devices),
 $a.\code{AT}(i).\code{is\_alloc} = \true$.
@@ -553,14 +552,14 @@ Figure~\ref{fig:base:vmm:layers}, the virtual memory management of
 \mCTOSbase{} consists of 6 layers: 1) getter-setter layer \verb"MPTIntro"
 defines two new abstract states, the page map pool \verb"pmp" (which
 consists of 73 page tables) and the page map index \verb"pmi" (which
-points the current page table); 
+points to the current page table); 
 2) abs-kernel-fun layer \verb"MPTOp"
 introduces primitives to access page maps including \verb"pt_insrt" and \verb"pt_read"; 3) the following three abs-kernel-fun layers
 \verb"MPTComm", \verb"MPTKern", and \verb"MPTInit" build the
 initialization primitive \verb"PTInit" to initialize the page map pool;
 and 4) abs-kernel-fun layer \verb"MPMap" 
 provides wrapper primitives
-for user process to allocate a page and insert to its page map.
+for a user process to allocate a page and insert to its page map.
 
 
 
@@ -642,7 +641,7 @@ is dynamically allocated
 using $\code{pde\_alloc}$.
 It first allocates a free page,
 turns the page into an abstract page table,
-and set the page status to be $\code{hidden}$ (\cf Figure~\ref{fig:seq:pages}).
+and sets the page status to be $\code{hidden}$ (\cf Figure~\ref{fig:seq:pages}).
 \begin{mathpar}
 \inferrule{
 \Gamma  \vdash  \spec_{\code{palloc}}([\ttid],m, a, \mathit{freei}, m, a_0)\\
@@ -673,7 +672,7 @@ a virtual and physical page index pair
 $(\mathit{vpi}, \mathit{ppi})$ to the page map,
 $\code{pt\_insrt}$ has to guarantee that
 the second-level page table for $\mathit{vpi}$ 
-is presented,
+is present,
 and the physical page $\mathit{ppi}$ has already been
 allocated.
 Then, the page status of $\mathit{ppi}$ is changed
@@ -702,7 +701,7 @@ in terms of hardware address translation.
 After paging is enabled, both kernel modules and user processes
 run in a virtual address space.
 To ensure the correctness of these kernel modules and user processes on top of virtual memory
-management, we prove the following invariants :
+management, we prove the following invariants:
 \begin{invariant}
 \label{inv:seq:virtual}
 1) paging is enabled only after the initialization of virtual memory management;
@@ -717,7 +716,7 @@ Invariant~\ref{inv:seq:virtual} no longer holds
 if the privileged primitive that sets the \code{CR3}
 register is present in the layer, as the unknown context code may write
 an invalid address into \code{CR3} using the provided primitive. To solve this issue, 
-$\code{MPTIntro}$
+the $\code{MPTIntro}$
 layer is introduced with a wrapper function 
 $\code{setpmi}$
 that takes the process $id$ as argument,
@@ -728,9 +727,10 @@ new layer, and the invariants are introduced in this layer.
 This is one of the rare cases where performance overhead is introduced
 (one extra function call due to the wrapper).
 It is possible to use CompCertX's function-inlining optimization
-to remove this overhead (this is left as future work).
+to remove this overhead, which is left as future work (\cf Section~\ref{chap-limits}).
 
-\subsection{The shared memory management} provides a protocol to share physical
+\subsection{The shared memory management} 
+In \mCTOS{}, the shared memory management provides a protocol to share physical
 pages among different user processes. 
 It provides an infrastructure to map a physical page into multiple
 processes' page maps in different address spaces.

@@ -120,6 +120,44 @@ to capture the
 preemptive interrupts between devices and the kernel.
 
 
+\paragraph{Linking across layers before compiling}
+
+Instead of compiling each module within its own layer interface, our layer
+calculus also provides ways to first link code at the C level across
+layers before compiling. Let $L_3$ be an overlay, $L_1$ be an
+underlay, and $L_2$ be an intermediate layer interface. Let us assume that we
+split each layer interface $L_i$ into two layer interfaces $L_i^C \oplus
+L_i^{\mathrm{Asm}}$ and that we proved $L_{i}^{\mathit{lang}} \vdash_{R_i}
+M_i^{\mathit{lang}}: L_{i+1}^{\mathit{lang}}$ for each $i \in \{1,2
+\}$ and $\mathit{lang} \in \{ C, \mathrm{Asm} \}$.
+
+Then, on each side, we can do vertical composition and obtain
+$L_1^{\mathit{lang}} \vdash_{R_2 \circ R_1} M_1^{\mathit{lang}} \oplus
+M_2^{\mathit{lang}} : L_3$. We can then follow the process described
+in Section~\ref{sec:linking} with $H = L_3$, $L = L_1$ and
+$M^{\mathit{lang}} = M_1^{\mathit{lang}} \oplus M_2^{\mathit{lang}}$, so that we obtain:
+\[
+L_1 \vdash_{R_2 \circ R_1} \mathrm{CompCertX}(M_1^C \oplus M_2^C) \oplus M_1^{\mathrm{Asm}} \oplus M_2^{\mathrm{Asm}}: L_3
+\]
+This shows that compiling before linking is possible as soon as
+ClightX supports vertical composition with refinement. 
+Recall that the soundness proof for the vertical composition rule in Section~\ref{sec:seq:sound}
+requires the monotonicity of $\oplus$ and the language semantics $\llbracket - \rrbracket$.
+For ClightX,
+the
+corresponding Coq proof for monotonicity is underway. 
+Once it is proved, because CompCertX already
+supports function inlining (within a single module) just like CompCert
+does, if an intermediate layer interface defining ``getter-setters'' is to be
+implemented through simple functions performing only a single memory
+access, then compilation before linking will allow suppressing the
+function call overhead for these simple functions. 
+As they are linked
+within a single module before compilation, so that memory accesses
+will be inlined in the overlay implementation.
+
+
+
 % This part is mostly covered in Section 5 now, we shouldn't need it anymore
 \begin{comment}
 \paragraph{Security and information flow}

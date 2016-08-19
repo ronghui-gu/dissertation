@@ -13,7 +13,7 @@ at minimal cost.
 Clight~\cite{blazy-leroy-clight} is a subset of C and is
 formalized in Coq as part of the CompCert project.  Its formal
 semantics relies on a memory model~\cite{leroy08} that is not only
-realistic enough to specify C pointer operations, but also designed to
+realistic enough to specify C pointer operations but also designed to
 simplify reasoning about non-aliasing of different
 variables (making sense of the standard notion of C ``object'').
 From the programmer's point of view, 
@@ -67,9 +67,9 @@ useful in modeling interaction with the environment, such as
 input/output. Indeed, CompCert models compiler correctness through
 traces of events which can be generated only by external functions.
 CompCert axiomatizes the behaviors of external functions without
-specifying them, and only assumes they do not behave in a manner that
+specifying them and only assumes they do not behave in a manner that
 violates compiler correctness. We use the external function mechanism
-to extend Clight with our primitive operations, and supply their
+to extend Clight with our primitive operations and supply their
 specifications to make the semantics of external functions more
 precise.
 
@@ -118,7 +118,7 @@ temporary variables $t$
 which pointers cannot be taken).
 Expressions have
 no side effects; in particular, they cannot contain any function call.
-They include full-fledged pointer arithmetics (comparison, offset, C-style
+They include full-fledged pointer arithmetic (comparison, offset, C-style
 ``arrays'').
 \[
 \begin{array}{lcll}
@@ -196,7 +196,7 @@ m' = m[ (b, \mathit{ofs}) \leftarrow v ]
   (\cdot; \tau, m', a)
 } 
 \and
-\inferrule{
+\ignore{\inferrule{
 \llbracket{} e_1 \rrbracket^\triangleleft(\localvariable, \tau, m) = (b, \mathit{ofs}) \\
 \llbracket{} e_2 \rrbracket^\triangleright(\localvariable, \tau, m) = v \\
 m' = m[ (b, \mathit{ofs}) \leftarrow v ]
@@ -204,7 +204,7 @@ m' = m[ (b, \mathit{ofs}) \leftarrow v ]
   \Gamma, L, M, \localvariable \vdash e_1 = e_2 : (\tau, m, a) \downarrow
   (\cdot; \tau, m', a)
 } 
-\and
+\and}
 \inferrule{
 \llbracket{} e \rrbracket^\triangleright(\localvariable, \tau, m) = v \\
 \tau' = \tau[ t \leftarrow v ]
@@ -347,14 +347,14 @@ expressions.
 To define the semantics for function invocation, 
 we introduce the function judgment $\Gamma, L, M \vdash f : (\mathit{args};
 m, a) \Downarrow (\mathit{res}; m', a')$, which states that a function $f$
-defined either as an internal function in the module $M$, or as a
+defined either as an internal function in the module $M$ or as a
 primitive in the layer interface $L$, called with list of arguments
 $\mathit{args}$, from memory state $m$ and abstract state $a$, returns
 result $\mathit{res}$, memory $m'$ and abstract state $a'$.
 
 For internal function calls, 
 we first initialize the temporary environment
-with the arguments, and allocate the local variables of the
+with the arguments and allocate the local variables of the
 callee ($\mathsf{next}(m)$ denotes the next available block
 identifier in memory $m$, not yet allocated). Then, we execute the
 body. Finally, we deallocate the stack-allocated variables of the
@@ -491,10 +491,10 @@ prover. The semantics of Clight requires every value of intermediate
 integer expressions to be in the appropriate range of its type. These
 expressions may involve regular arithmetic operations such as
 addition, subtraction, multiplication and division, but also more
-complicated bit-wise operations such as shift, bit-wise and, or, and
-complement. The built-in Coq tactic $omega$, which is used to
+complicated bit-wise operations such as ``shift", ``bit-wise and", ``or", and
+``complement". The built-in Coq tactic $omega$, which is used to
 discharge arithmetic subgoals, is restricted to integer linear
-arithmetic formulas, and thus are far from sufficient to deal with
+arithmetic formulas, and thus is far from sufficient to deal with
 complex formulas in our setting.
 
 
@@ -603,9 +603,10 @@ $$
 
 \begin{figure}[t]\centering
 \lstinputlisting [language = C, multicols=2] {source_code/seq-AT-set.v}
-\caption{High level and low level specification for \textsf{at\_set}}
+\caption{High-level and low-level specification for \textsf{at\_set}}
 \label{fig:alt:spec}
 \end{figure}
+
 \begin{figure}[t]\centering
 \lstinputlisting [language = C, multicols=2] {source_code/seq-palloc.c}
 \caption{Concrete (in C) vs. abstract (in Coq) \textsf{palloc} function}
@@ -781,7 +782,7 @@ $$
 \begin{minipage}{0.55\textwidth}
 \lstinputlisting [language = C] {source_code/seq-palloc.v} 
 \end{minipage}
-\caption{High level and low level specification for palloc function}
+\caption{High-level and low-level specification for palloc function}
 \label{fig:palloc:spec}
 \hrulefill
 \end{figure}
@@ -853,9 +854,9 @@ pattern is to verify the code
 
 Due to the presence of a loop in the C code (\cf Figure~\ref{fig:palloc}), 
 the automation tactic is not able to automate the proofs completely.
-Since the big-step semantics only specifies the infinite loop,
-naive applications of the semantic constructors of loops as
-logical rules lead to an infinite sequence of applications.
+Since the big-step semantics also specifies the infinite loop,
+naive applications of logical rules  for loops
+lead to an infinite sequence of applications.
 In our framework, we introduce a separate inference rule as a
 lemma for proving both the correctness and the termination of the loops.
 The lemma requires the prover to provide both the loop invariants

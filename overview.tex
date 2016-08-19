@@ -102,9 +102,9 @@ abstraction layers than with regular software modules.
 %\paragraph{Deep vs. shallow specifications} 
 We introduce \emph{shallow} and \emph{deep} specifications to describe different
 classes of requirements on software and hardware components.  
-Both ``shallow" and ``deep" are \textbf{relative concept} with respect to
+Both ``shallow" and ``deep" are \textbf{relative concepts} with respect to
 the \emph{observable behavior} of running programs on the hardware.
-For a hardware that values in the memory and registers
+For hardware where values in the memory and registers
 are observable,
 type information and program contracts are examples of ``shallow''
 specifications. 
@@ -115,7 +115,7 @@ specification.
 For example, type-based module interfaces (\eg, ML signatures) are
 introduced to support compositional static type checking and separate
 compilation: a module $M$ can be typechecked based on its import
-interface $L$ (without looking at $L$'s implementation), and shown to
+interface $L$ (without looking at $L$'s implementation) and shown to
 have types specified in its export interface $L'$.
 
 To support compositional verification of strong functional correctness
@@ -123,7 +123,7 @@ properties on a large system, we would hope that all of its components
 are given ``deep'' specifications
 relative to the observable behaviors of the system.  A module $M$ will be verified based on
 its import interface $L$ (without looking at $L$'s
-implementation), and shown to {\em implement} its export interface 
+implementation) and shown to {\em implement} its export interface 
 $L'$.
 
 To achieve true modularity, we would like to reason about the
@@ -147,7 +147,7 @@ important ``implementation independence'' property:
   specification (e.g., $L$) should have {\em contextually equivalent} observable
   behaviors}.}}
 \end{center}%
-
+\adam{Non-determinism?}
 \noindent{}Different languages may define such contextual equivalence relation
 differently, but regardless, we want that, given any {\em
   whole-program} client $P$ built on top of $L$, running
@@ -157,17 +157,17 @@ observable result as running $P\join M_2$.
 Without implementation independence, running $P\join M_1$ and
 $P\join M_2$ may yield different observable results, so we can prove
 a specific whole-program property that holds on $P\join M_1$ but not on
-$P\join M_2$---such whole-program property cannot be proved based
+$P\join M_2$---such a whole-program property cannot be proved based
 on the program $P$ and the specification $L$ alone. 
 
 Since termination is always observable 
-for programs that need high insurance,
-Hoare-style partial correctness specifications are rarely
+for programs that need high assurance,
+Hoare-style partial-correctness specifications are rarely
 deep specifications since they fail to satisfy implementation
-independence. Given two implementations of a partial correctness
+independence. Given two implementations of a partial-correctness
 specification for a factorial function, one can return the correct
-factorial number and another can just go into infinite loop.  A
-program built on top of such specification may not be reasoned about 
+factorial number and another can just go into an infinite loop.  A
+program built on top of such a specification may not be reasoned about 
 based on the specification alone, instead, we have to peek into the actual
 implementation in order to prove certain properties (\eg,
 termination).
@@ -294,7 +294,7 @@ In the rest of this thesis, following CompCert~\cite{Leroy-backend}, we
 will focus on languages whose semantics are {\em
   deterministic} relative to external events (formally, these
 languages are defined as both {\em receptive} and {\em
-  determinate}~\cite{sevcik13} and they support external
+  determinate}~\cite{sevcik13}, and they support external
 nondeterminism such as I/O and concurrency by making events explicit 
 in the execution traces).
 Likewise, we only consider interfaces whose primitives
@@ -303,6 +303,7 @@ and both $M_1$ and $M_2$ implement $L$, then $P\join M_1$ and $P\join M_2$
 should have identical behaviors since they both follow the semantics
 of running $P$ over $L$, which is deterministic. Deterministic 
 specifications are thus also deep specifications.
+\adam{this part should be moved forward? What about the a process scheduler, which we might want to specify without committing to ordering details}
 
 Deep specifications can, of course, also be nondeterministic. They may
 contain resource bounds~\cite{veristack}, numerical
@@ -338,23 +339,25 @@ linked-list queue it belongs to. The dequeue  function
 takes a pointer to a queue; it returns the head block if the queue
 is not empty, or null if the queue is empty.
 
-In the Coq specification (\cf, Figure~\ref{fig:queue:b}), we introduce an abstract state
+In the Coq specification (\cf Figure~\ref{fig:queue:b}), we introduce an abstract state
 of type \textsf{abs} where we represent each C array as a Coq finite map
-(\textsf{ZMap.t}), and each pointer as an integer index (\textsf{Z}) to the
+(\textsf{ZMap.t}) and each pointer as an integer index (\textsf{Z}) to the
 \textsf{tdq} or \textsf{tcb} array. The dequeue primitive 
 $\spec_\textsf{deQ}$ is
 a mathematical function of type $\textsf{abs} \rightarrow \textsf{Z}
 \rightarrow \textsf{(abs}\times \textsf{Z)}$,
-which takes an abstract state and queue index $i$ as arguments,
-and returns the resulted abstract state and the head of the queue (if exists).  This
+which takes an abstract state and queue index $i$ as arguments
+and returns the resulting abstract state and the head of the queue (if it exists).  This
 dequeue specification is intentionally made very similar to the C
 function, so we can easily show that the C module indeed {\em
   implements} the specification. 
 
 We define that a module implements a specification if there is a
-{\em forward simulation}~\cite{Lynch95} from the module implementation to its
+{\em forward simulation}~\cite{Lynch95} 
+\ronghui{Clarify the term forward-simulation}
+from the module implementation to its
 specification. In the context of determinate and receptive 
-whole machine semantics~\cite{sevcik13,Leroy-backend},
+whole-machine semantics~\cite{sevcik13,Leroy-backend},
 it is sufficient to find
 a forward simulation from the specification to its
 implementation (this is often easier to prove in practice). 
@@ -366,7 +369,7 @@ to its implementation as {\em downward (forward) simulation}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{figure}\centering
 \lstinputlisting [language = C, multicols=2] {source_code/seq-dequeue2.v}
-\caption{A more abstract thread queue (in Coq)}
+\caption{A more abstract thread queue (in Coq) \adam{Relation version?}}
 \label{fig:queue2}
 \end{figure}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -405,7 +408,11 @@ $$
 Figure~\ref{fig:queue2} shows a more abstract specification of the same
 queue implementation where the new abstract state \textsf{abs'} omits
 the \textsf{prev} and \textsf{next} links in \textsf{tcb} and treats each
-queue simply as a Coq list. The dequeue specification 
+queue simply as a Coq list. 
+In the rest of this thesis, we write ``$f\set{b:v}$"
+to denote an update to the partial function $f$ at field $b$ 
+with value $v$.
+The dequeue specification 
 $\spec_\textsf{deQ}$ is now
 even simpler, which makes it easier to reason about its client,
 but it is now harder to prove that the C module
@@ -553,12 +560,12 @@ compose intermediate layers in the same way---this makes it much
 easier to modify existing (or add new) certified kernel modules.
 For example, once the abstract layer interface
 $L_{q2}$
-for sequential thread queue (\cf{}Figure~\ref{fig:queue2}) is introduced,
+for a sequential thread queue (\cf{}Figure~\ref{fig:queue2}) is introduced,
 there is no need to see (or reason about) 
 the concrete queue implementations $M_{q1}$
 (\cf{}Figure~\ref{fig:queue:a})
 and the intermediate interfaces $L_{q1}$ (\cf{}Figure~\ref{fig:queue:b}). 
-Thus, all the code relied on the thread queue module can be verified
+Thus, all the code relying on the thread queue module can be verified
 at a higher abstraction level using these abstract queue primitives,
 which are still {\em realizable} by an efficient assembly implementation
 (\ie, Figure~\ref{fig:queue:a}).
@@ -658,7 +665,7 @@ global log} to record the shared operations
 of the whole system.
 
 \paragraph{Concurrent abstraction layers}
-Like a general abstraction layer layer, each concurrent layer can also
+Like a general abstraction layer, each concurrent layer can also
 contain thread-private abstract states (refined from the concrete
 thread-local in-memory data) and related abstract primitives. However,
 the data shared by multiple threads are not represented as abstract
@@ -684,13 +691,14 @@ thread-private states might still be a relation~\cite{dscal15}.
 
 \paragraph{An example of concurrent layers}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{figure}[t]
-\label{fig:exp:ticket_lock_example}
+\begin{figure}[t]\centering
 \lstinputlisting [language = C, multicols=2] {source_code/ticket_lock_example.c}
 \caption{Building certified concurrent layers over a ticket lock}
+\label{fig:exp:ticket_lock_example}
 \hrulefill
 \end{figure}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 The example in Figure~\ref{fig:exp:ticket_lock_example} contains a
 client program $P$ which has two threads running on two different
 CPUs; each thread makes one call to the atomic primitive $\comm{foo}$
@@ -703,7 +711,7 @@ ticket lock~\cite{mcs91}.
 
 The ticket-lock module $M_{t1}$ is built on top of $L_{t1}$ and it
 implements $L_{t2}$. Even though the implementation of a ticket lock
-contains two shared integer value fields: $\comm{ticket}$ and
+contains two shared integer value fields, $\comm{ticket}$ and
 $\comm{now}$ (where $\comm{now} \leq \comm{ticket}$ always holds), the
 interface $L_{t1}$ only provides the atomic primitives such as
 fetch-and-incrementing the $\comm{ticket}$ value, getting the current
@@ -722,21 +730,21 @@ To show how we accomplish this, here is
 a global log $l_{g1}$ produced from  
 a specific run of $P\oplus{}M_{t2}\oplus{}M_{t1}$.
 \[
-\begin{array}{l}
-\ssame \cons (1.\incticket) \cons
+\begin{array}{rl}
+l_{g1}:= & \ssame \cons (1.\incticket) \cons
 \sdiff \cons (2.\incticket) \cons
 \ssame \cons (2.\getnow) \cons
 \sdiff \cons (1.\getnow) \cons
 \ssame \cons (1.\holdlock) 
 \\
-\cons 
+&\cons 
 \sdiff \cons (2.\getnow) \cons
 \sdiff \cons (1.\comm{f}) \cons
 \sdiff \cons (2.\getnow) \cons
 \sdiff \cons (1.\comm{g}) \cons
 \ssame \cons (1.\incnow) 
 \\
-\cons \sdiff \cons (2.\getnow) \cons
+&\cons \sdiff \cons (2.\getnow) \cons
 \ssame \cons (2.\holdlock) \cons
 \ssame \cons (2.\comm{f}) \cons
 \ssame \cons (2.\comm{g}) \cons
@@ -870,8 +878,8 @@ the $L_{t2}$ strategy $f_{\strat{}}(\strat{j})$ for $j$
 has to keep querying $\strat{j}$ until
 it also returns an event from $j$ at $L_{t2}$.  For example, let $l'$ be
 $\ssame \cons (1.\incticket) \cons \sdiff \cons (2.\incticket) \cons
-\ssame \cons (2.\getnow) \cons \sdiff \cons (1.\getnow) \cons \ssame$,
-since $\strat{1} (l') = 1.\holdlock$ and $f_l(l') = \ssame$, we have
+\ssame \cons (2.\getnow) \cons \sdiff \cons (1.\getnow) \cons \ssame$.
+Since $\strat{1} (l') = 1.\holdlock$ and $f_l(l') = \ssame$, we have
 $f_{\strat{}}(\strat{1}) (\ssame) =1.\holdlock$.
 
 Finally, from $f_{\strat{}}$ we can construct the function
@@ -939,7 +947,7 @@ machine like x86mc and zoom into a specific active core $i$ by
 creating a {\em logical} ``single-core'' machine layer for core $i$,
 and build
 a collection of certified layers
-follow the same technique shown in Figure~\ref{fig:arch}. 
+following the same technique shown in Figure~\ref{fig:arch}. 
 When we want to introduce kernel- or
 user-level threads, we can further zoom into a particular thread
 (\eg, $i0$) and create a corresponding logical machine

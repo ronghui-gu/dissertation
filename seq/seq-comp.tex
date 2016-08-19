@@ -90,7 +90,7 @@ to per-function semantics.
 The operational semantics of all CompCert languages are given through
 small-step transition relations equipped with sets of whole-program
 initial and final states, so we have to redesign those states to
-per-function setting. For the initial state, whereas CompCert
+the per-function setting. For the initial state, whereas CompCert
 constructs an initial memory and calls \verb+main+ with no arguments,
 we take the function pointer to call, the initial memory, and the list
 of arguments as parameters. For the final state, we take not
@@ -211,7 +211,7 @@ It follows that the way abstract state changes must remain intact during
 compilation.
 In other words, while a pointer to a stack-allocated
 variable can be passed to a primitive, it cannot be ``stored'' into
-the abstract state, as such pointer changes during compilation.
+the abstract state, as such a pointer changes during compilation.
 
 \paragraph{Well-behaved primitives}
 
@@ -267,7 +267,7 @@ We have to guarantee that the compiled code must not modify the stack
 of its caller, including its arguments and its spilling locations. To
 this end, we actually restrict the semantics of ClightX by not writing
 to memory blocks that may be the stack locations of the caller.  This
-restriction is necessary because of one pass in the compiler, namely the
+restriction is necessary because one pass in the compiler, namely the
 stack layout pass, relies on the fact that the produced code must not
 modify the locations corresponding to the function arguments, which
 are actually located in the caller's frame. Whereas the compiler
@@ -344,7 +344,10 @@ per-primitive simulation proofs we ignored the effects of the compiler,
 the memory injection introduced by the compiler may become a source of
 discrepancy.  That is why we encapsulate, in $R$,
 a memory injection between the higher memory state and the
-lower memory state. This injection is identity until the lower state
+lower memory state.
+\adam{Is it the reason why we make R explicitly in the framework?
+Does the final theorem contains R explicitly}
+ This injection is identity until the lower state
 calls a compiled ClightX function. Then, at every such call, the layer
 simulation relation $R$ can ``absorb'' compilation refinement on its
 right-hand side:
@@ -408,7 +411,7 @@ Figure~\ref{fig:layer-refinement-proof}:
   ClightX code (necessarily C-style) and $L_{2, \text{Asm}}$ is an assembly layer interface
   containing all other primitives (implemented in LAsm), so that $L_2 = L_{2, \text{C}} \oplus
   L_{2, \text{Asm}}$. (In particular, $L_{2, \text{Asm}}$ will contain the
-  memory accessors and the whole-machine initial state specification).
+  memory accessors and the whole-machine initial state specification.)
 \item For each such part of the overlay, design an intermediate layer interface
   $L'_{1, \text{C}}$ and $L'_{1, \text{Asm}}$ with the same abstract state type as
   $L_1$ (\cf Section \ref{sec:clightx-prog}), and
@@ -479,35 +482,4 @@ thus we get ~$L_1 \vdash_R M : L_2$.
 %\end{compactenum}
 \end{enumerate} 
 
-
-
-\subsection{Linking across layers before compiling}
-
-Instead of compiling each module within its own layer interface, our layer
-calculus also provides ways to first link code at the C level across
-layers before compiling. Let $L_3$ be an overlay, $L_1$ be an
-underlay, and $L_2$ be an intermediate layer interface. Let us assume that we
-split each layer interface $L_i$ into two layer interfaces $L_i^C \oplus
-L_i^{\mathrm{Asm}}$ and that we proved $L_{i}^{\mathit{lang}} \vdash_{R_i}
-M_i^{\mathit{lang}}: L_{i+1}^{\mathit{lang}}$ for each $i \in \{1,2
-\}$ and $\mathit{lang} \in \{ C, \mathrm{Asm} \}$.
-
-Then, on each side, we can do vertical composition and obtain
-$L_1^{\mathit{lang}} \vdash_{R_2 \circ R_1} M_1^{\mathit{lang}} \oplus
-M_2^{\mathit{lang}} : L_3$. We can then follow the process described
-in Section~\ref{sec:linking} with $H = L_3$, $L = L_1$ and
-$M^{\mathit{lang}} = M_1^{\mathit{lang}} \oplus M_2^{\mathit{lang}}$, so that we obtain:
-\[
-L_1 \vdash_{R_2 \circ R_1} \mathrm{CompCertX}(M_1^C \oplus M_2^C) \oplus M_1^{\mathrm{Asm}} \oplus M_2^{\mathrm{Asm}}: L_3
-\]
-This shows that compiling before linking is possible as soon as
-ClightX supports vertical composition with refinement. The
-corresponding Coq proof is underway. Thus, because CompCertX already
-supports function inlining (within a single module) just like CompCert
-does, if an intermediate layer interface defining ``getter-setters'' is to be
-implemented through simple functions performing only a single memory
-access, then compilation before linking will allow suppressing the
-function call overhead for these simple functions, as they are linked
-within a single module before compilation, so that memory accesses
-will be inlined in the overlay implementation.
 

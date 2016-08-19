@@ -53,7 +53,7 @@ Another anomaly regarding function calls in CompCert x86 assembly is that
 the return address is stored in pseudo-register $\mathsf{RA}$ instead of
 being pushed onto the stack, so
 that the callee must allocate its own stack frame and
-store the return address%
+store the return address 
 using the \textsf{Pallocframe} and
 \textsf{Pfreeframe} pseudo-instructions.
 
@@ -83,7 +83,7 @@ r & \in & \textsf{preg} & \text{Registers} \\
 \mathit{I} & ::= & \mathtt{movi} ~ \mathit{si}, \mathit{ti} & \text{Integer move/load/store} \\
 & | & \mathtt{leai} ~ \mathit{si}, \mathit{ti} & \text{Integer load/store from address} \\
 & | & \mathtt{movf} ~ \mathit{sf}, \mathit{tf} & \text{Floating-point move/load/store} \\
-& | & \mathtt{addi} ~ \mathit{ri}_d, \mathit{ri}_o & \text{Arithmetics} \\
+& | & \mathtt{addi} ~ \mathit{ri}_d, \mathit{ri}_o & \text{Arithmetic} \\
 & | & \mathtt{subi} ~ \mathit{ri}_d, \mathit{ri}_o \, | \dots \\
 & | & \mathtt{call} ~ \mathit{ti} \, | \mathtt{ret} & \text{Function call and return} \\
 & | & \mathtt{push} ~ \mathit{ri} \, | \mathtt{pop} ~ \mathit{ri} & \text{Regular register push/pop} \\
@@ -255,7 +255,7 @@ source operand for $\mathtt{mov}$ operations, we write $\llbracket s
 
 For any register set $\rho$, we write 
 \[\mathsf{nextEIP}(\rho) =
-\rho[\mathsf{EIP} \leftarrow (b, \mathit{ofs}+1) \text{ if }\rho(\mathsf{EIP})
+\rho[\mathsf{EIP} \leftarrow (b, \mathit{ofs}+1)] \text{ if }\rho(\mathsf{EIP})
   = (b, \mathit{ofs})\]%
 The register $\mathsf{EIP}$ is assumed to contain a
   pointer $(b, \mathit{ofs})$ where $b$ is the memory block
@@ -284,7 +284,7 @@ $M$ be a module, we write $\Gamma, L, M \vdash (\rho, m, a)
 \inferrule{
 \llbracket s \rrbracket ^ \triangleright(\Gamma, \rho, m)  = v 
 \\
-\rho'  = \mathsf{nextEIP}(\rho[r \leftarrow v]
+\rho'  = \mathsf{nextEIP}(\rho[r \leftarrow v])
 }
 {\llbracket \mathtt{mov}~ s, r \rrbracket(\Gamma, L; \rho, m, a)  = (\rho', m, a)}
 \and
@@ -358,7 +358,7 @@ m' = \mathsf{free}(b, n)(m)
 
 
 For any instruction $I$, we write $\llbracket I \rrbracket (\Gamma, L;
-\rho, m, a) = (\rho', m', a')$ its execution step.
+\rho, m, a) = (\rho', m', a')$ for its execution step.
 For the sake of presentation, in Figure~\ref{fig:seq:lasm:sem},
 we only show a simplified version of
 the execution step of LAsm instructions,
@@ -379,9 +379,9 @@ instruction to execute.
 \]
 
 For external function calls, there are two cases, one for the case of
-assembly-style primitive, and the other for the case of the C-style primitive.
+assembly-style primitives, and the other for the case of the C-style primitives.
 
-For assembly-style primitive, we directly take the step from the
+For assembly-style primitives, we directly take the step from the
 specification of the primitive in $L$.
 \[
 \inferrule{
@@ -393,7 +393,7 @@ specification of the primitive in $L$.
 }
 \]
 
-Finally, for C-style primitives, we take the specification of the primitive
+For C-style primitives, we take the specification of the primitive
 from the C-style primitive component of $L$, but we have to wrap it into the
 calling convention. We write $\mathsf{arguments}(\mathit{args}, m, v)$
 to denote the fact that the arguments are stored in memory $m$, at the
@@ -409,7 +409,7 @@ contents of all non-callee-save registers in $\rho$.
   \rho(\mathsf{ESP}) \neq \bot \\
   \mathsf{arguments}(\mathit{args}, m, \rho(\mathsf{ESP})) \\
   \rho(\mathsf{RA}) \neq \bot \\
-  \rho' = \mathsf{eraseNonCalleeSave}(\rho)[\mathtt{EAX} \leftarrow \mathit{res}][\mathsf{EIP} \leftarrow \rho(\mathsf{RA})][\mathsf{RA} \leftarrow \bot]
+  \rho' = \mathsf{eraseNonCalleeSave}(\rho)[\mathsf{EAX} \leftarrow \mathit{res}][\mathsf{EIP} \leftarrow \rho(\mathsf{RA})][\mathsf{RA} \leftarrow \bot]
 }{
   \Gamma, L, M \vdash (\rho, m, a) \rightarrow (\rho', m', a')
 }
@@ -462,7 +462,7 @@ the LAsm state $(\rho_0, m_0, a_0)$ defined as follows:
 \begin{definition}[Whole-machine final state]
 A whole-machine LAsm state $(\rho, m, a)$ is final with return code
 $n$ if, and only if, $\rho(\mathsf{EAX}) = n$ and $\rho(\mathsf{EIP}) =
-0$, where $\mathsf{EAX}$ is the accumulator register.
+0$.
 \end{definition}
 
 Notice that $\rho(\mathsf{EIP})$ contains the \emph{integer} 0,
@@ -559,11 +559,13 @@ where the assembly-style primitive specification $\primt$ is defined for each $f
 \Leftrightarrow & \Gamma(f) = b \land \rho(\mathsf{EIP}) = (b, 0)  \land \Gamma, L, M \vdash (\rho, m, a) \rightarrow^+ (\rho', m', a')
 \end{array}
 \]
-\end{definition}
+\end{definition}%
+\noindent{}Notice that we use ``$\rightarrow^+$"
+to state the fact that the assembly function $f$ can return at any time.
 
 \paragraph{Soundness of per-module refinement}
 
-In this paper, we aim at showing that the layer calculus given in
+In this thesis, we aim at showing that the layer calculus given in
 Section~{\ref{sec:layer}} is a powerful device to prove contextual
 refinement: instead of proving the whole-machine contextual refinement directly, 
 we only need to prove the \emph{downward simulation} relations about
@@ -604,7 +606,7 @@ simulation to contextual refinement at the whole-machine level.
 For the functions which do not satisfy the C calling convention, we verify them in 
 LAsm. Figure \ref{fig:contextswitch} shows the implementation of the context switch function
 \verb"cswitch" in LAsm for switching two kernel thread stacks. This function violates
-the C calling convention, which assumes the stack or continuation stay unchanged after
+the C calling convention, which assumes the stack or continuation stays unchanged after
 a function call.
 Recall that the semantics of LAsm functions is non-deterministic, while the
 corresponding  specifications are deterministic.

@@ -160,7 +160,7 @@ we do not need to establish the invariant in a single step.
 We first introduce a layer to introduce
 an abstract thread queue object,
 and hide the concrete queue representations
-in the memory (via CompCert memory permission).
+in the memory (via CompCert memory permissions).
 Therefore, the remaining kernel code cannot access
 the corresponding memory blocks directly.
 Moreover, since the queue operations 

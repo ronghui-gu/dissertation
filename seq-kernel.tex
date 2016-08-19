@@ -4,12 +4,12 @@
 To demonstrate the power of our new languages and tools,
 we have applied our new layered approach to specify and
 verify four variants of sequential \mCTOS{} kernels in the Coq proof assistant.
-This Chapter presents how to verify  these kernels as a case study and the benefits of our layered approach.
+This chapter presents how to verify  these kernels as a case study and the benefits of our layered approach.
 
 The \mCTOSbase{} base kernel is a simplified uniprocessor version of
-the CertiKOS kernel~\cite{gu11} designed for the 32 bit x86
+the CertiKOS kernel~\cite{gu11} designed for the 32-bit x86
 architecture.  It provides a multi-process environment for user-space
-applications using separate virtual address space, where the
+applications using separate virtual address spaces, where the
 communications between different applications are established by
 message passing.  The \mCTOShyper{} kernel, built on top of the base
 kernel, is a realistic hypervisor kernel that can boot recent versions
@@ -22,7 +22,7 @@ virtualization, virtual memory, and user-space interrupt handling.
 This results in a minimal operating system suitable for embedded
 environments.
 
-This Chapter is organized as below:
+This chapter is organized as below:
 In Section~\ref{sec:seq:design}, we present
 our principles to introduce new layers.
 Section~\ref{sec:seq:base} shows

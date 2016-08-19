@@ -13,9 +13,9 @@ uint palloc (uint nps) {
 Definition first_free a n:
 {(i,t) | 0 <= i < n /\ a.AT(i) = ATv t 0
     /\ (<@$\forall$@> x, 0 <= x < n
-        -> <@$\neg$@> a.AT x = ATV _ 0)}
+        -> a.AT x <> ATV _ 0)}
     + { (<@$\forall$@> x, 0 <= x < n
-         -> <@$\neg$@> a.AT x = ATV _ 0)}.
+         ->  a.AT x <> ATV _ 0)}.
 Function <@$\spec_\textsf{palloc}$@> a nps :=
    match first_free a nps with
     | inleft (exist (i, t) _) =>
