@@ -1,5 +1,5 @@
 
-\chapter{Related Work}
+\chapter{Related Work and Conclusion}
 \label{chap-rel}
 
 \paragraph{Hoare-style program verification} Hoare logic~\cite{hoare69}
@@ -21,14 +21,14 @@ abstract states'' problem mentioned in
 Section~\ref{sec:seq:overview}. Traditional program verification does not
 always use deep specification (for pre- and post-conditions) so the
 module interfaces (\eg, $[P,Q]$) may allow some safe but unwanted
-behaviors. Such gap is fine if the goal is to just prove safety (as in
+behaviors. Such a gap is fine if the goal is just to prove safety (as in
 static type-checking), but if we want to prove the strong contextual
 correctness property across module boundaries, it is important that
 each interface accurately describes the functionality and scope of the
 underlying implementation.
 
-In addition to the obvious benefits on compositionality, our layered
-approach also enables a new powerful way of combining programming- and
+In addition to the obvious benefits for compositionality, our layered
+approach also enables a new powerful way of combining programming and
 specification languages in a single setting. Each layer interface
 enables a new programming language at a specific abstraction level,
 which is then used to implement layers at even higher
@@ -44,7 +44,7 @@ parameterized over a layer interface).  In fact, unlike Hoare logic
 which shows that a program (\eg, $C$) refines a specification (\eg,
 $[P,Q]$), we instead show there is a downward simulation from the
 specification to the program. As in CompCert, we found this easier to
-prove and we can do this because both our specification and language
+prove, and we can do this because both our specification and language
 semantics are deterministic relative to external events.
 
 \paragraph{Stepwise program refinement}
@@ -53,9 +53,9 @@ by decomposing it into a hierarchy of linearly ordered ``abstract
 machines.''  Based on this idea, the PSOS team at SRI~\cite{psos80}
 developed the Hierarchical Development Methodology (HDM) and applied
 HDM to design and specify an OS using 20 hierarchically organized
-modules. HDM was difficult to be rigorously applied in practice,
+modules. HDM was difficult to apply rigorously in practice,
 probably because of the lack of powerful specification and proof
-tools. In this paper, we advance the HDM paradigm by using a new formal
+tools. In this thesis, we advance the HDM paradigm by using a new formal
 layer language to connect multiple layers and by implementing all
 certified layers and proofs in a modern proof assistant. We also
 pursued decomposition more aggressively since it made our
@@ -67,7 +67,7 @@ specification can be refined through a series of
 correctness-preserving transformations and eventually turned into an
 efficient executable. Our work imposes a new layer language to enhance
 compositional reasoning. We use ClightX (or
-LAsm) and the Coq logic as our ``refinement'' language,
+LAsm) and the Coq logic as our ``refinement'' language
 and use a certified layer (with deep specification)
 to represent each such correctness-preserving transformation.
 All our ClightX and LAsm instances have executable semantics and can be
@@ -78,7 +78,7 @@ compiler correctness is an extremely challenging
 problem~\cite{BentonH09,hur12}, especially when it involves an open
 compiler with multiple languages~\cite{perconti14}.  In the context of
 CompCert, a recent proposal~\cite{beringer14}
-aims to tackle the full Clight language but it has not been
+aims to tackle the full Clight language, but it has not been
 fully implemented in the CompCert compiler.  While our CompCertX
 compiler proves a stronger correctness theorem for each ClightX layer,
 the ClightX language is subtly different from the original
@@ -87,11 +87,11 @@ allocated memory blocks (\eg, stack frames) cannot be updated by
 functions defined in another layer. This means that ClightX does not
 support the same general ``stack-allocated data structures'' as in
 Clight. This is fine for our OS kernels since they do not allocate any
-data structures on stack, but it means that CompCertX can not be
-regarded as a full featured separate compiler for CompCert.
+data structures on the stack, but it means that CompCertX cannot be
+regarded as a full-featured separate compiler for CompCert.
 
 
-As for the concurrency, \citet{stewart15} developed a new compositional extension of the
+As for concurrency, \citet{stewart15} developed a new compositional extension of the
 original CompCert compiler~\cite{compcert} with the goal of providing
 thread-safe compilation of concurrent Clight programs.  Their
 interaction semantics also treats all calls to synchronization
@@ -135,8 +135,7 @@ be used to build concurrent layers involving a stack of atomic objects.
 \paragraph{OS kernel verification} There has been a large body
 of recent work on OS kernel verification including
 seL4~\cite{klein2009sel4,klein14}, Verve~\cite{hawblitzel10},
-and Ironclad~\cite{ironclad14}. None of these works have addressed the
-issues on concurrency with fine-grained locking. Very recently,
+and Ironclad~\cite{ironclad14}. None of these works have addressed  concurrency with fine-grained locking. Very recently,
 \citet{xu16} developed a new verification framework based on RGSim
 and Feng~{et~al.}'s program logic~\cite{feng08:aim} for reasoning
 about interrupts; they have successfully verified many key modules
@@ -214,9 +213,8 @@ implementation into a sequential layer (with interrupts disabled)
 and a concurrent layer (with interrupts enabled).
 Chlipala~\cite{BedrockPLDI11} developed Bedrock, an automated
 Coq library to support verified low-level programming. All these
-systems
-are purely sequential, 
-and lack the support for concurrency.
+systems are designed for single-processor machine 
+and lack the support for multiprocessor concurrency.
 
 \ignore{\paragraph{Certified abstraction layers} \citet{dscal15}
 presented the first formal account of certified abstraction layers and
@@ -253,7 +251,7 @@ define a general semantics that supports parallel layer composition.}
 \citet{herlihy90} introduced {\em linearizability} as a key technique
 for building abstraction over concurrent objects. Developing
 concurrent software using a stack of shared atomic objects has since
-become the best practices in the system
+become the best practice in the systems
 community~\cite{Herlihy08book,ospp11}. Linearizability is quite
 difficult to reason about, and it is not until 20 years later that
 \citet{filipovic10} showed that linearizability is actually equivalent
@@ -271,8 +269,8 @@ concurrent layers as well.
 \paragraph{RGSim} Building contextual refinement proofs
 for concurrent programs (and program transformations) is challenging.
 Liang~{et~al.}~\cite{RGSim,Liang14lics,lili16} developed the
-Rely-Guarantee-based Simulation (RGSim) that can support both parallel
-composition and also prove contextual refinement of concurrent
+Rely-Guarantee-based Simulation (RGSim) framework that can support both parallel
+composition and proof of contextual refinement of concurrent
 objects. Our contextual simulation proofs between two concurrent
 layers can be viewed as an instance of RGSim if we extend RGSim with
 auxiliary states such as environment contexts and shared logs. This
@@ -309,14 +307,13 @@ after first acquiring it.
 Most concurrent languages (including those used by RGSim) use a
 parallel composition command $(C_1 \| C_2)$ to create and terminate
 new threads.  In contrast, we provide thread spawn and join
-primitives, and assign every new thread a unique $id$ (\eg, $t$, which
+primitives and assign every new thread a unique $id$ (\eg, $t$, which
 must be a member of the full thread-$id$  domain set $D$). Parallel layer
 composition in our work is always done over the whole program $P$ over
 all members of $D$. This allows us to reason about the current
 thread's behaviors over the environment's full strategies (\ie, both
 its past and future behaviors). Even if a thread $t$ is never
-created, the semantics for running $P$ over $L[t]$ is still well
-defined since it will simply always query its environment context to
+created, the semantics for running $P$ over $L[t]$ is still well-defined since it will simply always query its environment context to
 construct a global log.
 
 \paragraph{Program logics for shared-memory concurrency}
@@ -327,7 +324,7 @@ concurrent programs. Most of these follow Hoare-style logics so they
 do not prove the same strong contextual simulation properties as RGSim
 and our layered framework do. Very few of them (\eg,~\cite{pinto16})
 can reason about progress properties. Nevertheless, many of these
-logics support advanced language features such as high-order functions
+logics support advanced language features such as higher-order functions
 and sophisticated non-blocking synchronization, both of which will be
 useful for verifying specific concurrent objects within our layered
 framework.  Our use of a shared global log and an environment context

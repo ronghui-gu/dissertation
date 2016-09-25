@@ -1,37 +1,28 @@
-\chapter{Conclusion}
-\label{chap-concl}
+%\section{Conclusion}
+%\label{chap-concl}
 
+\paragraph{Conclusion}
 Abstraction layers are key techniques used in building large-scale
 computer software and hardware. In this thesis, we have presented a
-novel language-based account of abstraction layers and shown that they
+novel language-based account of sequential and concurrent abstraction layers and shown that they
 are particularly suitable for supporting abstraction over deep
 specifications, which is essential for compositional verification of
 strong correctness properties. We have designed a new layer language
 and imposed it on two different core languages (ClightX and LAsm). We
-have also built a verified compiler from ClightX to LAsm. By
+have also built a verified thread-safe compiler from ClightX to LAsm. By
 aggressively decomposing each complex abstraction into smaller
 abstraction steps, we have successfully developed several certified OS
 kernels that prove deeper properties (contextual correctness), contain
 smaller trusted computing bases (all code verified at the assembly
-level), require significantly less effort (6000 lines of C and
-assembly code proved in less than 1 person year), and demonstrate
+level), require significantly less effort, 
+\ignore{(6000 lines of C and
+assembly code proved in less than 1 person year), }and demonstrate
 strong support for extensibility (layers are heavily reused in
-different certified kernels). We expect that both deep specifications
+different certified kernels).  The
+certified concurrent OS kernel we have built supports both fine-grained locking
+on multicore machines and blocking synchronization primitives using
+thread $\sleep$ and $\wakeup$ primitives. 
+We expect that both deep specifications
 and certified abstraction layers will become critical technologies and
 important building blocks for developing large-scale certified system
-infrastructures in the future.
-
-Abstraction layers are key techniques used in building large-scale
-concurrent software and hardware. In this thesis, we have presented a
-novel language-based account of certified concurrent layers and showed
-how to build compositional semantic models for our layered abstract
-machines. We have also developed new languages and tools for
-supporting layered concurrent programming and thread-safe verified
-compilation.  By aggressively decomposing complex concurrency features
-into a stack of simple atomic objects, we have successfully built a
-certified concurrent OS kernel that supports both fine-grained locking
-on multicore machines and blocking synchronization primitives using
-thread $\sleep$ and $\wakeup$ primitives. We expect that our new concurrent
-layer-based techniques will become critical technologies and important
-building blocks for developing large-scale certified system
 infrastructures in the future.

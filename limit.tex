@@ -25,22 +25,23 @@ What's more,
 for the concurrent framework,
 the multicore hardware machine model $\mach{x86mc}$
 is also part of the TCB.
-It assumes the sequential consistency,
-and leaves the consideration of relax memory model
+It assumes sequential consistency
+and leaves the consideration of relaxed memory model
 to the future work.
+\adam{Is it still correct for relaxed memory model?}
 
 \ignore{It also lacks the model for interrupt related hardware
 instruction like {\it cli}, and {\it sti}. }
 
 
-Outside our verified kernels,
+Outside our verified kernels
 (\mCTOShyper{} consists of about 6000 lines of C and assembly), there
 are 300 lines of C and 170 lines of x86 assembly code that are not
 verified yet: the ELF loader used by user
-process creation,
+process creation
 and the preinit procedure, which initializes the drivers, \eg,
 disk, console, {\it etc}.
-The verification of these modules are
+The verification of these modules is
 left for future work. \ignore{Device drivers are not verified
 because our current machine semantics lacks device models for
 expressing the corresponding semantics.}
@@ -67,7 +68,7 @@ proof checker and its code extraction mechanism.
 %% assembly. They could be verified in assembly, which we leave for future work.
 
 \paragraph{Expressivity of context code} 
-Our assembly-level machines do not cover the full x86 instruction sets 
+Our assembly-level machines do not cover the full x86 instruction set
 and many other hardware features. This means that our correctness results 
 only apply to programs in this subset. However, additional instructions 
 and features can be easily added if they have simple or no interaction
@@ -108,13 +109,13 @@ very sophisticated local invariants, but they are not exported to
 other parts of the kernel. This makes the \CTOS\ architecture much
 more appealing and extensible.}
 
-\paragraph{Interrupts} Like most existing verified kernel efforts,
+\paragraph{Preemptive interrupt} Like most existing verified kernel efforts,
 we do not allow preemptive interrupts inside the kernel. The
 challenges in handling preemption are similar to those
 for concurrency. 
 We believe that
 we can model different devices
-as virtual CPUs,
+as virtual CPUs
 and utilize the hardware scheduler
 to capture the
 preemptive interrupts between devices and the kernel.

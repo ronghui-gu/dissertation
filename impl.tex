@@ -20,8 +20,8 @@ soundness theorem of the layer calculus to turn this relation into the
 contextual version. The contextual correctness property is derived
 from the monotonicity of the client context in the carrier language.
 
-We have also implemented more automation tactic library to further
-ease the task of the verification. We are able to automate majority of
+We have also implemented more automation tactic libraries to further
+ease the task of the verification. We are able to automate the majority of
 tasks in the code verification and refinement proofs by extensively
 applying these tactics. For the code verification, these tactics are
 used for automatic definition unfolding, rewriting of terms, proving
@@ -34,10 +34,10 @@ the per-function forward simulation, getter-setter functions and
 pass-through primitives are proved completely by tactic automations.
 In the future, we are also interested in implementing horizontal
 composition with framing to substitute the pass-through primitives.
-We also built some extra libraries to prove x86 addressing mode and
+We also built some extra libraries to prove x86 addressing modes and
 the specification properties required by the layer calculus and
 CompCertX.  Furthermore, we have extended the arithmetic
-tactic \texttt{omega} with integer division and modulus.  The Coq's
+tactic \texttt{omega} with integer division and modulus.  Coq's
 Ltac language is untyped, thus fixing a formal layer calculus helped a
 lot in stabilizing these tactic libraries.
 

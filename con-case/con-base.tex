@@ -169,7 +169,7 @@ In this section, we show
 how to verify 
 the concurrent objects in \cCTOS{}
 (\ie, spinlocks, shared queues protected by spinlocks,
-thread scheduler, and a queuing lock),
+thread scheduler, and a queuing lock)
 and other extensions to the sequential
 kernel \mCTOS{}
 using concurrent abstraction layers.
@@ -454,7 +454,7 @@ pseudocode. We provide a set of locks indexed by integer $b$
 {The state of each lock $b$ is stored in two integers, 
 $\now \le \ticket$. To acquire a lock, a CPU uses the atomic
 fetch-and-increment (FAI) instruction to obtain a ticket number, and then waits
-for all previously-waiting CPUs to release the lock in turn, until
+for all previously waiting CPUs to release the lock in turn, until
 {\tt now} equals the ticket number.
 
 All the operations to the lock fields
@@ -486,9 +486,9 @@ high-level description.
 
 \noindent\textbf{Step 1 (memory operation interface $L_0$).}
 Because the $\comm{ticket\_lock}$ struct is used for communication
-between concurrent code, 
+between concurrent CPUs, 
 the bottom layer interface $L_0$
-has to define the globally-visible events that can be generated. 
+has to define the globally visible events that can be generated. 
 When writing the specification of $L_0$,  we can choose the type of events in any way, as long
 as it is 
 fine-grained enough that we can state all scheduling interleavings that
@@ -497,7 +497,6 @@ $\ticket$ and $\now$ and an event for reading the $\now$ value
 for a lock $b$. Additionally, we make use of a natural number 
 $n$\ignore{ and an event $\holdlock$}, which has no
 operational significance and is explained below.
-\begin{small} 
 \[
 \begin{array}{c}
 L_0.\Ev := \incticket(n, b) \mid \incnow(b) \mid \getnow(b)
@@ -505,9 +504,7 @@ L_0.\Ev := \incticket(n, b) \mid \incnow(b) \mid \getnow(b)
 \ignore{\\
 &  \mid &  \holdlock \mid \tshared (e : \mathsf{SharedMemEvent})}
 \end{array}
-\] 
-\vspace{-10pt}
-\end{small}%
+\]%
 
 To specify the meanings of the get and increment events, we define a replay
 function $\replay_{\comm{ticket}} : Log \to \integer \to \integer\times \integer$. 
@@ -517,12 +514,11 @@ $\incticket(n, b)$ and $\incnow(b)$ event in the list increments
 the first or second component of the pair, and other events are ignored.
 
 We then specify the behavior of the primitives
-of $L_0$, which are implemented by the atomic instructions on x86 architecture. 
+of $L_0$, which are implemented by the atomic instructions on the x86 architecture. 
 For example, we implement the
 fetch-and-increment $\mathsf{FAI\_ticket}$ primitive in a small 
 assembly snippet, yielding the following specification:
 %% Is this just assumed, or is it proved somewhere?
-\begin{small}
 \begin{mathpar}
 \inferrule{
  l_0 = l \cons \oracle(l) \\
@@ -531,9 +527,7 @@ assembly snippet, yielding the following specification:
 }{
  \oracle, c \vdash  \spec_{\mathsf{FAI\_ticket}}([n, b], \regs, m, a, l, i, \regs, m, a, l')
 }
-\end{mathpar}
-\vspace{-5pt}
-\end{small}%
+\end{mathpar}%
 
 In other words, this primitive queries $\oracle$, replays the result log to
 compute the current state $i$ of {\tt ticket},
@@ -549,7 +543,6 @@ implementation is a memory read, and whose specification queries
 $\oracle$ to get the new log $l_0$, appends $\getnow (b)$, and returns
 $\mathsf{snd}(\replay_\mathsf{ticket}(l_0, b))$.}
 The primitive set of $L_0$ is defined as below:
-\begin{small}
 \[
 \begin{array}{rl}
 L_0.\primt := &\mathsf{FAI\_ticket} \mapsto \spec_{\mathsf{FAI\_ticket}}
@@ -557,8 +550,7 @@ L_0.\primt := &\mathsf{FAI\_ticket} \mapsto \spec_{\mathsf{FAI\_ticket}}
 &\oplus \mathsf{get\_now} \mapsto \spec_{\mathsf{get\_now}}\oplus  \push\mapsto \spec_{\push}
 \oplus  \pull\mapsto \spec_{\pull}
 \end{array}
-\]
-\end{small}%
+\]%
 \noindent\textbf{Step 2 (low-level specification $L_1$)}
 In the next layer $L_1$, 
 we verify the implementation of the ticket lock based on
@@ -566,8 +558,8 @@ we verify the implementation of the ticket lock based on
 after the lock is acquired, it invokes $\pull(b)$ 
 to update the shared memory at the corresponding location $b$
 according to the log.
-The bodies of the lock acquire function $\acq$ and 
-the lock release function $\rel$ are verified as if they were 
+The bodies of the lock-acquire function $\acq$ and 
+the lock-release function $\rel$ are verified as if they were 
 sequential C programs. Uses of the lock primitives are handled
 similarly to external function calls, by applying their
 specifications. From the verifier's point-of-view, they are no 
@@ -585,24 +577,21 @@ We define an auxiliary function $\comm{wait}$
 (using recursion in Coq) describing the behavior of the first $k$
 iterations of the loop: each time we query the environment
 context $\oracle$, it generates its own
-event, and checks if CPU number $c$ is due to hold the
+event and checks if CPU number $c$ is due to hold the
 lock. The function is undefined (Coq {\tt None}) if we do not get the
 lock within $k$ iterations.
-\begin{small}
 \[
 \begin{array}{lcl}
 \mathsf{wait}(0, \oracle, c, b, l) & = &\text{undefined} \\
 \mathsf{wait}(k+1, \oracle, c, b, l) & = & l', \text{ if $l'$ indicates next is $c$'s turn to get lock}\\
-                       & &   \mathsf{wait}(k, \oracle, c,  (l' \cons c.\getnow(b))), \text{ otherwise} \\
+                       & &   \mathsf{wait}(k, \oracle, c,  b, (l' \cons c.\getnow(b))), \text{ otherwise} \\
                        & &  \text{where }l' = l \cons  \oracle(l)
 \end{array}
-\]
-\end{small}%
+\]%
 
 We then define the semantics of the primitive by saying that it first
-generates an $\incticket$ event, and then loops
+generates an $\incticket$ event and then loops
 for some ``sufficiently'' large number $\calwait(l, c)$ of iterations.
-\begin{small}
 \begin{mathpar}
 \inferrule{
   l_0 = \mathsf{wait}(\calwait(l, c), \oracle, c, b,
@@ -614,9 +603,7 @@ for some ``sufficiently'' large number $\calwait(l, c)$ of iterations.
 }{
  \oracle, c \vdash  \spec_{\acq\_\mathsf{low}}([n,b], \regs, m, a, l,\any, \regs, m', a', l')
 }
-\end{mathpar}
-\end{small}
-
+\end{mathpar}%
 Computations where $k$ reaches 0 are considered crashing, and our
 ultimate theorem is about safe programs, so when proving that the C
 code matches the specification we only need to consider finite
@@ -628,17 +615,17 @@ we have to know what number $\calwait(l,c)$ is sufficiently large.
 Thus,  we need more information than just the two integers representing the lock
 in memory. In this layer $L_1$, we introduce
 a new  replay function:
-{\small
 \[
 \replay_{\mathsf{wait\_q}} : Log \to  \mathsf{LockStatus} \times
  \mathsf{list}\ (\mathsf{CPU\_ID}\times\mathbb{N})
-\]}
-This computes which CPU (if any) currently holds the log, and  a list of all CPUs that have started waiting for
+\]%
+\adam{Why list instead of function}
+\noindent{}This computes which CPU (if any) currently holds the log, and  a list of all CPUs that have started waiting for
 the lock together with the natural number $n$ that
 $\spec_{\acq}$ was given as an argument. The meaning of
 $n$ is that once the CPU enters the critical section, it promises to take  at most $n$ steps before exiting. 
 The replay function $\replay_{\mathsf{wait\_q}}$ is defined by going through the log
-event by event, for example $c.\incticket(n,b)$ appends $(c,n)$ to the list
+event by event; for example, $c.\incticket(n,b)$ appends $(c,n)$ to the list
 of waiting CPUs.
 Finally, in the proof we assume that the hardware scheduler is \emph{fair}, in the sense that there exists some 
 constant $n_0$ such that any CPU will be rescheduled within $n_0$ steps. 
@@ -668,12 +655,10 @@ Let $L_1.\primt := \acq \mapsto \spec_{\acq\_\mathsf{low}}
  and  $M_0 := \acq \mapsto \module_{\acq}
 \oplus \rel \mapsto \module_{\rel}$,
 we can build the concurrent layers as below:
-\begin{small}
 \[
 \forall \oracle, 
 \ltyp{(L_0, \oracle)}{\id}{M_0}{(L_1, \oracle)}
-\]
-\end{small}%
+\]%
 Note that,
 because the abstract state and the global log are identical
 in both layers, the simulation relation is the identity relation $\id$.
@@ -696,7 +681,7 @@ L_1.\primt := \acq \mapsto \spec_{\acq}
 \end{array}
 \]}%
 The replay function computes which CPU (if any) currently holds the
-lock, and has a counter for how many more steps that CPU is allowed
+lock and has a counter for how many more steps that CPU is allowed
 to take. Again, this is computed event by event: if CPU $c$
 generates the event $c.\acq(n,b)$, the high-level interpretation of the
 log becomes $(n, \mathsf{held\_by}\ c)$ for lock $b$, and then 
@@ -713,9 +698,8 @@ now very simple:
 which is a set of boolean saying
 whether this CPU holds the lock (to express the precondition that you
 can only get/release the lock if you are outside/inside the critical
-section).  Thus, }$\acq$ and $\rel$ just query the environment context, and then
+section).  Thus, }$\acq$ and $\rel$ just query the environment context and then
 introduce one more event.
-\begin{small}
 \begin{mathpar}
 \inferrule{
 	l_0 = l \cons \oracle(l)\\
@@ -736,8 +720,6 @@ introduce one more event.
  \oracle, c \vdash  \spec_{\rel}([b], \regs, m, a, l,\any, \regs, m, a', l')
 }
 \end{mathpar}
-\vspace{-5pt}
-\end{small}
 
 By having these primitives introduce only a single event, clients of the
 lock code can treat the lock operations as completely \emph{atomic}; there is
@@ -757,18 +739,17 @@ $\spec_{\acq}$ is, so we need to prove that the function
 $\mathsf{wait}(\calwait(l, c), \oracle, c, b, l)$ returns a value. This is done
 by computing a natural-valued termination metric for the log 
 (in terms of
-$\replay$), and showing that this decreases faster than $\calwait(l,c)$. In other words,
+$\replay$) and showing that this decreases faster than $\calwait(l,c)$. In other words,
 because our high-level specification of the lock is a total function,
 proving that the implementation is correct includes a proof of
 liveness. Thus,
-{\small 
 $
 \forall \oracle, 
 \ltyp{L_1(c, \oracle)}{R_1}{\emptyset}{L_2(c,f_{\oracle1}(\oracle))}
-$}.%
+$%
 
 This simulation proof is only between specifications.
-By applying the vertical composition rule \ignore{ (Lemma~\ref{lem:vertical})}, we have:
+By applying the vertical composition rule, \ignore{ (Lemma~\ref{lem:vertical})} we have:
 \[
 \forall \oracle, 
 \ltyp{L_0(c,\oracle)}{R_1}{M_0}{L_2(c, f_{\oracle1}(\oracle))}
@@ -783,6 +764,7 @@ By applying the vertical composition rule \ignore{ (Lemma~\ref{lem:vertical})}, 
 \label{fig:exp:mcs_lock}
 \hrulefill
 \end{figure}
+
 Ticket locks are inefficient in systems with very many processors (10
 to 40, depending on workload~\cite{Boyd-wickizer12}), because every
 CPU repeatedly reads the same memory location. As an alternative, we
@@ -810,7 +792,7 @@ node.
 
 Compared to ticket locks, the MCS algorithm is more involved, since
 the swap and modify events can be arbitrarily interleaved. For
-example, the next-pointers in the list are not always valid, and may
+example, the next-pointers in the list are not always valid and may
 be updated in any order.  This makes it a good example, showing that
 our verification methodology works for interesting concurrent
 programs. Previously, this algorithm had only been proven correct
@@ -820,8 +802,8 @@ The verification strategy is very similar to the ticket locks,
 and the structure provided by abstraction layers is even more helpful here. In the
 memory operation layer, instead of calculating a pair of integers, the
 replay function calculates a value of type 
-$\integer \times (\mathsf{Map}\ \integer\ (\mathsf{bool}\times \integer))$, that is
-the value of the tail pointer, and a finite map representing the list
+$\integer \times (\mathsf{Map}\ \integer\ (\mathsf{bool}\times \integer))$, that is,
+the value of the tail pointer and a finite map representing the list
 nodes.  The rest of the proof does not need to concern itself
 with a low-level memory model, and reasoning about the
 replay function can be done similarly to reasoning about a pure
@@ -850,7 +832,7 @@ identical to that exposed by the ticket locks.
 Chen {\it et al} \cite{chen16} present a framework to allow interrupts
 inside the kernel
 with device drivers. The core idea is to treat device drivers of
-each device as if they were running on a ``logical'' CPU dedicated to that device,
+each device as if they were running on a ``logical'' CPU dedicated to that device
 and build a framework that systematically enforces the isolation among different
 ``devices'' and the rest of the kernel. The work has been successfully ported
 into our setting relatively easily thanks to the fact that their event-based
@@ -884,8 +866,7 @@ As the page allocation table $\texttt{AT}$ is shared among different CPUs,
 we associate it with a lock $\texttt{lock\_AT}$.
 The dynamic page allocator is then refined into an atomic object where
 the \texttt{palloc} implementation is proved to satisfy an atomic interface,
-with the proof that
-lock utilization for $\texttt{lock\_AT}$ satisfies Invariant~\ref{inv:lock}.
+with the proof that the lock is released within the bound.
 Once the dynamic page allocator is introduced as
  an atomic object, the lock acquire and lock release 
 for $\texttt{lock\_AT}$
@@ -951,9 +932,9 @@ $$
 \vspace{-3pt}
 \paragraph{Virtual memory management}
 provides consecutive virtual address spaces on top of physical memory management.
-Because much of the code assumes that 
+\ignore{Because much of the code assumes that 
 the memory management sets up the virtual address space properly,
-initialization has been a sticking point.
+initialization has been a sticking point.}
 We proved not only that the primitives of virtual memory management
 manipulate the page maps correctly,
 but also that the \emph{initialization procedure} sets up the two-level page maps properly
@@ -1019,8 +1000,8 @@ and \emph{IPC} module (2 layers).}
 
 \subsection{Shared queue library}
 \label{sec:con:queue} 
-Shared queue object
-is widely used in concurrent kernels, e.g., as buffers for producer/consumer,
+Shared queue objects
+are widely used in concurrent kernels, e.g., as buffers for producer/consumer,
 as the list of threads in a scheduler, {\it etc}.
 \ignore{The specification of a shared queue object should provide a high level abstract
 interface by hiding all the low level details,
@@ -1094,7 +1075,7 @@ simpler because it can be treated as a sequential program.
 For this purpose, we introduce a new layer interface $L_3$ as follows:
 (1) introduce abstract states $abs_\comm{tcbp}$ and $abs_\comm{tdqp}$;
 (2) define a simulation relation $R_{2}$ between the new abstract states
-and the concrete doubly-linked list in memory;
+and the concrete doubly linked list in memory;
 and (3) prove the simulation between
 $\module_{\deq\comm{\_t}}$ and its specification
 $\spec_{\deq\comm{\_t}}$.
@@ -1213,7 +1194,7 @@ calculates the queue of CPUs waiting for the lock.
 
 The simulation relation 
 $R_{3}$ between $L_3$ and $L_4$ is trivial,
-except the log function $f_{l3}$.
+except for the log function $f_{l3}$.
 It drops the event $c.\acq_q(n,i)$
 and maps the event $c.\rel_q(i, q)$
 to $c.\deq(i)$. Thus, the function $f_{\oracle 3}$ to convert
@@ -1242,7 +1223,7 @@ We build the concurrent abstraction layer:
 \forall \oracle, 
 \ltyp{L_3(c, \oracle)}{R_3}{M_3}{L_4(c, f_{\oracle 3} (\oracle))}
 \]
-Vertical composition \ignore{ (Lemma~\ref{lem:vertical})} then yields the desired result:
+Vertical composition then yields the desired result:
 \[
 \forall \oracle, 
 \ltyp{L_2(c,\oracle)}{R_3\cdot R_2}{M_2 \oplus M_3}{L_4(c,f_{\oracle 3} \cdot f_{\oracle 2}(\oracle))}
@@ -1252,9 +1233,9 @@ Vertical composition \ignore{ (Lemma~\ref{lem:vertical})} then yields the desire
 \label{sec:con:thread}
 
 \begin{figure}[t]\centering
-\includegraphics[scale=1]{figs/scheduler} 
+\includegraphics[scale=1.4]{figs/scheduler} 
 \caption{Scheduling procedures of \texttt{yield}, \texttt{sleep},
-and \texttt{wakeup}.}
+and \texttt{wakeup}.\adam{seems not helpful}}
 \label{fig:exp:fig:scheduler}
 \hrulefill
 \end{figure}
@@ -1270,7 +1251,7 @@ The context CPUs can insert threads to the current CPU's pending queue.
 The {\cCTOS} kernel also provides a set of \emph{sleeping queues} \code{SleepQs}, which are
 shared among all CPUs.
 As shown in Figure~\ref{fig:exp:fig:scheduler},
-the \code{yield} primitive moves thread from
+the \code{yield} primitive moves a thread from
 the pending queue to the ready queue
 and then switches to the next ready thread.
 The \code{sleep} primitive simply adds the running thread to the sleeping
@@ -1282,21 +1263,23 @@ Otherwise, \code{wakeup} adds the thread to the pending queue of the CPU it belo
 Except for the ready queue,
 all the other thread queue operations are protected by \emph{fine-grained} locks.
 
-
+\ignore{
 \begin{figure}[t]
 \lstinputlisting [language = C, multicols=2] {source_code/thread_management.c}
 \caption{Implementation of the Scheduler Module}
 \label{fig:exp:scheduler}
 \hrulefill
     \afterpage{\FloatBarrier}
-\end{figure}
+\end{figure}}
 
-Verification of such scheduling primitive is extremely challenging.
+Verification of such scheduling primitives is extremely challenging.
 Previous work either directly models the abstract scheduler primitives at a high level
-(\eg, simple switch in the thread ID~\cite{xu16}),
+(\eg, simple switch in the thread ID~\cite{xu16})
 or verifies the scheduler functions with a low level small-step semantics
 (\eg, saving and restoring the register set) \cite{dscal15}.
-Both approaches have severe limitations. The first approach provides no formal connection
+Both approaches have severe limitations. 
+\adam{Compare bedrock 15' paper}
+The first approach provides no formal connection
 between the specification and underlying C and assembly implementation of those
 scheduler functions. In the second approach, the specifications are too low level to
 be useful in verifying the actual programs calling these primitives. Furthermore,
@@ -1310,7 +1293,8 @@ to big-step ones satisfying the C calling conventions.
 This allows us to perform \emph{thread-local} reasoning of programs
 at the C level, where the proved properties of each thread can be linked formally
 to obtain a global claim about the whole set of threads running on a processor.
-To the best of our knowledge, this is the first attempt to support modular verification
+To the best of our knowledge, this is the first attempt \adam{Compare bedrock 15' paper}
+to support modular verification
 of multi-threaded applications with explicit synchronization using verified
 low level scheduler primitives.
 
@@ -1382,7 +1366,7 @@ Here we only present the case for the $\sleep$ event:
 \begin{small}
 \begin{mathpar}
 \inferrule{
-\replay_{\comm{sched}} (l, c) = (tid, tdqp, tcbp) \\
+\replay_{\comm{sched}} (l, c) = (tid, \comm{tdqp}, \comm{tcbp}) \\
 \comm{tdqp} (\comm{rdq}(c)) = r\cons q \\
 \comm{tdqp} (\comm{slpq}(i)) = q' \\
 \comm{tdqp}'  = \comm{tdqp}
@@ -1392,7 +1376,7 @@ Here we only present the case for the $\sleep$ event:
 \set{tid: \comm{SLEEP}}
 \set{r:\comm{RUN}}
 }{
-\replay_{\comm{sched}} (l \cons c.\sleep (i), c) = (r, tdqp', tcbp') 
+\replay_{\comm{sched}} (l \cons c.\sleep (i), c) = (r, \comm{tdqp}', \comm{tcbp}') 
 }
 \end{mathpar}
 \end{small}%
@@ -1407,11 +1391,11 @@ a partially-composed set of threads.
 
 Let $T_c$ denote the whole set of threads running over CPU $c$.
 From $\LAsm(L_5(c,\oracle))$, we construct a new 
-multi-threaded \emph{partial} machine $\TAsm$,
+multi-threaded \emph{partial} machine $\TAsm$
 and instantiate it with a layer interface $L_6$.
 The result machine 
 $\TAsm(L_6(c), A)\langle \oracle \rangle$ is 
-parameterized over an active thread set $A \subseteq T_c$,
+parameterized over an active thread set $A \subseteq T_c$
 and can be instantiated into a regular machine for
 an environment context $\oracle$.
 The machine state of $\TAsm$ is defined as $s:=(\tid, f_\regs, m, f_a, l)$.
@@ -1423,13 +1407,13 @@ we divide the register set and the abstract state
 into separate ones for each thread).
 The relation between abstract states
 can be easily defined, but the relation of the register set between $L_5$ and $L_6$ is non-trivial.
-For the currently-running thread, its local register set ($s_6.f_\regs(s_6.\tid)$) is equal
+For the currently running thread, its local register set ($s_6.f_\regs(s_6.\tid)$) is equal
 to the register set of $L_5$ ($s_5.\regs$).
 For other threads of $L_6$, the local register set is equal
 to the corresponding saved kernel context of $s_5$ for the registers
 $[\comm{ra}, \comm{ebp}, \comm{ebx}, \comm{esi}, \comm{edi}, \comm{esp}]$.
 In other words, the register set is decomposed in a way such that the $\regs$ of the
-currently-running thread is equal to the machine's register set, while the $\regs$ of
+currently running thread is equal to the machine's register set, while the $\regs$ of
 other threads is equal to the corresponding kernel context saved by context switch.
 
 \ignore{
@@ -1473,7 +1457,7 @@ $\forall \oracle\ ,~
 
 However,
 the partial machine $\TAsm$ can also be decomposed using the linking operator $\Join$,
-which enables the thread-local reasoning:
+which enables thread-local reasoning:
 \begin{lemma}
 {\small
 $
@@ -1600,7 +1584,7 @@ thread gives up the CPU within a finite number of steps.
 On top of this thread-local machine $\LAsm(L_7(c, t, \oracle))$,
 we can reason about a thread's program 
 locally at the C level by building per-thread layers.
-We show that $L_6$ for a single thread is refined $L_7$:
+We show that $L_6$ for a single thread is refined by $L_7$:
 {\small
 \[ \TAsm(L_6(c), \{t\})\langle \oracle \rangle \Refrel \LAsm(L_7(c, t, \oracle)) \]
 }%
@@ -1632,7 +1616,7 @@ Queuing Lock is an algorithm whereby waiting threads are put to sleep,
 so that busy waiting is avoided.
 Verification of this complex locking algorithm is particularly
 challenging since its C implementation utilizes both
-spinlocks and low level scheduler primitives ($\sleep$ and $\wakeup$).
+spinlocks and low-level scheduler primitives ($\sleep$ and $\wakeup$).
 In our framework, a queuing lock implementation is verified
 by building multiple layer interfaces on top of $L_7$.
 
@@ -1696,7 +1680,7 @@ To further simplify the reasoning about user code, we have implemented and
 verified the user level system call libraries directly in the user space.
 Since our machine semantics models hardware behaviors
 like paging and ring switch, the specifications of user system call
-libraries closely corresponds to the real execution model in the actual
+libraries closely correspond to the real execution model in the actual
 hardware. With this \emph{atomic} system call semantics in the user level,
 the user code can be proved much more easily.
 

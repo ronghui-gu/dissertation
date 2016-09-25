@@ -974,11 +974,7 @@ functions that operate on these data structures.
 As an example, the C implementation of the operation \verb"deQ" is shown
 in the left panel of Figure~\ref{fig:queue:a} and the corresponding
 abstract specification is shown in Figure~\ref{fig:queue2}.
-Unfortunately, the drastic difference between the two renders
-the verification extremely complicated.
-
-To the rescue, again, is the layering design.  The fact that the two
-layers are too far apart (to be easily verifiable) calls for more
+The drastic difference between the two calls for more
 layers in between.  Recall that layered specification and verification
 aim at specifying and verifying each implementation at the right
 abstraction level.  The Coq list is apparently too high an abstraction
@@ -1043,7 +1039,7 @@ As shown in Fig.~\ref{fig:abs:threadproc} (left), an abstract thread \verb"threa
 {
 \begin{figure}\centering
 \includegraphics[scale=0.5]{figs/pm_layer}	
-\caption{Layers of process management}
+\caption{Layers of process management \adam{Missing comma}}
 \label{fig:base:pm:layers}
 \hrulefill
 \end{figure}

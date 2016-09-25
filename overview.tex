@@ -479,6 +479,7 @@ step at a time and eliminate most unwanted interaction and dependencies.
 
 
 \section{Abstraction Layers for Sequential Kernels}
+\label{sec:seq:overview}
 
 \begin{figure}[tb] \centering
 \includegraphics[scale=.5]{figs/mainthm}
@@ -927,7 +928,7 @@ $\rel$ within three steps.
 Two certified layers are allowed to compose only if each one's guarantee
 implies the other's rely. We cannot parallel-compose
 $\ltyp{L_{t1}[1]}{R}{M_{t1}}{L_{t2}[1]}$ and 
-$\ltyp{L_1[2]}{R}{M_1}{L_2[2]}$;
+$\ltyp{L_{t1}[2]}{R}{M_{t1}}{L_{t2}[2]}$;
 but we can first get $\ltyp{L_{t1}[1]}{R}{M_{t1}\oplus{}M_{t2}}{L_{t3}[1]}$ and
 $\ltyp{L_{t1}[2]}{R}{M_{t1}\oplus{}M_{t2}}{L_{t3}[2]}$, and then compose these to
 get $\ltyp{L_{t1}[T]}{R}{M_{t1}\oplus{}M_{t2}}{L_{t3}[T]}$.

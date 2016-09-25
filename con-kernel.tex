@@ -58,14 +58,14 @@ management module, and the virtualization module (VM Monitor). Each
 kernel thread has its own TCB, context, and stack.
 
 \paragraph{What have we proved?}
-Using \CTOS{} framework, we have successfully built a fully certified version of
+Using the \CTOS{} framework, we have successfully built a fully certified version of
 the \cCTOS\ kernel and proved its contextual refinement property with
 respect to a high-level deep specification for \cCTOS.  This important
 functional correctness property implies that all system calls and
 traps will strictly follow the high-level specification and always run
 {\em safely} and {\em terminate} eventually; and there will be no data
-race, no code injection attacks, no buffer overflows, no null pointer
-access, no integer overflow, \etc{}
+races, no code injection attacks, no buffer overflows, no null pointer
+accesses, no integer overflows, \etc{}
 
 \begin{figure}[t]
 %\includegraphics[scale=0.1]{figs/layer_diagram.png}
@@ -101,10 +101,10 @@ On top of this abstract machine model, the code of the concurrent kernel is spec
 verified through 59 abstraction (logical) layers. For each CPU,
 we introduce the atomic (ticket and MCS) spinlock objects
 (\cf Section~\ref{sec:base:lock} and \ref{sec:con:mcs}).
-On top of that, the device drivers running inside kernel are verified
+On top of that, the device drivers running inside the kernel are verified
 (\cf Section~\ref{sec:con:device}).
 Then there are multiple layers used to introduce memory management units (\cf Section~\ref{sec:con:mem}),
-the thread context, atomic queue object (\cf Section~\ref{sec:con:queue}), and scheduler methods (\cf Section~\ref{sec:con:thread}).
+the thread context, atomic queue objects (\cf Section~\ref{sec:con:queue}), and scheduler methods (\cf Section~\ref{sec:con:thread}).
 The \texttt{PThread} layer is the topmost layer built for a particular processor.
 There, the scheduler primitives like \texttt{yield} and \texttt{sleep}
 are specified in a small-step manner, similar to how they are implemented

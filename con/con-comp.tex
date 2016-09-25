@@ -6,7 +6,7 @@ In our approach, interaction between threads happens only through the
 abstract log, and concrete memory is always thread-local.
 In Section~\ref{sec:con:base}, we already saw how this yields a big
 improvement over the previous state of the art, because it lets us
-give a \emph{C level} specification to primitives that handle
+give a \emph{C-level} specification to primitives that handle
 communication between threads. In particular, we can write the
 implementation of the $\yield$ primitive in assembly, and because the
 behavior is deterministic (given the log in the abstract state) we can
@@ -83,7 +83,7 @@ our concurrent abstraction layers.
 }
 
 \paragraph{Verified separate compilation and linking with CompCertX} 
-Replacing  LAsm target with our per-thread TAsm assembly
+Replacing  the LAsm target with our per-thread TAsm assembly
 language, we first recall the CompCertX correctness statement
 pictured in Figure~\ref{fig:compcertx}: starting from a memory state $m$
 (provided by the caller of the primitive being implemented), if the
@@ -121,11 +121,13 @@ primitives of $L_2$ and some TAsm module $M_{\text{Asm}}$ for other
 primitives of $L_2$, for any fixed thread $t$ and environment context
 $\mathcal E$, we follow the sequential setting, first splitting $L_2$ into C-style
 and assembly-style primitives by writing $L_2 = L_{2, \text{C}} \oplus
-L_{2, \text{Asm}}$ , then implementing $L_{2, \text{Asm}}$ with TAsm
+L_{2, \text{Asm}}$, then implementing $L_{2, \text{Asm}}$ with TAsm
 code $M_{\text{Asm}}$, and $L_{2, \text{C}}$ with ClightX code
 $M_{\text{C}}$, so as to prove per-thread refinement at the assembly
-level using forward downward simulations as described in \cite[\S
-  3.3]{dscal15} and Definition~\ref{def:popl15-layers}, $L_{2,
+level using forward downward simulations,
+\ignore{ as described in \cite[\S
+  3.3]{dscal15} and Definition~\ref{def:popl15-layers},}
+   $L_{2,
   \text{Asm}} \leqslant_R \llbracket M_{\text{Asm}} \rrbracket L_1$
 (and thus $L_{1} \vdash_R M_{\text{Asm}} : L_{2, \text{Asm}}$), and at
 the C level, $L_{2, \text{C}} \leqslant_R \llbracket M_{\text{C}}
@@ -185,7 +187,7 @@ maintaining an invariant on the concrete global memory state $m$ of
 the LAsm machine and the per-thread concrete memory state $m_i$ of
 each thread $i$'s TAsm machine. The concrete memory state of a thread
 only contains thread-private memory, in particular its stack. Whenever
-a function is called, a fresh memory block has to be allocated\footnote{We use the CompCert memory model \cite{leroy08}(notations in Fig.~\ref{fig:mem}), where a memory state consists in finitely many blocks within which finitely many memory locations can be accessed in such a way that pointer arithmetics can be performed only within one memory block at a time.} in the
+a function is called, a fresh memory block has to be allocated\footnote{We use the CompCert memory model \cite{leroy08}(notations in Fig.~\ref{fig:mem}), where a memory state consists in finitely many blocks within which finitely many memory locations can be accessed in such a way that pointer arithmetic can be performed only within one memory block at a time.} in the
 concrete memory for its stack frame. This means that, at the TAsm
 level, a function called within a thread will allocate its stack frame
 into the thread-private memory state, and conversely, a thread is
@@ -216,9 +218,9 @@ locations have any permissions) corresponding to the stack frames
 allocated by other threads. So, for each thread $i$, we only need to
 maintain memory extension between $\liftnextblock{m_i}{\nextblock{m} -
 \nextblock{m_i}}$ (the thread-local memory $m_i$ adjusted by
-allocating enough empty blocks to match the number of blocks in $m$)\footnote{for any memory state $m'$,
+allocating enough empty blocks to match the number of blocks in $m$)\footnote{For any memory state $m'$,
 $\nextblock{m'}$ is the total number of blocks allocated in $m'$, and
-$\liftnextblock{m'}{n}$ allocates $n$ empty blocks in $m'$},
+$\liftnextblock{m'}{n}$ allocates $n$ empty blocks in $m'$.},
 and the global memory state $m$.
 
 \ignore{
@@ -332,7 +334,7 @@ Remember that, similarly to CompCert, CompCertX can only compile
 ClightX code that calls primitives that are deterministic and are
 preserved by memory transformations (extensions and injections)
 introduced by compilation passes. To maintain per-thread determinism
-of $\yield$ while the exact behaviors of other threads is not
+of $\yield$ while the exact behaviors of other threads are not
 known, it is necessary to record the number of missing blocks
 allocated by other threads in each per-thread log in its abstract
 state, so that per-thread $\yield$ can remain
