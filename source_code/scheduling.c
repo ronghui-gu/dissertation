@@ -1,17 +1,3 @@
-cswitch:
-  movl 4(%esp), %eax
-  movl 8(%esp), %edx
-  //save old kernel context
-  movl 0(%esp), %ecx
-  movl %ecx, 20(%eax)
-  movl %ebp, 16(%eax)
-  ...//omit ebx,esi,edi,esp
-  //load new kernel context
-  movl 0(%edx), %esp
-  ...//omit edi,esi,ebx,ebp
-  movl %ecx, 0(%esp)
-  xor  %eax, %eax
-  ret
 void resched (int otid) {
   int ntid =deQ_t(rdq(cpu));
   tcb[ntid].tds = RUN;

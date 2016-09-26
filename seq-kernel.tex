@@ -78,24 +78,20 @@ certified hypervisor \mCTOShyper{}.
 
 Figure~\ref{fig:base:vm:layers} shows the 7 layers of the virtual
 machine management of \mCTOShyper{} on the Intel platform.
-%The virtual machine management utilizes the Intel hardware
-%virtualization technology VT-x.
-\ignore{
-whose hardware behaviors were not modeled in \mCTOSbase{}
-, such as the host/guest mode and the instructions to transfer between
-host and guest mode (e.g., VMRUN, VMEXIT).
-}
-%In Fig. \ref{fig:base:vm:layers},
-\code{VMInfo} is the layer object
-that axiomatizes some of the hardware specific features needed
-for the virtualization support. 
-Since it is orthogonal to memory and process management,
-the \code{VMInfo} object can be horizontally composed with the layers 
+The virtual machine management utilizes the Intel hardware
+virtualization technology VT-x,
+whose hardware behaviors were not modeled in \mCTOSbase{}, 
+such as the host/guest mode and the instructions to transfer between
+host and guest mode.
+These hardware specific  features needed
+for the virtualization support are added at the bottom layer \code{PreInit}.
+Since these features are orthogonal to memory and process management,
+they can be horizontally composed with the layers 
 below \code{PProc} in \mCTOSbase{}.
 On top of this extended \code{PProc} layer,
 the virtual machine management extends the \emph{abstract memory model}
-with the notions of Extended Page Table (EPT), the virtual machine
-control structure (VMCS), and the virtual machine extension meta data (VMX),
+with the notions of Extended Page Table (\code{ept}), the virtual machine
+control structure (\code{vmcs}), and the virtual machine extension meta data (\code{vmx}),
 which are abstracted into corresponding layer objects.
 These objects are again orthogonal to the trap module above and can be
 horizontally composed to export related system calls
@@ -103,7 +99,7 @@ horizontally composed to export related system calls
 with minimal cost.
  
 \begin{figure}[t]\centering
-\includegraphics[scale=0.5]{figs/intel_layer}	
+\includegraphics[scale=0.6]{figs/intel_layer}	
 %\vspace*{-14pt}
 \caption{Layers of virtual machine management}
 \label{fig:base:vm:layers}

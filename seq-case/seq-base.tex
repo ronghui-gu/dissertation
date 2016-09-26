@@ -293,7 +293,7 @@ $[1GB, 4GB]$.
 
 {
 \begin{figure}\centering
-\includegraphics[scale=0.5]{figs/pmm_layer}	
+\includegraphics[scale=0.6]{figs/pmm_layer}	
 \caption{Layers of physical memory management}
 \label{fig:base:pmm:layers}
 \hrulefill
@@ -393,7 +393,7 @@ q = a.\code{cn}(\ttid).\code{quota} \ge 1 \\
 0 \le \mathit{freei} < a.\code{nps}\\ 
 a.\code{AT}(\mathit{freei}).\code{is\_alloc} = \false \\
 \forall 0 \le i < \mathit{freei}, a.\code{AT}(i).\code{is\_alloc} = \true \\
-a' = a \set{\code{AT},\mathit{freei}: (\true, 1,\ttid, \code{freeable})}
+a' = a \set{\code{AT},\mathit{freei}: (\true, 1,\set{\ttid}, \code{freeable})}
 \set{\code{cn}.\code{quota},\ttid: q - 1}
 }{
 \Gamma  \vdash  \spec_{\code{palloc}}([\ttid],m, a, \mathit{freei}, m, a')
@@ -531,7 +531,7 @@ $$
 \label{sec:base:vmm} 
 
 \begin{figure}\centering
-\includegraphics[scale=0.5]{figs/vmm_layer}	
+\includegraphics[scale=0.6]{figs/vmm_layer}	
 \caption{Layers of virtual memory management}
 \label{fig:base:vmm:layers}
 \hrulefill
@@ -647,7 +647,7 @@ and sets the page status to be $\code{hidden}$ (\cf Figure~\ref{fig:seq:pages}).
 \Gamma  \vdash  \spec_{\code{palloc}}([\ttid],m, a, \mathit{freei}, m, a_0)\\
 \mathit{freei} \neq \error \\
 a' = a_0\set{\code{pmp}, \ttid, \mathit{vpi}: (\emptyset, \mathit{freei})}
-\set{\code{AT}, \mathit{freei}: (\true, 1,\ttid, \code{hidden})}
+\set{\code{AT}, \mathit{freei}: (\true, 1,\set{\ttid}, \code{hidden})}
 }{
 \Gamma  \vdash  \spec_{\code{pde\_alloc}}([\ttid\cons \mathit{vpi}],m, a, \mathit{freei}, m, a')
 }
@@ -685,11 +685,11 @@ primitive (\cf Figure~\ref{fig:seq:pages}).
 \inferrule{
 a.\code{pmp}(tid)(\mathit{vpi}) = (\mathit{pde}, i)\\
 \mathit{pde}' = \mathit{pde}\set{\mathit{vpi}: (\mathit{ppi}, p)} \\
-a.\code{AT}(\mathit{ppi}) = (\true, r,\ttid, \code{freeable}) \\
+a.\code{AT}(\mathit{ppi}) = (\true, r,\set{\ttid}, \code{freeable}) \\
 a' = a\set{\code{pmp}, \mathit{vpi}: (\mathit{pde}' , i)}
-\set{\code{AT}, \mathit{ppi}: (\true, r,\ttid, \code{writable})}
+\set{\code{AT}, \mathit{ppi}: (\true, r,\set{\ttid}, \code{writable})}
 }{
-\Gamma  \vdash  \spec_{\code{pt\_insrt}}([\mathit{tid}\cons \mathit{vpi}\cons \mathit{ppi} \cons p],m, a, \cdot, m, a')
+\Gamma  \vdash  \spec_{\code{pt\_insrt}}([\ttid\cons \mathit{vpi}\cons \mathit{ppi} \cons p],m, a, \cdot, m, a')
 }
 \end{mathpar}
 
@@ -730,12 +730,33 @@ It is possible to use CompCertX's function-inlining optimization
 to remove this overhead, which is left as future work (\cf Section~\ref{chap-limits}).
 
 \subsection{The shared memory management} 
+{
+\begin{figure}\centering
+\includegraphics[scale=0.6]{figs/sm_layer}	
+\caption{Layers of shared memory management}
+\label{fig:base:sm:layers}
+\hrulefill
+\end{figure}
+}
 In \mCTOS{}, the shared memory management provides a protocol to share physical
 pages among different user processes. 
-It provides an infrastructure to map a physical page into multiple
-processes' page maps in different address spaces.
-Our ownership mechanism ensures that the page can only be freed once 
-all processes release ownership.
+As shown in
+Figure~\ref{fig:base:sm:layers}, the shared memory management  consists of 2 layers: 1) getter-setter layer \verb"MShareIntro"
+defines the abstract states \verb"sm" storing the status of shared pages among two user processes and the corresponding access methods; 
+2) abs-kernel-fun layer \verb"MShare"
+introduces primitives to initialize the \verb"sm" field
+and set up/clear shared pages (\verb"sm_offer" and \verb"sm_clr").
+
+A physical page contains an ownership field, which is specified by the
+\emph{logical owner set} in the abstract state \verb"AT".
+Thus, when a page is mapped into multiple processes' page maps,
+these processes are added into its logical owner set.  
+For example, a
+user process $k_1$ can share its private physical page $i$ to another
+ process $k_2$ and the logical owner
+set of page $i$ is changed from $\set{k_1}$ to $\set{k_1,k_2}$.
+A shared page can only be
+freed when its owner set is a \emph{singleton}.
 
 \ignore{
 \begin{figure}[ht]\scriptsize
@@ -796,7 +817,7 @@ When paging is enabled (\verb"pe" = \verb"true"),
 
 {
 \begin{figure}\centering
-\includegraphics[scale=0.5]{figs/tm_layer}	
+\includegraphics[scale=0.6]{figs/tm_layer}	
 \caption{Layers of thread management}
 \label{fig:base:tm:layers}
 \hrulefill
@@ -1000,8 +1021,15 @@ primitives on threads.  It still takes some effort to prove the
 refinement relation but it is more manageable as they are both Coq
 functions. 
 
+\begin{figure}[t]
+\lstinputlisting [language = C, multicols=2] {source_code/context_switch.c}
+\caption{Pseudocode of context switch implementation.}
+\label{fig:exp:cswitch}
+\hrulefill
+\end{figure}
+
 One interesting aspect of the thread management component is the 
-context switch function. 
+context switch function, shown in Figure~\ref{fig:exp:cswitch}. 
 This assembly function saves the register set
 of the current thread and restores the register set from 
 the kernel context of another thread.
@@ -1009,6 +1037,15 @@ Since the instruction pointer register (\code{EIP}) and stack pointer register (
 are saved and restored in this procedure,
 we can show that this function reflects the C-level behavior
 and restores the continuation of a thread's execution.
+\begin{mathpar}
+\inferrule{
+a' = a\set{\comm{kctxp}(tid) : \regs[\comm{ra},
+\comm{ebp}, \comm{ebx}, \comm{esi}, \comm{edi}, \comm{esp}]} \\
+\regs' = \regs\leftarrow a.\comm{kctxp}(rtid)  
+}{
+\Gamma\vdash_{\comm{Asm}}  \spec_{\code{kctx\_switch}}([\ttid\cons \mathit{rtid}],\regs, m, a, 0, \regs',  m, a')
+}
+\end{mathpar}%
 Even though this kernel context switch function is verified at 
 assembly level,
 we prove that it will not violate the convention of ClightX execution.
@@ -1038,7 +1075,7 @@ As shown in Fig.~\ref{fig:abs:threadproc} (left), an abstract thread \verb"threa
 
 {
 \begin{figure}\centering
-\includegraphics[scale=0.5]{figs/pm_layer}	
+\includegraphics[scale=0.6]{figs/pm_layer}	
 \caption{Layers of process management \adam{Missing comma}}
 \label{fig:base:pm:layers}
 \hrulefill
@@ -1070,7 +1107,7 @@ a user context, and an IPC channel.
 \label{sec:base:trap}
 
 \begin{figure}[t]\centering
-\includegraphics[scale=0.5]{figs/trap_layer_base}	
+\includegraphics[scale=0.6]{figs/trap_layer_base}	
 \caption{Layers of trap handler}
 \label{fig:base:trap:layers}
 \hrulefill
