@@ -83,7 +83,7 @@ our concurrent abstraction layers.
 }
 
 \paragraph{Verified separate compilation and linking with CompCertX} 
-Replacing  the LAsm target with our per-thread TAsm assembly
+Replacing  the LAsm target with our per-thread TAsm 
 language, we first recall the CompCertX correctness statement
 pictured in Figure~\ref{fig:compcertx}: starting from a memory state $m$
 (provided by the caller of the primitive being implemented), if the
@@ -172,7 +172,7 @@ $\store{m}{\ell}{v} = \some{m'}$ & storing value $v$ to location $\ell$ in  $m$ 
 $\alloc{m}{l}{h}$ & allocating a new block in $m$ with permissions for offsets from $l$ to $h$ \\
 $\nextblock{m}$ & number of memory blocks already allocated in $m$ \\
 $\liftnextblock{m}{n}$ & allocating $n$ empty memory blocks \\
-&(satisfies $\liftnextblock{m}{n+1} = \liftnextblock{\alloc{m}{0}{0}}{n}$ and $\liftnextblock{m}{0} = m$) \\
+&(satisfies $\liftnextblock{m}{n+1} = \liftnextblock{\alloc{m}{0}{0}}{n}$ \\ & \quad and $\liftnextblock{m}{0} = m$) \\
 $\extends{m}{m'}$ & memory extension between $m$ and $m'$ \cite[\S 5.2]{leroy08} \\
 $\inject{j}{m}{m'}$ & memory injection between $m$ and $m'$ \cite[\S 5.4]{leroy08} \\
 \end{tabular}

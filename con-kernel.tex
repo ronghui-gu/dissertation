@@ -24,38 +24,33 @@ thread-safe verified compilation.
 \hrulefill
 \end{figure}
 
-Figure~\ref{fig:sysarch} shows the system architecture of the
-\cCTOS\ kernel. The \cCTOS\ system was initially developed in the
-context of a large DARPA-funded research project.  
-\ronghui{Fix}
-It is a concurrent
-OS kernel that can also double as a hypervisor.  It runs on a military
-land vehicle with a multicore Intel Core i7 machine. On top of the
-\cCTOS\ kernel, we run 6 Ubuntu Linux systems as guests (one each on
-the first six cores). Each virtual machine runs several RADL (The
-Robot Architecture Definition Language) nodes that have fixed hardware
-capabilities such as access to GPS, radar, \etc{}  The kernel also
-contains a few simple device drivers (\eg, interrupt controllers,
-serial and keyboard devices). More complex devices are either
-supported at the user level, or directly passed through (via
-IOMMU) to various guest Linux VMs. By running different RADL nodes in
-different VMs, \cCTOS\ provides strong isolation support so that even
-if attackers take control of one VM, they still cannot break into
-other VMs to compromise the overall mission of the drone.
-%\vilhelm{Maybe cut this paragraph, and drop the ``-like''? The figure does not mention 
-%the VMs, GPS, etc, and the text creates the impression that 
-%we ran the certified version on the vehicle. }
+Figure~\ref{fig:sysarch} shows the system architecture of \cCTOS.  The
+\cCTOS\ system was initially developed in the context of a large
+DARPA-funded research project.  It is a concurrent OS kernel that can
+also double as a hypervisor.  It runs on an Unmanned Ground Vehicle
+(UGV) with a multicore Intel Core i7 machine.  On top of
+\cCTOS, we run three Ubuntu Linux systems as guests (one each
+on the first three cores). Each virtual machine runs several RADL (The
+Robot Architecture Definition Language~\cite{radl15}) nodes that have
+fixed hardware capabilities such as access to GPS, radar, \etc\  
+The kernel also contains a few simple device drivers (\eg, interrupt
+controllers, serial and keyboard devices). More complex devices are
+either supported at the user level, or passed through (via IOMMU) to
+various guest Linux VMs. By running different RADL nodes in different
+VMs, \cCTOS\ provides strong isolation support so that even if
+attackers take control of one VM, they still cannot break into other
+VMs to compromise the overall mission of the UGV.
 
-Within \cCTOS, we have various shared objects such as lock modules
+Within \cCTOS, we have various shared objects such as spinlock modules
 (Ticket, MCS), sleep queues (SleepQ) for implementing queueing locks
-and condition variables, message queues (MsgQ) for waking up a
+and condition variables, messages queues (MsgQ) for waking up a
 thread on another CPU, container-based physical and virtual memory
 management modules (Container, PMM, VMM), a Lib Mem module for
 implementing shared-memory IPC, synchronization modules (FIFOBBQ,
 CV), and an IPC module. Within each core (the purple box), we have
 the per-CPU scheduler, the kernel-thread management module, the process
 management module, and the virtualization module (VM Monitor). Each
-kernel thread has its own TCB, context, and stack.
+kernel thread has its own thread-control block (TCB), context, and stack.
 
 \paragraph{What have we proved?}
 Using the \CTOS{} framework, we have successfully built a fully certified version of
@@ -105,15 +100,15 @@ On top of that, the device drivers running inside the kernel are verified
 (\cf Section~\ref{sec:con:device}).
 Then there are multiple layers used to introduce memory management units (\cf Section~\ref{sec:con:mem}),
 the thread context, atomic queue objects (\cf Section~\ref{sec:con:queue}), and scheduler methods (\cf Section~\ref{sec:con:thread}).
-The \texttt{PThread} layer is the topmost layer built for a particular processor.
+Layer $L_\code{PThread}$ is the topmost layer built for a particular processor.
 There, the scheduler primitives like \texttt{yield} and \texttt{sleep}
 are specified in a small-step manner, similar to how they are implemented
 in C and assembly. Their specifications do not follow the C calling conventions
-and thus cannot be called by C code. Above \texttt{PThread}, we then build up the 
+and thus cannot be called by C code. Above $L_\texttt{PThread}$, we then build up the 
 per-thread layers that support thread-local reasoning for each CPU.
-We first introduce the layer \texttt{PHThread} which defines big-step semantics for
+We first introduce the layer $L_\texttt{PHThread}$ which defines big-step semantics for
 the scheduler primitives that can be invoked from the C level (\cf Section~\ref{sec:con:thread}).
-Finally, above the \texttt{PHThread} layer, we verify the
+Finally, above the $L_\texttt{PHThread}$ layer, we verify the
 IPC and trap handler modules.
 
 The verified kernel source code (both C and assembly) is extracted using 

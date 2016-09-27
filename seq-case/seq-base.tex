@@ -111,8 +111,10 @@ layer providing system calls, those are the pre-initialization module
 (1 layer, Section~\ref{sec:base:preinit},
 Figure~\ref{fig:base:pmm:layers}), physical memory management (3 layers,
 Section~\ref{sec:base:pmm}, Figure~\ref{fig:base:pmm:layers}), virtual
-memory management (7 layers, Section~\ref{sec:base:vmm},
-Figure~\ref{fig:base:vmm:layers}), thread management (10 layers,
+memory management (6 layers, Section~\ref{sec:base:vmm},
+Figure~\ref{fig:base:vmm:layers}), 
+shared memory management (2 layers, Section~\ref{sec:base:sm},
+Figure~\ref{fig:base:sm:layers}),thread management (10 layers,
 Section~\ref{sec:base:tm}, Figure~\ref{fig:base:tm:layers}), process
 management (4 layers, Section~\ref{sec:base:pm},
 Figure~\ref{fig:base:pm:layers}), and the trap handler (3 layers,
@@ -141,7 +143,7 @@ outgoing arrows correspond to the \emph{getter-setter} pattern.
 \subsection{Pre-initialization}
 \label{sec:base:preinit}
 The pre-initialization module only contains the bottom-most layer
-\code{PreInit}, which is shown at the bottom of Figure~\ref{fig:base:pmm:layers} outside the red dashed box. It is used to model the x86 hardware and axiomatizes the
+$L_\code{PreInit}$, which is shown at the bottom of Figure~\ref{fig:base:pmm:layers} outside the red dashed box. It is used to model the x86 hardware and axiomatizes the
 hardware behaviors that are necessary to obtain end-to-end behaviors
 across the kernel and the user space. These behaviors include page
 table walk upon memory load when paging is turned on, 
@@ -162,7 +164,7 @@ getter-setter functions for control registers and \code{MM}.
 
 \paragraph{Kernel mode} The logical flag \code{ikern} indicates
 whether the processor is currently in kernel or user mode.
-The \code{kernel\_mode} predicate of \code{PreInit}
+The \code{kernel\_mode} predicate of $L_\code{PreInit}$
 is defined as $``\code{ikern} =\code{true}"$.
 Actually, all the sequential layers for \mCTOS{} use the same
  \code{kernel\_mode} predicate
@@ -201,27 +203,27 @@ and \code{OEIP}
 are used to model the behavior
 of the processor's memory management unit (MMU),
 which is specified by the \emph{memory accessors}
-of \code{PreInit}.
+of $L_\code{PreInit}$.
 The rules for the load accessor are shown below
 (the store accessor ones are similar).
 
 \begin{mathpar}
 \inferrule{ 
 a.\code{CR0} = \code{false}
-}{ \Gamma \vdash\code{PreInit}.\mat.load(v; \rho, m, a)  = (m(v); \rho, m, a)}
+}{ \Gamma \vdash L_\code{PreInit}.\mat.load(v; \rho, m, a)  = (m(v); \rho, m, a)}
 \and
 \inferrule{ 
 a.\code{CR0} = \code{true}
 \\
 \code{addr\_trans}(a,v) = \some{v'}
-}{ \Gamma \vdash\code{PreInit}.\mat.load(v; \rho, m, a)  = (m(v'); \rho, m, a)}
+}{ \Gamma \vdash L_\code{PreInit}.\mat.load(v; \rho, m, a)  = (m(v'); \rho, m, a)}
 \and
 \inferrule{ a.\code{CR0} = \code{true}
 \\
 \code{addr\_trans}(a,v) = \None\\
 a' = a \set{\code{CR2}: v}\set{\code{OEIP}: \rho(\code{EIP})}\\
 \rho' = \rho\set{\code{EIP}: (\Gamma(\code{PF\_handler}),0)}
-}{ \Gamma \vdash\code{PreInit}.\mat.load(v; \rho, m, a)  = (\cdot; \rho', m, a')}
+}{ \Gamma \vdash L_\code{PreInit}.\mat.load(v; \rho, m, a)  = (\cdot; \rho', m, a')}
 \end{mathpar}
 When paging is enabled (as indicated by \code{CR0}),
 memory accesses (\ie, load and store) made by both the kernel and the user programs
@@ -240,7 +242,7 @@ kernel code with CompCertX,
 we have to show that, in the kernel mode,
 the memory accessors are equal to the CompCert accessors
 (\cf Section~\ref{sec:seq:comp:concrete}).
-It is stated as a layer invariant of \code{PreInit}.
+It is stated as a layer invariant of $L_\code{PreInit}$.
 \begin{invariant}[Valid memory accessors]
 If $a.\code{CR0} = \code{true}$
 and $a.\code{ikern} = \code{true}$,
@@ -248,7 +250,7 @@ we have $\code{addr\_trans}(a,v) = \some{v}$,
  meaning that the address translation is identity.
 \end{invariant}
 
-To prove this invariant holds for \code{PreInit},
+To prove this invariant holds for $L_\code{PreInit}$,
 we have to add pre-conditions
 to the primitives that change $\code{CR0}$ and $\code{CR3}$
 registers:
@@ -320,14 +322,14 @@ indicating the physical page information),
 and \code{cn} (the page usage of each thread).  
 
 \paragraph{Layer hierarchy}
-Layer $\code{MATIntro}$
+Layer $L_\code{MATIntro}$
 introduces the getter-setter methods
 for these newly introduced abstract states.
 These states are initialized by \code{meminit} using the information
 stored in \code{MM}, provided by the layer
-$\code{MATInit}$. 
+$L_\code{MATInit}$. 
 Besides this initialization primitive,
-the topmost layer $\code{MAT}$ in this module
+the topmost layer $L_\code{MAT}$ in this module
 also exports two more primitives
 \code{palloc} and \code{pfree},
 which allocate and free physical pages,
@@ -549,15 +551,16 @@ provides consecutive virtual address spaces.
 \paragraph{Layer hierarchy}
 As shown in
 Figure~\ref{fig:base:vmm:layers}, the virtual memory management of
-\mCTOSbase{} consists of 6 layers: 1) getter-setter layer \verb"MPTIntro"
+\mCTOSbase{} consists of 6 layers: 1) getter-setter layer 
+$L_\code{MPTIntro}$
 defines two new abstract states, the page map pool \verb"pmp" (which
 consists of 73 page tables) and the page map index \verb"pmi" (which
 points to the current page table); 
-2) abs-kernel-fun layer \verb"MPTOp"
+2) abs-kernel-fun layer $L_\code{MPTOp}$
 introduces primitives to access page maps including \verb"pt_insrt" and \verb"pt_read"; 3) the following three abs-kernel-fun layers
-\verb"MPTComm", \verb"MPTKern", and \verb"MPTInit" build the
+$L_\code{MPTComm}$, $L_\code{MPTKern}$, and $L_\code{MPTInit}$ build the
 initialization primitive \verb"PTInit" to initialize the page map pool;
-and 4) abs-kernel-fun layer \verb"MPMap" 
+and 4) abs-kernel-fun layer $L_\code{MPMap}$ 
 provides wrapper primitives
 for a user process to allocate a page and insert to its page map.
 
@@ -572,7 +575,7 @@ for a user process to allocate a page and insert to its page map.
 \hrulefill
 \end{figure}
 
-Starting from the \verb"MPTIntro" layer, we 
+Starting from the $L_\code{MPTIntro}$ layer, we 
 introduce new memory accessors
 using page maps.
 As shown in Figure~\ref{fig:seq:mem2},
@@ -613,9 +616,9 @@ then checks the permission,
 and finally translates the physical address
 to the virtual address.
 The default page size $\code{PgSize}$ is 4KB.
-Thus, the memory accessors of \code{MPTIntro} is defined
+Thus, the memory accessors of $L_\code{MPTIntro}$ is defined
 using $\code{pm\_addr\_trans}$, instead of
-$\code{addr\_trans}$ used in \code{PreInit}.
+$\code{addr\_trans}$ used in $L_\code{PreInit}$.
  The contextual refinement relation
 between these two kinds of memory accessors guarantees that the
 value in the \verb"CR3" register is always a valid starting address of
@@ -729,7 +732,8 @@ This is one of the rare cases where performance overhead is introduced
 It is possible to use CompCertX's function-inlining optimization
 to remove this overhead, which is left as future work (\cf Section~\ref{chap-limits}).
 
-\subsection{The shared memory management} 
+\subsection{Shared memory management} 
+\label{sec:base:sm}
 {
 \begin{figure}\centering
 \includegraphics[scale=0.6]{figs/sm_layer}	
@@ -741,9 +745,9 @@ to remove this overhead, which is left as future work (\cf Section~\ref{chap-lim
 In \mCTOS{}, the shared memory management provides a protocol to share physical
 pages among different user processes. 
 As shown in
-Figure~\ref{fig:base:sm:layers}, the shared memory management  consists of 2 layers: 1) getter-setter layer \verb"MShareIntro"
+Figure~\ref{fig:base:sm:layers}, the shared memory management  consists of 2 layers: 1) getter-setter layer $L_\code{MShareIntro}$
 defines the abstract states \verb"sm" storing the status of shared pages among two user processes and the corresponding access methods; 
-2) abs-kernel-fun layer \verb"MShare"
+2) abs-kernel-fun layer $L_\code{MShare}$
 introduces primitives to initialize the \verb"sm" field
 and set up/clear shared pages (\verb"sm_offer" and \verb"sm_clr").
 
@@ -855,12 +859,12 @@ $$
 
 
 The thread management module consists of 10 layers and is
-shown in Figure~\ref{fig:base:tm:layers}.  The layers \verb"PKCtx",
-\verb"PTCBIntro", and \verb"PTDQIntro" are getter-setter layers
+shown in Figure~\ref{fig:base:tm:layers}.  The layers $L_\code{PKCtx}$,
+$L_\code{PTCBIntro}$, and $L_\code{PTDQIntro}$ are getter-setter layers
 defining the kernel context pool \verb"kctxp", the intermediate
 abstract thread control block (TCB) pool \verb"itcbp", and the
 intermediate thread queue pool \verb"itdqp", respectively, while
-\verb"PKCtxOp", \verb"PTCBInit", and \verb"PTDQInit" are
+$L_\code{PKCtxOp}$, $L_\code{PTCBInit}$, and $L_\code{PTDQInit}$ are
 abs-kernel-fun layers introducing operations over these abstract
 states. The top four layers then finalize the abstraction into the
 thread pool \verb"threadp", the ready queue \verb"rdq", and the
@@ -1015,7 +1019,7 @@ nodes as numbers in \verb"itcb", we are able to mimic the C code
 closely, resulting in a much simpler proof.
 
 Based on these intermediate layers, we then introduce the
-\verb"PAbQueue" layer, which contains the TCB and dequeue specifications in
+$L_\code{PAbQueue}$ layer, which contains the TCB and dequeue specifications in
 Figure~\ref{fig:queue2}. This layer is then used to define
 primitives on threads.  It still takes some effort to prove the
 refinement relation but it is more manageable as they are both Coq
@@ -1041,14 +1045,16 @@ and restores the continuation of a thread's execution.
 \inferrule{
 a' = a\set{\comm{kctxp}(tid) : \regs[\comm{ra},
 \comm{ebp}, \comm{ebx}, \comm{esi}, \comm{edi}, \comm{esp}]} \\
-\regs' = \regs\leftarrow a.\comm{kctxp}(rtid)  
+\regs_0 = \regs\leftarrow a.\comm{kctxp}(rtid)  \\
+\regs' = \regs_0\set{\comm{eax} : 0}
 }{
-\Gamma\vdash_{\comm{Asm}}  \spec_{\code{kctx\_switch}}([\ttid\cons \mathit{rtid}],\regs, m, a, 0, \regs',  m, a')
+\Gamma\vdash_{\comm{Asm}}  \spec_{\code{kctx\_switch}}([\ttid\cons \mathit{rtid}],\regs, m, a, \regs',  m, a')
 }
 \end{mathpar}%
 Even though this kernel context switch function is verified at 
 assembly level,
-we prove that it will not violate the convention of ClightX execution.
+we prove that it will not violate the convention of
+ClightX execution.
 This enables us to link it with other code that is verified at C-level
 and compiled by CompCertX. 
 
@@ -1083,11 +1089,11 @@ As shown in Fig.~\ref{fig:abs:threadproc} (left), an abstract thread \verb"threa
 }
  
 Figure~\ref{fig:base:pm:layers} shows the 4 layers of the process
-management module.  The layers \verb"PIPCIntro", and
-\verb"PIPC" are the getter-setter layer and abs-kernel-fun layer for
+management module.  The layers $L_\code{PIPCIntro}$, and
+$L_\code{PIPC}$ are the getter-setter layer and abs-kernel-fun layer for
 inter-process communication (IPC) channel pool \verb"chanp".  The
-layer \verb"PUCtx" is the getter-setter layer for user context pool
-\verb"uctxp", while the layer \verb"PProc" introduces
+layer $L_\code{PUCtx}$ is the getter-setter layer for user context pool
+\verb"uctxp", while the layer $L_\code{PProc}$ introduces
 the abstract process pool \verb"procp" and primitives to manage
 processes.
 
@@ -1127,10 +1133,10 @@ The trap module specifies the behaviors of exception handlers and
 The trap handler module of \mCTOSbase{} consists of 3 abs-kernel-fun
 layers, shown in Figure~\ref{fig:base:trap:layers}.  It specifies the
 trap handler module in the standard operating system.  The
-\verb"TTrapArg" layer introduces primitives to manage the system call
-arguments and return values, while the \verb"TTrap" layer implements
+$L_\code{TTrapArg}$ layer introduces primitives to manage the system call
+arguments and return values, while the $L_\code{TTrap}$ layer implements
 the necessary handlers for system calls and exceptions.  Finally, the
-\verb"TSysCall" layer specifies the semantics of system calls from the
+$L_\code{TSysCall}$ layer specifies the semantics of system calls from the
 user point of view, following the x86 system call convention.
 
 To further simplify the reasoning about user code, we have implemented and
@@ -1160,7 +1166,7 @@ implementation of the page fault handler involves 18 primitives across
 12 layers.  On the other hand, the verification of the handler is
 fairly simple as it is specified using abstract specifications of the
 functions it directly calls on a layer with a very high level of
-abstraction (\verb"TTrap").
+abstraction ($L_\code{TTrap}$).
 Therefore, the behavior of the page fault handler is interpreted by
 the concrete first-class code pointer until all the dependent layer
 objects are introduced.  Then the handler code is verified and

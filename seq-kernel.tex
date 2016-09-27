@@ -84,11 +84,11 @@ whose hardware behaviors were not modeled in \mCTOSbase{},
 such as the host/guest mode and the instructions to transfer between
 host and guest mode.
 These hardware specific  features needed
-for the virtualization support are added at the bottom layer \code{PreInit}.
+for the virtualization support are added at the bottom layer $L_\code{PreInit}$.
 Since these features are orthogonal to memory and process management,
 they can be horizontally composed with the layers 
-below \code{PProc} in \mCTOSbase{}.
-On top of this extended \code{PProc} layer,
+below $L_\code{PProc}$ in \mCTOSbase{}.
+On top of this extended $L_\code{PProc}$ layer,
 the virtual machine management extends the \emph{abstract memory model}
 with the notions of Extended Page Table (\code{ept}), the virtual machine
 control structure (\code{vmcs}), and the virtual machine extension meta data (\code{vmx}),
