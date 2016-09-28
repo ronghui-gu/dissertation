@@ -133,14 +133,57 @@ be used to build concurrent layers involving a stack of atomic objects.
 % datatype, not the actual representation type.
 %
 \paragraph{OS kernel verification} There has been a large body
-of recent work on OS kernel verification including
-seL4~\cite{klein2009sel4,klein14}, Verve~\cite{hawblitzel10},
-and Ironclad~\cite{ironclad14}. None of these works have addressed  concurrency with fine-grained locking. Very recently,
-\citet{xu16} developed a new verification framework based on RGSim
-and Feng~{et~al.}'s program logic~\cite{feng08:aim} for reasoning
-about interrupts; they have successfully verified many key modules
-(in C) in the $\mu$C/OS-II kernel, though so far, they have not proved
-any progress properties.
+of recent work on OS kernel verification.
+The seL4 team~\cite{klein2009sel4,klein14} was the first to verify the
+functional correctness and security properties of a high-performance
+L4-family microkernel. The seL4 microkernel, however, does not support
+multicore concurrency with fine-grained locking.  \citet{peters15}
+and \citet{vontessin13} argued that for an seL4-like microkernel,
+concurrent data accesses across multiple CPUs can be reduced to a
+minimum, so a single {\em big kernel lock (BKL)} might be good enough
+for achieving good performance on multicore machines.
+\citet{vontessin13} further showed how to convert the single-core seL4
+proofs into proofs for a BKL-based clustered multikernel.
+
+\ignore{
+One high-level difference between seL4 and \CTOS\ is that the seL4
+team~\cite{klein14} focused on verifying a particular microkernel. The
+designers of the L4-family kernels~\cite{liedtke95,heiser13} advocated
+the {\em minimality principle}: a concept is tolerated inside the
+microkernel only if moving it outside the kernel would prevent the
+implementation of the system's required functionality.  This is a
+reasonable principle but its interpretation of the ``kernel-user''
+boundary (as the hardware-enforced ``red-line'') is quite narrow.  Our
+new \CTOS\ architecture advocates replacing the traditional ``red
+line'' with a large number of certified abstraction layers enforced by
+formal specification and proofs; hardware mechanism (such as address
+protection) is just one (quick) way of ensuring that a specific
+process will not violate the invariants required by a particular
+kernel abstraction layer.
+}
+
+The Verisoft team~\cite{verisoft07,leinenbach09,alkassar10} applied
+the VCC framework~\cite{vcc09} to formally verify Hyper-V, which is a
+widely deployed multiprocessor hypervisor by Microsoft consisting of
+100 kLOC of concurrent C code and 5 kLOC of assembly. However, only
+20\% of the code is verified~\cite{vcc09}; it is also only verified
+for function contracts and type invariants, not the full functional
+correctness property.  There is also a large body of other
+work~\cite{bevier89,hawblitzel10,ironclad14,fscq15,ironfleet15,verdi15,cogent16}
+showing how to build verified OS kernels, file systems, device
+drivers, and distributed systems, but these do not address the issues
+on concurrency.
+
+\citet{xu16} developed a new verification framework by combining
+rely-guarantee-based simulation~\cite{RGSim} with Feng~{et~al.}'s
+program logic~\cite{feng08:aim} for reasoning about interrupts. They
+have successfully verified key modules in the $\mu$C/OS-II
+kernel~\cite{ucosii}. Their work supports preemption but only on a
+single-core machine. They have not verified any assembly code nor
+connected their verified C-like source programs to any certified
+compiler so there is no end-to-end theorem about the entire
+kernel. They have not proved any progress properties so even their
+verified kernel modules or interrupt handlers could still diverge.
 
 \ignore{
 \paragraph{OS kernel verification} The seL4

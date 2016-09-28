@@ -158,9 +158,9 @@ an initialization flag \code{init},
 a physical memory map \code{MM},
 and control registers.
 Its primitives consist of
-a function modeling the transition between user and kernel mode,
+a function modeling the transition between user and kernel mode
 and 
-getter-setter functions for control registers and \code{MM}.
+getter-setter functions for control registers, as well as the memory map \code{MM}.
 
 \paragraph{Kernel mode} The logical flag \code{ikern} indicates
 whether the processor is currently in kernel or user mode.
@@ -187,7 +187,7 @@ are verified at the assembly level.
 $\code{preinit}$
 at this bottom-most layer models the bootloader,
 which initializes \code{MM} and necessary drivers
-(\eg, timer, keyboard, serial, {\it etc.}),
+(\eg, timer, keyboard, serial, {\etc}),
 loads the kernel into the memory,
 and sets the initialization flag $\code{init}$ to be \code{true}.
 The state component \code{MM} is the abstraction of the
@@ -282,7 +282,7 @@ $[1GB, 4GB]$.
 
 \begin{figure*}[t]\centering
 \includegraphics[scale=.55]{figs/mem_model_1} 
-\caption{Address translation at \code{PreInit} layer}
+\caption{Address translation at $L_\code{PreInit}$ layer}
 \label{fig:seq:mem1}
 \hrulefill
 \end{figure*}
@@ -570,7 +570,7 @@ for a user process to allocate a page and insert to its page map.
 
 \begin{figure}[t]\centering
 \includegraphics[scale=.55]{figs/mem_model_2} 
-\caption{Address translation at \code{MPTInit} layer}
+\caption{Address translation at $L_\code{MPTInit}$ layer}
 \label{fig:seq:mem2}
 \hrulefill
 \end{figure}
@@ -1084,7 +1084,6 @@ As shown in Fig.~\ref{fig:abs:threadproc} (left), an abstract thread \verb"threa
 \includegraphics[scale=0.6]{figs/pm_layer}	
 \caption{Layers of process management \adam{Missing comma}}
 \label{fig:base:pm:layers}
-\hrulefill
 \end{figure}
 }
  

@@ -879,7 +879,7 @@ This implicit order of lock acquisitions prevents \emph{deadlocks} in the
 
 \begin{figure}[t]
 \lstinputlisting [language = C, multicols=2] {source_code/palloc.c}
-\caption{Pseudocode of \texttt{palloc}}
+\caption{Pseudocode of the concurrent \texttt{palloc}}
 \label{fig:exp:palloc}
 \hrulefill
 \end{figure}
@@ -1164,7 +1164,7 @@ and that $f_{l2}(s_2.l) = s_3.l$ always holds.
 
 \begin{figure}[t]
 \lstinputlisting [language = C, multicols=2] {source_code/dequeue.c}
-\caption{Pseudocode of dequeue implementation.}
+\caption{Pseudocode of the shared dequeue implementation.}
 \label{fig:exp:dequeue}
 \hrulefill
 \end{figure}
@@ -1326,7 +1326,7 @@ To verify these low level scheduler functions, we introduce an
 assembly-style concurrent layer interface $L_\pthread$.
 \begin{figure}[t]
 \lstinputlisting [language = C, multicols=2] {source_code/scheduling.c}
-\caption{Pseudocode of scheduling implementation.}
+\caption{Pseudocode of the concurrent scheduling implementation.}
 \label{fig:exp:sched}
 \hrulefill
 \end{figure}

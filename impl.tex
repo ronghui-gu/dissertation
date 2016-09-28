@@ -76,7 +76,7 @@ refinement proof when we introduced the Intel \emph{virtual machine
 memory model}, where we proved the refinement between the concrete
 four level extended page table structure in memory and the abstract
 mapping from the guest addresses to the host addresses.
-In contrast, for the layer {\code{MATOp}},
+In contrast, for the layer {$L_\code{MATOp}$},
 which initializes physical memory allocation,
 most of the time was spent on verifying
 the non-trivial nested loops present in the C code,
@@ -104,88 +104,10 @@ which cost 0.5 pm each.
 
 
 \paragraph*{Deployment}
-An extended version of \mCTOShyper{} was deployed in context of a large
+An extended version of \cCTOS{} was deployed in context of a large
 DARPA-funded research project. It runs on a military land vehicle
 using the same hardware configuration we used in the experiments. On
 top of the extended version run 6 Ubuntu Linux systems as guests. Each virtual
 machine runs several RADL (The Robot Architecture Definition Language)
 nodes that have fixed hardware capabilities such as access to GPS,
 radar, \etc\\
-
-\ignore{
-This section describes our Coq implementation and provides some
-actual evaluation of our various efforts. The main point of this
-section to show that everything we have talked about so far are
-actually real.
-
-List of potential topics/discussions.
-\begin{itemize}
-\item Challenges met in the Coq implementation.
-\item Particular interesting issues or challenges we met during the proof.
-\item Any interesting topics we want to talk about in the proof.
-\item How the new language constructs eased the task of verification/automation.
-\item How we handle invariants. And how separating the invariants from the data helped the automation.
-\item Bugs found?
-\item Any implementation specific topics?
-\item We we designed the layers.
-\item Kernel specific challenges and/or interesting topics.
-\item Modularity and scalability of our layered approach. How easy it was to extend the kernel with various new constructs?
-\item Decide what to submit and acknowledge the work in progress and possible improvements.
-\item \emph{anybody want to add more potential items here?}
-\end{itemize}
-}
-
-\ignore{
-\paragraph{Limitations and perspective}
-We also try to enumerate all the important limitations of our current
-effort. We want to address all possible questions typical readers of
-our paper might have and explain why these issues can and will be
-addressed in the future. 
-}
-
-
-\ignore{
-\begin{figure}\small
-\begin{center}
-\begin{tabular}{|c|c|}
-%\hline
-%\multicolumn{2}{|l|}{Development of ClightX and CompCertX} & 10 pm \\
-\hline
-Physical memory module (3 layers) &  2 pm \\
-\hline
-Virtual memory module (7 layers) & 2.5 pm \\
-\hline
-Thread management (10 layers) & 3.5 pm \\
-\hline
-Process management (4 layers) & 1 pm \\
-\hline
-Trap handler module (3 layers) & 0.5 pm \\
-\hline
-\hline
-Virtualization (9 layers) for \mCTOShyper{} & 1.5 pm \\
-\hline
-Changes for \mCTOSringz{}  & 0.5 pm \\
-\hline
-Changes for \mCTOSembed{}  & 0.5 pm\\
-\hline
-Linking and code extraction & 2 pm \\
-\hline
-\end{tabular}
-\end{center}
-\caption{Effort on verification}
-\label{fig:effort}
-\end{figure}
-}
-
-\ignore{
-As shown in Fig.~\ref{fig:effort}, we completed the entire
-verification effort of \mCTOS{} in less than 12 person months (pm).  At the
-beginning, it took more than 2pm to design and verify the three layers
-of physical memory management.  After the proof libraries (e.g. VCGen,
-layer design pattern, tactics libraries \textit{etc}.) have been
-developed, the average time of designing and verifying one layer was
-dramatically reduced. On the verification side, one line of C code can
-be proved within 30 lines of Coq code, while one line of assembly
-requires only 20 lines of proof.
-}
-

@@ -15,34 +15,41 @@
 %\end{itemize}
 %}
 
+
 \paragraph{Trusted computing base (TCB)}
-Currently, there is still some gap between the bottommost layer of our
-verified kernel, {\it PreInit}, and the real x86 hardware.
-In the {\it PreInit} layer, some of the hardware virtualization
-instructions such as {\it vmrun}, {\it vmload}, {\it vmsave}
-are not modeled. 
-What's more,
-for the concurrent framework,
-the multicore hardware machine model $\mach{x86mc}$
-is also part of the TCB.
-It assumes sequential consistency
-and leaves the consideration of relaxed memory model
-to the future work.
-\adam{Is it still correct for relaxed memory model?}
+Currently, there is still some gap between the machine model we rely on and he real x86 hardware.
+In the sequential setting,
+the bottommost layer of our
+verified kernel, {$L_\code{PreInit}$}, does not model
+some  hardware features (\eg, TLB) and virtualization
+instructions (\eg, \code{vmrun}, \code{vmload}, \code{vmsave}). 
+These hardware features can be gradually introduced into our framework in the future. Thanks to the horizontal composition,
+these features and newly introduced primitives can be lifted to the related layers with minimal changes to the rest.
 
-\ignore{It also lacks the model for interrupt related hardware
-instruction like {\it cli}, and {\it sti}. }
-
+In the concurrent settting,
+our assembly machine $\mach{x86mc}$ assumes strong sequential consistency for all
+atomic instructions. Nevertheless, our proof remains valid for the x86
+TSO model. All our concurrent layers guarantee that non-atomic memory
+accesses are properly synchronized.  The TSO order guarantees that all
+atomic synchronization operations are properly ordered (and there is
+no need to insert any explicit fences).  \citet{vontessin13} shows how
+to turn proofs over sequential-consistent machines into those over
+the TSO machines.
 
 Outside our verified kernels
-(\mCTOShyper{} consists of about 6000 lines of C and assembly), there
+(\cCTOS{} consists of about 6000 lines of C and assembly), there
 are 300 lines of C and 170 lines of x86 assembly code that are not
 verified yet: the ELF loader used by user
 process creation
 and the preinit procedure, which initializes the drivers, \eg,
-disk, console, {\it etc}.
-The verification of these modules is
-left for future work. \ignore{Device drivers are not verified
+disk, console, {\etc}
+Although these primitives touches lots of low-level details,
+they can be decomposed into multiple phases and verified by building 
+a stack of layers below $L_\code{PreInit}$.
+The verification of these modules 
+is left for future work. 
+
+\ignore{Device drivers are not verified
 because our current machine semantics lacks device models for
 expressing the corresponding semantics.}
 
@@ -68,11 +75,14 @@ proof checker and its code extraction mechanism.
 %% assembly. They could be verified in assembly, which we leave for future work.
 
 \paragraph{Expressivity of context code} 
-Our assembly-level machines do not cover the full x86 instruction set
-and many other hardware features. This means that our correctness results 
-only apply to programs in this subset. However, additional instructions 
-and features can be easily added if they have simple or no interaction
-with our kernel. 
+Our assembly machine only covers a small part of the full x86
+instruction set and hardware features, so our contextual correctness results only apply to
+programs in this subset. Additional instructions 
+can be easily added if they have simple or no interaction with our
+kernel.  \citet[Section 6]{costanzo16} shows how the fidelity of the
+CompCert-style x86 machine model would impact the formal correctness
+or security claims, and how such gap can be closed.
+
 
 \ignore{
 \paragraph{Concurrency}
@@ -113,18 +123,28 @@ more appealing and extensible.}
 we do not allow preemptive interrupts inside the kernel. The
 challenges in handling preemption are similar to those
 for concurrency. 
-We believe that
-we can model different devices
+We plan to model different devices
 as virtual CPUs
 and utilize the hardware scheduler
 to capture the
 preemptive interrupts between devices and the kernel.
 
+\paragraph{Storage system}
+All our kernels currently lack a certified storage system.
+%and a certified network stack.
+%The Linux community~\cite{lkmap} sorted these
+%into different stacks of abstraction layers (based on their underlying
+%hardware devices).\vilhelm{it's not clear to me what point this sentence makes.}
+We plan to incorporate recent advances in building
+certified file systems~\cite{fscq15,cogent16} into \mCTOS{} and \cCTOS\ in the near future.
 
 \paragraph{Linking across layers before compiling}
-
-Instead of compiling each module within its own layer interface, our layer
-calculus also provides ways to first link code at the C level across
+In our current framework, all the modules are compiled
+ within their own layer interfaces and linked together at the assembly level. Thus, we cannot inline functions across layers and ``getter-setter"
+ layers introduce performance overhead.
+ 
+Actually, our layer
+calculus does provide ways to first link code at the C level across
 layers before compiling. Let $L_3$ be an overlay, $L_1$ be an
 underlay, and $L_2$ be an intermediate layer interface. Let us assume that we
 split each layer interface $L_i$ into two layer interfaces $L_i^C \oplus

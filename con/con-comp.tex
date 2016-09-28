@@ -187,7 +187,7 @@ maintaining an invariant on the concrete global memory state $m$ of
 the LAsm machine and the per-thread concrete memory state $m_i$ of
 each thread $i$'s TAsm machine. The concrete memory state of a thread
 only contains thread-private memory, in particular its stack. Whenever
-a function is called, a fresh memory block has to be allocated\footnote{We use the CompCert memory model \cite{leroy08}(notations in Fig.~\ref{fig:mem}), where a memory state consists in finitely many blocks within which finitely many memory locations can be accessed in such a way that pointer arithmetic can be performed only within one memory block at a time.} in the
+a function is called, a fresh memory block has to be allocated\footnote{We use the CompCert memory model \cite{leroy08}(notations in Figure~\ref{fig:mem}), where a memory state consists in finitely many blocks within which finitely many memory locations can be accessed in such a way that pointer arithmetic can be performed only within one memory block at a time.} in the
 concrete memory for its stack frame. This means that, at the TAsm
 level, a function called within a thread will allocate its stack frame
 into the thread-private memory state, and conversely, a thread is

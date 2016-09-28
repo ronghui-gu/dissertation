@@ -68,7 +68,7 @@ became possible recently~\cite{lili16}.  Standard Mesa-style condition
 variables~\cite{lampson80} do not guarantee starvation-freedom; this
 can be fixed by using a FIFO queue of condition variables, but the
 solution is not trivial and even the popular, most up-to-date OS
-textbook~\cite[Fig.~5.14]{ospp11} has gotten it
+textbook~\cite[Figure~5.14]{ospp11} has gotten it
 wrong~\cite{anderson16}.
 
 {\em Third, OS kernel verification would not scale if it does not 
@@ -199,8 +199,8 @@ over $L$.
 We develop a general compositional (operational) model for
 $\sem{L}{P}$ based upon ideas from the game semantics
 community~\cite{gsinvite}. Each run of $P$ over $L$ can be viewed as
-playing a game involving members of $D$ (plus a scheduler). Each
-participant $t$ contributes its play by appending an event into the
+playing a game among all the threads (plus a scheduler). Each
+participant/thread $t$ contributes its play by appending an event into the
 global log; its {\em strategy} $\strat{t}$ can be defined as a
 deterministic partial function from the current log $l$ to its next
 move $\strat{t}(l)$ when the control is transferred to $t$
@@ -208,7 +208,9 @@ move $\strat{t}(l)$ when the control is transferred to $t$
 eventual log for executing $P$ over $L$ can then be calculated by
 combining the strategies of all the participants.
 
-A concurrent layer interface $L[A]$ can be viewed as a concurrent machine
+A concurrent layer interface $L[A]$ 
+for a given  thread set $A$
+can be viewed as a concurrent machine
 parameterized over its {\em environment context} $\oracle$, which is a
 strategy for its environment (\ie, the scheduler plus those
 participants not in $A$).  Given an environment context $\oracle$
@@ -268,8 +270,9 @@ We have instantiated the framework on top of two core
   and ClightX abstraction layers are compiled into 
   LAsm layers by a modified CompCert,
   {\bf CompCertX}, a new verified compiler.
-    CompCertX is novel because it can prove a stronger
-  correctness theorem for compiling individual functions in each
+  Different from CompCert whose correctness theorem only applies
+  for the whole program,
+CompCertX supports compiling \emph{individual} functions in each
   layer---such a theorem requires reasoning about {\em memory
     injection}~\cite{leroy08} between the memory states of the source
   and target languages.  To support linking between ClightX and LAsm

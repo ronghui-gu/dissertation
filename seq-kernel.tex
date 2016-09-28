@@ -147,11 +147,11 @@ processes'' that run in the privileged ring 0 mode.
 Ring 0 processes get much
 better system call performance by directly calling kernel
 functions and avoiding ring switch and interrupt processing. 
-%A user process can run in the ring 0 mode
-%only if it is verified for its safety,
-%and stack consumption. 
-%The latter property can be verified using techniques
-%such as the one by Carbonneaux~\cite{veristack}.
+A user process can run in the ring 0 mode
+only if it is verified for its safety,
+and stack consumption. 
+The latter property can be verified using techniques
+such as the one by \citet{veristack}.
 
 To introduce ring 0 processes to \mCTOSbase{},
 we added a single layer on top of the existing process management module:

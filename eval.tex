@@ -4,14 +4,14 @@
 To evaluate
 our CertiKOS framework
 and a series of verified kernels,
-we have analyzed the performance of the \mCTOShyper{} hypervisor kernel and the  \cCTOS{} concurrent kernel
+we have analyzed the performance  the  \cCTOS{} concurrent kernel
 with a thorough experimental benchmark evaluation.
-Furthermore, an extended version of \mCTOShyper{}
+Furthermore, an extended version of \cCTOS{}
 was deployed in a practical system that is used in the context of a
 large DARPA-funded research project. 
 Section~\ref{sec:eval:perform} shows our experiments with benchmarks, which
 confirm the observations made during deployment: the performance
-overhead of \mCTOShyper{} is moderate. 
+overhead of \cCTOS{} is moderate. 
 In Section~\ref{sec:eval:impl},
 we presents the implementation and deployment of
 our verified kernels.
@@ -24,14 +24,14 @@ real-world kernels with acceptable effort.
 \label{sec:eval:perform}
 Although the performance is not the main emphasis of this thesis, we
 have run a number of micro and macro benchmarks to measure the
-overhead of {\mCTOS} and {\cCTOS}
-to compare them to existing systems such
+overhead of {\cCTOS}
+to compare it to existing systems such
 as KVM and seL4. All experiments have been performed on an Intel Core
 i7-2600 S (4 cores / 8 threads) with 8 MB L3 cache, 16 GB memory, and
 a 120 GB Intel 520 SSD. Since the power control code has not been
 verified, we disabled the turbo boost and power management features of
 the hardware during experiments.
-A comparison of the performance of seL4 and \cCTOS{} is not
+\ignore{A comparison of the performance of seL4 and \cCTOS{} is not
 straightforward since the verified \cCTOS{} kernels run on 
 multicore
 x86
@@ -40,146 +40,182 @@ and ARMv7 hardware and only supports single-core. Moreover, the
 verified version of seL4 does not have virtualization support and
 cannot boot Linux. As a result, we do not compare hypervisor
 performance but instead focus on a comparison of the IPC performance
-of {\cCTOS} and an \emph{unverified} x86 version of seL4.
+of {\cCTOS} and an \emph{unverified} x86 version of seL4.}
 
 
-\paragraph{IPC Performance}
-We use seL4's IPC benchmark
-sel4bench-manifest\footnote{https://github.com/smaccm/sel4bench-manifest}
-with processes in different address spaces and with identical
-scheduler priorities, both in \emph{slowpath} and \emph{fastpath}
-configurations. To run this benchmark on {\cCTOS}, we replaced seL4's
-\emph{Call} and \emph{ReplyWait} system calls with \cCTOS's
-synchronous \emph{send} and \emph{receive} calls.  On {\cCTOS}, we
-measure latency of IPC in both settings when the sender and receiver
-are running on the same CPU or across different CPUs.
-Figure~\ref{fig:eval_ipc} contains a compilation of our results. It
-shows the average number of clock cycles needed for the operations for
-message sizes of 0 and 10. The IPC system calls in seL4 and {\cCTOS}
-are quite different, and they are running in different machine
-settings (single- vs. multicore), which makes the precise
-comparison very complicated.  Still, as shown in the figure, IPC
-performance of {\cCTOS} is relatively slower than that of seL4. The
-gap is not fundamental to our verification approach.  Because seL4
-follows the microkernel design philosophy, its IPC performance is
-critical. IPC implementations in seL4 are highly optimized and
-heavily tailored to specific hardware platforms.
-Verification not only
-should not hinder application of similar performance optimizations,
-but instead provide a safety net for more aggressive optimizations, if
-it is required for application scenarios of the kernel we have in
-mind.
+\paragraph{Concurrency overhead} The run-time overhead introduced by concurrency
+in {\cCTOS} mainly comes from \emph{the latency of spinlocks} and \emph{the
+	contention of the shared data}. 
 
-On {\cCTOS}, the performance of inter-core IPC is worse than that of
-intra-core IPC.  The reason is that, after the receiver thread is
-woken up, it is first pushed onto the \emph{pending queue} of the
-corresponding CPU, which gets pushed back to the scheduler's ready
-queue at the subsequent scheduling point. Furthermore, as shown in the
-figure, the performance of the send call is not affected by the buffer
-size. That is because the send system call simply saves the virtual
-address and size of the user buffer into the channel.  The actual
-copying of data is all done by the receive call.  Before copying the
-data, the receive call needs to switch the page map to an identity
-map, copy the data, and switch the page map back before it goes back
-to user. Note that switching page map causes TLB flushes, which
-imposes extra performance overhead to the receive call in addition to
-the overhead of copying the data.
+The {\cCTOS} kernel provides two kinds of spinlocks: ticket lock and MCS lock. They
+have the same interface and thus are interchangeable. In order to measure
+their performance, we put an empty critical section (payload) under the
+protection of a single lock. The latency is measured by taking a sample of 10,000
+consecutive lock acquires and releases (transactions) on each round. The
+throughput is measured by the number of transactions per millisecond.
 
 \begin{figure}\centering
-		\includegraphics[width=14cm]{figs/ipc.pdf}
-		\caption{IPC performance between \cCTOS{} and  seL4 x86.}
-		\label{fig:eval_ipc}
-		\hrulefill
+	\hspace{-.2cm}
+	\includegraphics[width=15cm]{figs/locks.pdf}
+	\hspace{-.2cm}
+	\caption{The comparison between slowdown of ticket lock and MCS lock implementations in \cCTOS{}}
+	\label{fig:locks}
+	\hrulefill
+\end{figure}
+
+Figure~\ref{fig:locks} (a) shows the results of latency measurement. In the
+single core case, both of these locks impose about 100 cycles of overhead (line chart). 
+As the number of cores grows, the latency increases rapidly. However, note
+that all transactions are protected by the same lock. Thus, it is expected that
+the slowdown should be proportional to the number of cores. In order to show the
+slowdown caused by cache contention, we normalized the latency against the
+baseline (single core) multiplied by the number of cores. As can be seen from 
+the bar chart, the slowdown caused only by cache
+contention remains the same for MCS lock, but increases for ticket lock.
+
+Figure~\ref{fig:locks} (b) shows the results of throughput measurement.
+Note that without locking, the baseline throughput is 73,500 transactions per millisecond
+(not shown in the figure), which is
+2.3x and 3.7x of the throughput in the single core case for ticket lock and MCS lock,
+respectively. With addition of another core, the throughput drops dramatically
+due to cache contention, and then it changes slowly when more cores are added.
+The slowdown rate of MCS lock is better than that of ticket lock.
+
+Now that we have compared MCS lock with ticket lock, we will present the
+remaining evaluations in this section using only the ticket lock implementation
+of \cCTOS{}.
+
+To reduce potential contention, all shared data
+structures in {\cCTOS} are carefully designed and pre-allocated with a
+fine-grained lock. For example, the process scheduler on each CPU can
+avoid accessing any shared data while scheduling, assuming no relevant process is sleeping.
+We design a macro-benchmark with server/client pairs to
+evaluate the speedup of the system when more cores are introduced. We measure the
+number of transactions a server makes per millisecond as the throughput. For each
+transaction, the server first performs an IPC receive from channel $i$, 
+executes a payload (certain number of `\texttt{nop}' instructions), and finally
+sends a message to channel $i + 1$. Correspondingly, the client sends an
+IPC message to channel $i$, executes a payload, and then receives the
+server's message through channel $i + 1$.
+
+\begin{figure}\centering
+	\hspace{-.2cm}
+	\includegraphics[width=10cm]{figs/speedup_big_lock.pdf}
+	\hspace{-.2cm}
+	\caption{Speedup of throughput of \cCTOS{} vs. {\cCTOS-bl} in client/server macro-benchmark on payload (0-2,000) of the server}
+	\label{fig:speedup_big_lock}
+	\hrulefill
 \end{figure}
 
 
-\paragraph{Spinlock Performance}
+Figure~\ref{fig:speedup_big_lock} shows this server/client benchmark, comparing {\cCTOS} against a
+big-kernel-lock version of {\cCTOS} ({\cCTOS-bl}). Because removing all the
+fine-grained locks in the extracted code would require changing many proofs, we simply
+insert a lock acquire and release at the top-most layer by hand, without
+removing the fine-grained locks in {\cCTOS}. This does not introduce bias
+because the speedup is normalized against its own baseline (single core throughput)
+for each kernel version separately.
+From the figure, we can see that
+the speedup rate for big-kernel-lock remains near 1.2x, even as the
+number of cores increases. On the other hand, the fine-grained locks of {\cCTOS}
+yield significant speedup as the number of cores increases (roughly
+1.7x and 2.4x higher with 2 and 3 cores, respectively).
+
+\ignore{
 \begin{figure}\centering
-		\includegraphics[width=14cm]{figs/locks.pdf}
-		\caption{Latency and throughput of ticket and MCS lock in \cCTOS{}.}
-		\label{fig:eval_spin}		\hrulefill
+	\hspace{-.2cm}
+	\includegraphics[width=6cm]{figs/speedup_pb.pdf}
+	\hspace{-.2cm}
+	\caption{Speedup of the throughput of \cCTOS{} in 2 and 3 cores against various server payloads (0 - 10,000) and IPC message sizes (0 - 20).}
+	\label{fig:speedup_pb}
 \end{figure}
 
-Figure~\ref{fig:eval_spin} shows the latency and throughput of the two
-spinlock implementations in \cCTOS. The latency is measured when an
-empty critical section (payload) is executed under the protection of the
-same lock. We take a sample of 10,000 consecutive lock acquires and
-releases as one round.  The throughput is measured by the
-number of the payload executions per millisecond. Without locking, the
-throughput  is 73,500 times per millisecond.  As shown
-in Figure~\ref{fig:eval_spin}, MCS lock performs much worse than the
-ticket lock on a single-core or a dual-core machine, but its
-performance gets better as the number of cores increases.
+Figure~\ref{fig:speedup_pb} shows the speedup of {\cCTOS} against various
+server payloads and IPC message sizes. Figure~\ref{fig:speedup_pb} (a) shows that
+the throughput decreases along with the increase of the server
+workload (from I/O intensive task with payload being 0 to computation intensive task with
+payload being 10,000) in the line chart. However, the speedup (bar chart) is increasing,
+ranging from 1.7x to 1.9x for 2 cores, and 2.3x to 2.7x for 3 cores. The reason
+is that the execution of the payload does not require the access to any shared
+data, thus the contention becomes less intense. In
+Figure~\ref{fig:speedup_pb} (b), the throughput decreases slightly when the
+IPC message size increases, but the speedup is not affected.
+}
+
+\paragraph{IPC Performance} We measure the latency of IPC send/recv in {\cCTOS}
+against various message sizes, and compare the result with seL4's IPC
+implementation.
+
+A comparison of the performance of seL4 and \cCTOS{} is not straightforward
+since the verified \cCTOS{} kernel runs on a multicore x86 platform while the
+verified seL4 kernel runs on ARMv6 and ARMv7 hardware and only supports single-core.
+Thus, we use an unverified, single-core version of seL4 for comparison.
+Moreover, the synchronized IPC API in seL4 (\texttt{Call/ReplyWait}) has a
+different semantics than \cCTOS{}'s send/recv: it uses a round-trip message passing 
+protocol over a single channel while trapping into the kernel twice, and it does
+not use any standard sleep or wake up procedures. Nevertheless, we
+use $\frac{(send + recv) \times 2}{(Call + ReplyWait)}$ to calculate the IPC
+performance ratio.
+
+We measure seL4's performance using seL4's IPC benchmark
+sel4bench-manifest~\cite{sel4bench} with
+processes in different address spaces and with identical scheduler priorities,
+both in \emph{slowpath} and \emph{fastpath} configurations. To measure \cCTOS{}'s
+performance, we simply replace seL4's
+\emph{Call} and \emph{ReplyWait} system calls with {\cCTOS}'s synchronous
+\emph{send} and \emph{receive} calls.
+We found that, when buffer size is zero, \cCTOS{} takes $3.89\mathtt{x}$ 
+longer than seL4's fastpath IPC,
+and $2.18\mathtt{x}$ longer than seL4's slowpath IPC. When the message size is larger than 2
+words, the fastpath IPC of seL4 falls back to slowpath; in the 10-words IPC
+case, \cCTOS{} takes $2.53\mathtt{x}$ longer. 
+Considering \cCTOS{} requires two more system
+calls than seL4, \cCTOS{}'s IPC  is slightly slower than seL4's.
+Note that seL4 follows the microkernel design philosophy, and thus its IPC performance is
+critical. IPC implementations in seL4 are highly optimized and heavily tailored
+to specific hardware platforms. \ignore{The IPC performance of \cCTOS{} is still
+practical. Verification not only should not hinder application of similar
+performance optimizations, but instead provide a safety net for more aggressive
+optimizations, if it is required for application scenarios of the kernel we have
+in mind.}
 
 
 \paragraph{Hypervisor Performance} 
 \begin{figure}\centering
-		\includegraphics[width=12cm]{figs/hyp_macro.pdf}
-		\caption{Normalized macro benchmarks: Linux on KVM and \mCTOShyper{}; baseline is Linux on bare metal.}
+		\hspace{-.2cm}
+		\includegraphics[width=13cm]{figs/hyp_macro.pdf}
+		\hspace{-.2cm}
+		\caption{Normalized macro benchmarks: Linux on KVM and \cCTOS; baseline is Linux on bare metal}
 		\label{fig:eval_macro}
 		\hrulefill
 \end{figure}
 
-To evaluate \mCTOShyper{} as a hypervisor, we measure the performance of
-some macro benchmarks on Ubuntu 12.04.2 LTS running as a guest.  We ran the
-benchmarks on Linux as guest in KVM and \mCTOShyper{}, as well as on the bare metal.
+To evaluate \cCTOS{} as a hypervisor, we measured the performance of some
+macro benchmarks on Ubuntu 12.04.2 LTS running as a guest.  We ran the
+benchmarks on Linux as guest in both KVM and \cCTOS{}, as well as on the bare
+metal. \ignore{Although there is an unverified branch of seL4 that supports VT-x, the verified
+version does not have virtualization support and cannot boot Linux. As a
+result, we do not compare hypervisor performance but instead focus on a
+comparison of the IPC performance of {\cCTOS} and an \emph{unverified} x86
+version of seL4.}
+
 Figure~\ref{fig:eval_macro} contains a compilation of standard macro
 benchmarks: unpacking of the Linux 4.0-rc4 kernel, compilation of the
 Linux 4.0-rc4 kernel, Apache HTTPerf~\cite{mosberger1998} (running on
 loopback), and DaCaPo Benchmark 9.12~\cite{dacapo2006}.
-
-\ignore{
-To begin with a sanity check, McVoy's LMbench (version 3-alpha1) is used to
-measure the micro-level metrics of operating system and hardware, which includes
-the bandwidths and latency of several file system, local communication systems,
-virtual memory, context switch and, basic arithmetic operations. The results
-show that 34 out of 60 benchmarks of \mCTOShyper{} are very close to the bare
-metal (within the range of 5\%), and the others are listed in the Table . These
-results shows that there is no significant overhead of \mCTOShyper{}.
-}
-
-In Figure~\ref{fig:eval_macro} we normalize the running time of the benchmarks
+We normalize the running time of the benchmarks
 using the bare metal performance as the baseline (100\%). The overhead of
-\mCTOShyper{} is moderate and comparable to KVM. In some cases, \mCTOShyper{}
+\cCTOS{} is moderate and comparable to KVM. In some cases, \cCTOS{}
 performs better than KVM, which is mainly because KVM has a Linux host and thus has a
-larger cache footprint. In other cases, which involve large amounts of file
-operations, such as decompressing Linux source and Tomcat server, \mCTOShyper{}
+larger cache footprint. In other cases involving large amounts of file
+operations, such as decompressing Linux source and Tomcat server, \cCTOS{}
 performs worse. This is due to idiosyncrasies of the VirtIO interface. In
-\mCTOShyper{}, we expose the raw disk interface to the guest via VirtIO; when
-there is a disk I/O request in the \texttt{vring}, \mCTOShyper{} immediately
-pulls it and issues a disk command to handle that request and polls until the
-command finishes. This leads to problems with the guest Linux VirtIO driver, since,
+\cCTOS{}, we expose the raw disk interface to the guest via VirtIO; when
+there is a disk I/O request in the \texttt{vring}, \cCTOS{} immediately
+pulls it and issues a disk command to handle that request, polling until the
+command finishes. This leads to problems with the guest Linux VirtIO driver, since
 when the guest Linux uses VirtIO, it always sends disk I/O requests of length
 4KB.
-
-Figure~\ref{fig:eval_disk} (b) shows the throughput of the SSD used in our
-benchmark against the size of data for each command when writing a large (1GB)
-sequential block. This figure indicates that the disk can only reach the top
-rate (read 270MB/s, write 90MB/s) when the data size for each command is at
-least 8KB for reads and 512KB for writes.
-Thus, disk access becomes a bottleneck.
-The disk dump benchmark in Figure~\ref{fig:eval_disk} (a)
-further demonstrates this issue.
-
-\begin{figure}\centering
-		\includegraphics[width=15cm]{figs/disk.pdf}
-		\caption{Disk performance: (a). \texttt{lmdd} of varying-size files; (b). the SSD throughput used in the benchmarks}
-		\label{fig:eval_disk}
-		\hrulefill
-\end{figure}
-
-
-The VM monitor in \mCTOShyper{} is running as a user
-process in the ring 3 mode. This leads to a smaller kernel
-size and makes it possible to use emulated devices and unverified
-drivers at the user level.  The downside is that each
-VM entry and exit causes an additional ring switch, and VM-related
-information must be copied to the monitor process in order for it to
-process the exit. Therefore, it may have an impact on performance,
-especially for those guest programs that frequently cause VM exits,
-such as web servers, which generate frequent network-related external
-interrupts.  Another approach is to verify the virtual machine monitor
-code and run it inside a kernel module, \eg, in a ring 0 process.
 
 
 
@@ -253,7 +289,7 @@ and the additional features in about 2 person years.
 months to extend mCertiKOS with dynamic memory management, container
 support, shared memory and synchronous IPC, and Intel
 virtualization. The majority of the time (1.5 person years) was spent
-on developing the framework to reason about the concurrent {\mCTOS}
+on developing the framework to reason about the concurrent {\cCTOS}
 kernel.} If we assume we work 250
 days a year, we have written roughly 400 lines of code per
 day\ignore{(50 lines per hour)}.  Thanks to the extensive layering,
