@@ -7,10 +7,10 @@
 \setlength\epigraphrule{0pt}
 \usepackage{caption}
 \usepackage{comment}
-\usepackage{cite}	% sort citation numbers
+\usepackage[numbers,square]{natbib}
 \usepackage[hyphens]{url}
 \usepackage[colorlinks,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
-\usepackage[hyphenbreaks]{breakurl}
+%\usepackage[hyphenbreaks]{breakurl}
 \usepackage{xspace}
 \usepackage{graphicx}
 \usepackage{amssymb}
@@ -31,7 +31,8 @@
 \usepackage{colortbl}
 
 \usepackage{appendix}
-
+\usepackage[all]{xy}
+\usepackage{lmodern}
 
 \long\def\com#1{}
 
@@ -69,7 +70,7 @@
 \usepackage{amsthm}
 \usepackage{paralist}
 \usepackage{enumitem}
-\theoremstyle{newstyle}
+%\theoremstyle{newstyle}
 
 \newtheorem{lemma}{Lemma}
 \numberwithin{lemma}{section}
@@ -93,7 +94,7 @@
 \definecolor{mymauve}{rgb}{0.58,0,0.82}
 \usepackage{xspace}
 \usepackage{tcolorbox}
-\usepackage{xypic} % forward simulation diagram
+%\usepackage{xypic} % forward simulation diagram
 \usepackage{subfig}
 \usepackage{tabularx}
 \usepackage{MnSymbol}
@@ -102,7 +103,6 @@
 \usepackage{cancel}
 \usepackage{bussproofs} %for proof trees
 \usepackage{stmaryrd} %for llbracket
-\usepackage[numbers,square]{natbib}
 \usepackage{placeins}
 \usepackage{afterpage}
 
@@ -148,7 +148,7 @@
 \author{Ronghui Gu}
 \title{An Extensible Architecture for Building
 Certified Sequential and Concurrent OS Kernels}
-\date{August 2016}
+\date{December 2016}
 \advisor{Zhong Shao}
 
 \input{local}  % all the local macros used in the paper

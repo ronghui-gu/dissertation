@@ -271,14 +271,14 @@ $$
 
 \begin{figure}[tb]\centering
 \subfloat[Concrete implementation in C]{
-\label{fig:queue:a}
+\label{fig:queue:c:a}
     \begin{minipage}{0.5\textwidth}
     \centering
 \lstinputlisting [language = C] {source_code/seq-dequeue.c}
     \end{minipage}
 }
 \subfloat[Abstract specification in Coq]
-{\label{fig:queue:b}
+{\label{fig:queue:c:b}
     \begin{minipage}{0.5\textwidth}
     \centering
 \lstinputlisting [language = C] {source_code/seq-dequeue.v}
@@ -338,7 +338,7 @@ linked-list queue it belongs to. The dequeue  function
 takes a pointer to a queue; it returns the head block if the queue
 is not empty, or null if the queue is empty.
 
-In the Coq specification (\cf Figure~\ref{fig:queue:b}), we introduce an abstract state
+In the Coq specification (\cf Figure~\ref{fig:queue:c:b}), we introduce an abstract state
 of type \textsf{abs} where we represent each C array as a Coq finite map
 (\textsf{ZMap.t}) and each pointer as an integer index (\textsf{Z}) to the
 \textsf{tdq} or \textsf{tcb} array. The dequeue primitive 
@@ -417,7 +417,7 @@ even simpler, which makes it easier to reason about its client,
 but it is now harder to prove that the C module
 implements this more abstract specification.  This explains why we
 often introduce less abstract specifications (\eg,
-Figure~\ref{fig:queue:b}) as intermediate steps, so a
+Figure~\ref{fig:queue:c:b}) as intermediate steps, so a
 complex abstraction can be decomposed into several more tractable steps.
 
 
@@ -563,12 +563,12 @@ $L_{q2}$
 for a sequential thread queue (\cf{}Figure~\ref{fig:queue2}) is introduced,
 there is no need to see (or reason about) 
 the concrete queue implementations $M_{q1}$
-(\cf{}Figure~\ref{fig:queue:a})
-and the intermediate interfaces $L_{q1}$ (\cf{}Figure~\ref{fig:queue:b}). 
+(\cf{}Figure~\ref{fig:queue:c:a})
+and the intermediate interfaces $L_{q1}$ (\cf{}Figure~\ref{fig:queue:c:b}). 
 Thus, all the code relying on the thread queue module can be verified
 at a higher abstraction level using these abstract queue primitives,
 which are still {\em realizable} by an efficient assembly implementation
-(\ie, Figure~\ref{fig:queue:a}).
+(\ie, Figure~\ref{fig:queue:c:a}).
 
 
 \ignore{

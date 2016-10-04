@@ -9,8 +9,7 @@ enumerative reasoning.}{\\ \hfill --- Edsger W. Dijkstra}}
 
 
 Operating System (OS) kernels and hypervisors form the backbone of
- safety-critical software system in the world
- \ronghui{Fix me\textsl{•}}.  Hence it is highly
+ safety-critical software system.  Hence it is highly
 desirable to formally verify the correctness of these
 programs~\cite{shao10}.  
 Recent efforts
@@ -22,7 +21,7 @@ it took the seL4 team more than 11 person
 years (effort for tool development excluded) to verify 7500 lines of
 sequential C code, yet the resulting kernel still contains 1200 lines
 of additional C code and 600 lines of assembly code that are not
-verified. Worse still, even after all these efforts, all of these systems have ignored the
+verified. Worse still, even after all these efforts, none of these systems have addressed the
 important issues of concurrency~\cite{kaashoek15,ospp11}, which
 include not just user- and I/O concurrency on a single CPU, but also
 multicore parallelism with fine-grained locking. This severely limits
@@ -43,7 +42,47 @@ down a good and easy-to-maintain formal specification alone is already
 a major roadblock for any such verification effort.
 
 
-{\em Second, concurrency introduces more complexities.}
+
+
+{\em Second, OS kernel verification would not scale if it does not 
+support extensibility.} Given the high cost of building concurrent kernels, it is
+important that they can be quickly adapted to support new applications
+and hardware platforms~\cite{bershad95,engler95,hunt07,unikernel13}. One advantage of a verified
+kernel is the existence of formal specifications for all of its
+components. In theory, this would allow us to add certified
+kernel plug-ins
+~\cite{shao10:ctos} 
+as long as they do not violate any existing kernel invariants. In
+practice, however, if we are unable to decompose kernel invariants
+into small independent pieces, even modifying an existing (or adding a
+new) verified component may force us to rewrite the proofs for the
+entire kernel.
+
+
+{\em Third, OS kernels are often written in C, which only supports
+  limited forms of abstraction,
+  but still lacks the ability to describe hardware details.}
+On one hand, the C language (especially ANSI C) is
+  too low-level to abstract the data representations.
+Verifying C programs is
+especially hard if they manipulate low-level data structures (\eg,
+thread queues, allocation tables). The seL4 effort used an
+intermediate executable specification (derived from a Haskell
+prototype) to hide some messy C specifics, but this alone is not
+enough for enforcing abstraction among different kernel components;
+seL4 had to introduce capabilities, which add significant
+implementation complexities to the kernel.
+On the other hand, the C language is
+too high level to describe the hardware details
+managed and multiplexed by OS kernels.
+For example, while most kernel code
+can be written in C, many key kernel concepts (\eg, context switches,
+address translation, page fault handling) can only be given accurate
+semantics at the assembly level. Consequently, we need a formal
+assembly model to define many kernel behaviors, but we also want to
+verify most kernel code at a much higher abstraction level.
+
+{\em Finally, concurrency introduces more complexities.}
 Several
 researchers~\cite{vontessin13,peters15} believe that the combination
 of concurrency and the kernels' functional complexity makes formal
@@ -71,55 +110,15 @@ solution is not trivial and even the popular, most up-to-date OS
 textbook~\cite[Figure~5.14]{ospp11} has gotten it
 wrong~\cite{anderson16}.
 
-{\em Third, OS kernel verification would not scale if it does not 
-support extensibility.} Given the high cost of building concurrent kernels, it is
-important that they can be quickly adapted to support new applications
-and hardware platforms~\cite{bershad95,engler95,hunt07,unikernel13}. One advantage of a verified
-kernel is the existence of formal specifications for all of its
-components. In theory, this would allow us to add certified
-kernel plug-ins
-~\cite{shao10:ctos} 
-as long as they do not violate any existing kernel invariants. In
-practice, however, if we are unable to decompose kernel invariants
-into small independent pieces, even modifying an existing (or adding a
-new) verified component may force us to rewrite the proofs for the
-entire kernel.
-
-
-{\em Finally, OS kernels are often written in C, which only supports
-  limited forms of abstraction,
-  but still lacks the ability to describe hardware details.}
-On one hand, the C language (especially ANSI C) is
-  too low-level to abstract the data representations.
-Verifying C programs is
-especially hard if they manipulate low-level data structures (\eg,
-thread queues, allocation tables). The seL4 effort used an
-intermediate executable specification (derived from a Haskell
-prototype) to hide some messy C specifics, but this alone is not
-enough for enforcing abstraction among different kernel components;
-seL4 had to introduce capabilities, which add significant
-implementation complexities to the kernel.
-On the other hand, the C language is
-too high level to describe the hardware details
-managed and multiplexed by OS kernels.
-For example, while most kernel code
-can be written in C, many key kernel concepts (\eg, context switches,
-address translation, page fault handling) can only be given accurate
-semantics at the assembly level. Consequently, we need a formal
-assembly model to define many kernel behaviors, but we also want to
-verify most kernel code at a much higher abstraction level.
-
-
-
 This thesis proposes a new compositional approach that
 successfully tackles all of the above challenges in building certified
 OS kernels. We believe that, to make verification scale and to provide
 strong support to extensibility, we must first have a {\em
   compositional} specification that can untangle {\em all} the kernel
-interdependencies. Because the very purpose of an OS kernel is to
+interdependencies in both sequential and concurrent settings. Because the very purpose of an OS kernel is to
 build layers of abstraction over bare machines, we insist on
 meticulously uncovering and specifying these layers (done in the Coq
-proof assistant~\cite{coq}), and then verifying each kernel module at
+proof assistant~\cite{coq}) and then verifying each kernel module at
 its {\em proper} abstraction level.
 These formally specified and verified layers
 are named as {\em certified abstraction layers}.
@@ -144,24 +143,25 @@ layer is like a ``certified compiler,'' capable of converting any {\em
   safe} client program $P$ running on top of $L'$ into one that has the
 same behavior but runs on top of $L$ (\eg, by ``compiling'' abstract
 primitives in $L'$ into their implementation in $M$); if
-$\sem{L}{\cdot}$ denotes the state machine for layer $L$, the
-correctness property (over any context $P$) can be written formally as $\sem{L}{P\oplus{}M} \leq_R \sem{L'}{P}$.
+$\sem{L}{\cdot}$ denotes the machine semantics for layer $L$, the
+simulation property (over any context $P$) can be written formally as $\sem{L}{P\oplus{}M} \leq_R \sem{L'}{P}$.
 
 The power of certified abstraction layers lies in 
-this {\em contextual refinement}
-property,
+this simulation property for any context,
+\ie, {\em contextual refinement},
 which guarantees that the overlay interface captures
 the precise functionality of the underlying implementation as well as
 the assumptions which the implementation might have about its client
 contexts.
 This overlay interface is called as
 a {\em deep specification} 
-to the underlay implementation,
+to the underlay implementation
 and client programs can be understood solely based on this interface, independent of implementation details.
-The contextual refinement proofs for sequential and concurrent
-layer interfaces focus on different aspects
-and can be described as below.
 
+Proving this contextual refinement property
+focuses on different aspects
+ for sequential and concurrent
+layer interfaces, which  can be described as below.
 
 \paragraph{Sequential layer interface}
  contains a  collection of abstract 
@@ -169,7 +169,7 @@ and can be described as below.
 set of atomic methods.
 The internal abstract states of sequential objects
 specify the data representations in the concrete states
-(\eg, memory),
+(\eg, memory)
 and the atomic methods
 specify the layer implementations
 in terms of the abstract states.
@@ -177,19 +177,20 @@ In the sequential setting, the only way that context code $P$ can
  interfere with the 
 layer implementation $M$ is when
 $M$ fails to encapsulate its private state.
-But the contextual refinement relation
-between $M$ and $L$ guarantees that
-any context code $P$ cannot
-modify the internal state of $M$ 
+Thus, the key to prove the 
+ contextual refinement relation
+between $M$ and $L$ is to show that
+the internal state of $M$  cannot be modified
+by  any context code $P$ 
 without $M$'s permission.
 
 \paragraph{Concurrent layer interface}
 contains a collection of
-sequential objects that are thread-private,
+sequential objects that are thread-private
 and abstract {\em atomic} objects that are shared~\cite{Herlihy08book}. Unlike calls to thread-private abstract objects  which are not {\em observable} by other
 threads, each method call to an atomic object is recorded as an 
 observable event in the concurrent machine semantics
-($\sem{L}{\cdot}$), and is appended to the end of a global log $l$---a
+($\sem{L}{\cdot}$) and is appended to the end of a global log $l$---a
 single shared abstract state which we maintain for all the atomic
 objects in $L$. The semantics $\sem{L}{P}$ is defined based
 on the set of shared logs (\ie, {\em{}traces}, possibly of
@@ -201,21 +202,21 @@ $\sem{L}{P}$ based upon ideas from the game semantics
 community~\cite{gsinvite}. Each run of $P$ over $L$ can be viewed as
 playing a game among all the threads (plus a scheduler). Each
 participant/thread $t$ contributes its play by appending an event into the
-global log; its {\em strategy} $\strat{t}$ can be defined as a
+global log. Its {\em strategy} $\strat{t}$ can  be defined as a
 deterministic partial function from the current log $l$ to its next
 move $\strat{t}(l)$ when the control is transferred to $t$
 (defined by the last event in $l$). The
 eventual log for executing $P$ over $L$ can then be calculated by
 combining the strategies of all the participants.
 
-A concurrent layer interface $L[A]$ 
-for a given  thread set $A$
-can be viewed as a concurrent machine
-parameterized over its {\em environment context} $\oracle$, which is a
-strategy for its environment (\ie, the scheduler plus those
-participants not in $A$).  Given an environment context $\oracle$
+For a given  thread set $A$, the concurrent layer interface $L[A]$ 
+can be viewed as a 
+concurrent machine that allows participants/threads in $A$
+to play games against their {\em environment context}.
+The environment context $\oracle$ of $A$ is a strategy for
+ the scheduler plus those participants not in $A$.  Given an environment context $\oracle$,
 which also contains a particular scheduler strategy, the execution of
-$P$ over $L[A]$ should be deterministic; the concurrent machine will
+$P$ over $L[A]$ is deterministic; the concurrent machine will
 run $P$ when control is transferred to any of the participants in $A$, but
 will instead ask the environment context $\oracle$ for the next move when 
 control is transferred to a member of the environment.
@@ -223,12 +224,12 @@ control is transferred to a member of the environment.
 thread-local ``sequential'' machine (albeit parameterized over an
 environment context).  }
 
-Therefore, the \emph{context} in the concurrent
-setting includes not only the client program $P$,
-but also the environment context $\oracle$,
+Therefore, proving the contextual refinement property in the concurrent
+setting has to consider not only the arbitrary client program $P$,
+but also any potential environment context $\oracle$,
 which captures the behaviors
 of the context threads or context CPUs,
-and all potential interferences.
+and all the interferences.
 
 \section{Contributions and Thesis Outline}
 \label{sec:intro:contribution}
@@ -266,10 +267,11 @@ We have instantiated the framework on top of two core
     ClightX}, a variant of the CompCert Clight
   language~\cite{blazy-leroy-clight}; and {\bf LAsm}, an x86 assembly
   language.  Both ClightX and LAsm can be used to program certified
-  abstraction layers,
-  and ClightX abstraction layers are compiled into 
-  LAsm layers by a modified CompCert,
-  {\bf CompCertX}, a new verified compiler.
+  abstraction layers.
+  To compiler
+ ClightX abstraction layers into 
+  LAsm layers, we introduce a modified version of CompCert,
+named as  {\bf CompCertX}.
   Different from CompCert whose correctness theorem only applies
   for the whole program,
 CompCertX supports compiling \emph{individual} functions in each
@@ -384,7 +386,7 @@ In Chapter~\ref{chap-eval},   we present a detailed evaluation of our certified 
   x86 hardware. 
     
  Finally, Chapter~\ref{chap-limits} discusses
- the limitations and future work of \CTOS{},
+ the limitations and future work of \CTOS{} and
 Chapter~\ref{chap-rel}
  studies related work and  then concludes.
 % The full artifact for our entire effort can be accessed at
