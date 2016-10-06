@@ -60,12 +60,10 @@ to guide our work toward realizing this goal:
 %%%%%%%%%
 
 
-Our new \CTOS\ architecture aims to address all of the above concerns
+Our new \CTOS\ architecture aims to address all these concerns
 and also tackle all four challenges described in Chapter~\ref{chap-intro}.
-The \CTOS\ architecture 
-proposes a new language-based account of 
-\emph{certified abstraction layer}
-to construct certified OS kernels with respect to \emph{deep specifications}.
+The key technologies are abstraction layers and deep specifications.
+
 
 A {\em certified abstraction layer} is a language-based account that
 consists of a triple $\layer{L}{M}{L'}$ plus a mechanized proof
@@ -84,11 +82,12 @@ again, and any property about the observable behavior of $M$ can be proved using
 course, if the semantics of the underlying abstract machine (for $M$)
 changes, the deep specification for $M$ may also have to change.
 
+\ignore{
 Abstraction layers and deep specifications
 are our key technologies to address all the challenges 
 for constructing certified OS kernels.
 Thus, the first question to answer in this thesis
-is \emph{why they  work so well for OS kernel verification?}
+is \emph{why they  work so well for OS kernel verification?}}
 
 
 \section{Why Abstraction Layers?}
@@ -482,15 +481,15 @@ step at a time and eliminate most unwanted interaction and dependencies.
 
 \begin{figure}[tb] \centering
 \includegraphics[scale=.5]{figs/mainthm}
-\caption{Certified OS kernels: what to prove?}
+\caption{Certified sequential OS kernels: what to prove?}
 \hrulefill
 %\rule[0in]{\columnwidth}{.15mm}
 \label{fig:mainthm}
 \end{figure}
 
-Under \CTOS, building a new certified kernel (or experimenting with a new
+Under \CTOS, building a new certified sequential kernel (or experimenting with a new
 design) is just a matter of composing a collection of certified
-layers, developed in a variant of C (called ClightX) or assembly.
+sequential layers, developed in a variant of C (called ClightX) or assembly.
 \CTOS{} provides  a powerful Coq library
 for supporting {\em horizontal} and {\em vertical} composition of
 certified layers, as well as a certified compiler (called
@@ -504,16 +503,16 @@ compiled) down to an assembly machine
  that models important hardware details (\eg, virtual memory support).
 
 
-In Figure~\ref{fig:mainthm}\ronghui{$\oplus$}, we use x86 to denote an assembly machine
+In Figure~\ref{fig:mainthm}\ronghui{$\oplus$}, we use x86 to denote an assembly machine in the sequential setting
 and {$\sem{\rm{}x86}{\cdot}$} for its whole-machine semantics.
-Suppose we load such a machine with the \mCTOS\ kernel $K$ (in
+Suppose we load such a machine with the \mCTOS\ sequential kernel $K$ (in
 assembly) and user-level assembly code $P$; then proving any
 global property of such a complete system amounts to reasoning about
 the semantic object {$\sem{\rm{}x86}{K\join P}$}.
 
 Reasoning at such a low level is difficult, so we formalize a new
 \mCTOS\ machine that extends the x86 machine with the deep
-specification of $K$. We use $\sem{\rm\mCTOS}{\cdot}$ to denote its
+specification of $K$ (in terms of system calls). We use $\sem{\rm\mCTOS}{\cdot}$ to denote its
 whole-machine semantics.  The contextual refinement property about the
 \mCTOS\ kernel can be stated as $\forall
 P,\;\sem{\rm{}x86}{K\join{}P}\Refrel{}\sem{\rm\mCTOS}{P}$.
@@ -530,7 +529,7 @@ $\sem{\rm{}x86}{K\join{}P}$.
 
 \begin{figure}[tb] \centering
 \includegraphics[scale=1]{figs/archA}
-\caption{Overview of the \CTOS\ architecture}
+\caption{Overview of the sequential \CTOS\ architecture}
 \hrulefill
 %\rule{\columnwidth}{.15mm}
 \label{fig:arch}
@@ -665,23 +664,24 @@ global log} to record the shared operations
 of the whole system.
 
 \paragraph{Concurrent abstraction layers}
-Like a general abstraction layer, each concurrent layer can also
-contain thread-private abstract states (refined from the concrete
-thread-local in-memory data) and related abstract primitives. However,
-the data shared by multiple threads are not represented as abstract
-states. Instead, each method call to a shared atomic object is
-recorded as an observable event and is appended to the end of a shared
-global log. For each shared object, we define a {\em replay} function
-that can reconstruct the current shared state from the current global
-log. Thus, all shared objects are represented as a single sequence of
+In a concurrent layer, the thread-private abstract states 
+are also refined from the concrete
+thread-local in-memory data and are manipulated by abstract primitives,
+which is similar to the sequential abstraction layer. 
+The data shared by multiple threads are kept track of by a shared
+global log. Each operation to the shared data is
+recorded as an observable event,  which will be appended to the end of the log. For each piece (or CompCert memory block) of the shared data, we define a {\em replay} function
+that can reconstruct the current shared state from the global
+log. Thus, all the shared data can be represented as a single sequence of
 logged events with appropriate replay functions.
 
 With concurrency, the machine semantics for each layer (\eg,
 $\sem{L}{\cdot}$) is no longer deterministic: for each scheduler
 strategy ($\strat{hs}$), it may generate a different global
 log. To prove the simulation $\sem{L}{P\oplus{}M} \leq_R \sem{L'}{P}$,
-for each scheduler strategy $\strat{hs}$, if running $P\oplus{}M$ on
-machine $L$ with $\strat{hs}$ produces a global log $l$, we must find
+we have to reason about all possible scheduler strategies.
+Given a strategy $\strat{hs}$, if running $P\oplus{}M$ on
+machine $L$ produces a global log $l$, we must find
 another scheduler strategy $\stratp{hs}$ such that running $P$ on
 machine $L'$ under $\stratp{hs}$ would generate a global log $l'$ that
 is related to $l$ via the simulation relation $R$. We will actually
@@ -899,7 +899,7 @@ meets its specification for all possible environment contexts
 $\oracle_i$ that satisfy its ``rely'' invariants.
 
 For example, to show that $\ltyp{L_{t1}[1]}{R}{M_{t1}}{L_{t2}[1]}$, we must
-show that the implementation of $\acq$ meets its specification.
+demonstrate that the implementation of $\acq$ meets its specification.
 This requires us to prove the starvation-freedom of the ticket
 lock algorithm. To do so, we can impose the following rely conditions
 over $\oracle_1$:
