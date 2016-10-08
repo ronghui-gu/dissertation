@@ -15,7 +15,7 @@ extern void g();
 void acq () {
   uint myt = FAI_ticket();
   while(get_now()!=myt){};
-  hold();
+  hold_lock();
 }
 
 void rel () { inc_now(); }

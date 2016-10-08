@@ -146,22 +146,18 @@ primitives in $L'$ into their implementation in $M$); if
 $\sem{L}{\cdot}$ denotes the machine semantics for layer $L$, the
 simulation property (over any context $P$) can be written formally as $\sem{L}{P\oplus{}M} \leq_R \sem{L'}{P}$.
 
-The power of certified abstraction layers lies in 
-this simulation property for any context,
-\ie, {\em contextual refinement},
-which guarantees that the overlay interface captures
-the precise functionality of the underlying implementation as well as
-the assumptions which the implementation might have about its client
-contexts.
-This overlay interface is called as
-a {\em deep specification} 
-to the underlay implementation
-and client programs can be understood solely based on this interface, independent of implementation details.
+The power of certified abstraction layers lies on the fact that this
+simulation property holds under any valid client context. It is a {\em
+  contextual refinement}. We call the overlay interface a {\em deep
+  specification} of its underlying implementation if the interface
+captures the precise functionality of its
+implementation and also the assumptions which the
+implementation might have about its client contexts. With a deeply
+specified overlay interface, client programs can be understood solely
+based on this interface, independent of the implementation details.
 
-Proving this contextual refinement property
-focuses on different aspects
- for sequential and concurrent
-layer interfaces, which  can be described as below.
+Proving this contextual refinement property requires different
+considerations in the sequential and concurrent settings, described as follows.
 
 \paragraph{Sequential layer interface}
  contains a  collection of abstract 
@@ -268,10 +264,10 @@ We have instantiated the framework on top of two core
   language~\cite{blazy-leroy-clight}; and {\bf LAsm}, an x86 assembly
   language.  Both ClightX and LAsm can be used to program certified
   abstraction layers.
-  To compiler
+  To compile
  ClightX abstraction layers into 
   LAsm layers, we introduce a modified version of CompCert,
-named as  {\bf CompCertX}.
+  named {\bf CompCertX}.
   Different from CompCert whose correctness theorem only applies
   for the whole program,
 CompCertX supports compiling \emph{individual} functions in each
@@ -294,9 +290,9 @@ Using the sequential \CTOS{} framework, we have successfully
   constructed several feature-rich certified sequential OS kernels in Coq.
 In   Chapter~\ref{chap:seq:kernel},
 we show how to decompose the specification of 
-a practical general-purpose kernel,
-named as \textbf{\mCTOS{}},
-into 33 certified abstraction layers \ronghui{Check the layer number}, and turn an otherwise 
+a practical general-purpose kernel
+(named as \textbf{\mCTOS{}})
+into 33 certified abstraction layers\ronghui{Check the layer number}, and turn an otherwise 
   prohibitive verification task into many simple and easily automatable 
   sub-tasks.  The resulting kernel is a certified assembly implementation 
   that still enjoys a high degree of compositionality.
@@ -351,7 +347,7 @@ which  supports both fine-grained locking and sleep-wakeup primitives and
   know, this is the first proof of functional correctness of a complete,
   general-purpose concurrent OS kernel with fine-grained locking.
   Chapter~\ref{chap:conkernel} uses \cCTOS{}
-  as a case study to show to apply our framework
+  as a case study and shows how we can apply our framework
   to specify and verify the behaviors of various concurrency
   constructs at different levels of abstraction, such as a multicore
   machine with hardware scheduler, implementation of fine-grained

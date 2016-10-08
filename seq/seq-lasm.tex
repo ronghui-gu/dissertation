@@ -505,8 +505,8 @@ M_{\text{high}})$ does not go wrong, then
   terminates with return code $n$, then so does $\mathit{LAsm}(\Gamma,
   L_{\text{high}}, M_{\text{high}})$;
 (3) if $\mathit{LAsm}(\Gamma, L_{\text{low}}, M_{\text{low}})$
-  diverges, then so does $\mathit{LAsm}(\Gamma, L_{\text{high}},
-  M_{\text{high}})$.
+  diverges, then $\mathit{LAsm}(\Gamma, L_{\text{high}} 
+  M_{\text{high}})$ diverges as well.
 \end{definition}
 
 In our Coq implementation, we actually formalized the semantics of
