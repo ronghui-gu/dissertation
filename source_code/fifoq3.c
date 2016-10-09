@@ -1,5 +1,5 @@
 struct fifobbq {
-  utin insrtQ, rmvQ; 
+  Queue insrtQ, rmvQ; 
   uint n_rmv, n_insrt;
   uint front, next;
   uint T[MAX], loc;
@@ -7,7 +7,7 @@ struct fifobbq {
 
 void remove(){
   uint cv, pos, t;
-  <@$\intp$@>acq (q.loc);
+  <@$\intp$@>acq_lock (q.loc);
   pos = q.n_rmv ++;
   cv = my_cv ();
   <@$\intp$@>enQ (q.rmvQ, cv);
