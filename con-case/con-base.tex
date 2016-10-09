@@ -1599,13 +1599,11 @@ and link with per-CPU layers.
 
 \subsection{Synchronized IPC module}
 \label{sec:con:ipc}
-We have implemented and verified a single-copy
-inter-process communication (IPC) protocol using condition variables
-and the FIFO Blocking Bounded Queue.
-Additionally, we have verified a
+We have verified a
 zero-copy IPC for user programs that is built on top of the
 shared memory infrastructure.
-The verification of synchronized IPC is based on the 
+Additionally,  we have implemented and verified a single-copy
+inter-process communication (IPC) protocol  based on the 
 queuing lock.
 
 Queuing Lock is an algorithm whereby waiting threads are put to sleep,

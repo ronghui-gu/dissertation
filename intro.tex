@@ -301,17 +301,13 @@ into 33 certified abstraction layers\ronghui{Check the layer number}, and turn a
   untangled and given clear formal semantics.
  Using \mCTOS\ as the base, we have also built three additional
   certified kernels: {\bf{}\mCTOShyper} extends \mCTOS\ with virtualization
-  support to form a hypervisor kernel ;
+  support to form a hypervisor kernel, which can boot a version of Linux as a guest;
   {\bf{}\mCTOSringz} extends \mCTOShyper\ with ``ring 0'' processes
   (they are ``certifiably safe'' application programs that can run safely 
   inside the kernel address space, similar to SIPs in 
   Singularity~\cite{hunt07}); {\bf{}\mCTOSembed} removes virtual memory
   and virtualization support from \mCTOSringz\ so that it only supports 
   ``ring 0'' processes.
-  Among these certified kernels,
-  the most realistic one is \mCTOShyper{},
-  which is written in 5,500 lines of C and x86
-assembly and can boot a version of Linux as a guest.   
   
  Chapter~\ref{chap:con} proposes 
 the \CTOS{} framework in the concurrent setting,

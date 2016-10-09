@@ -44,10 +44,10 @@ context with any valid interleaving.
 
 To demonstrate the effectiveness of our new framework, we have
 successfully implemented and verified multiple practical sequential
-and concurrent OS kernels.  The most realistic sequential hypervisor
-kernel is written in 6000 lines of C and x86 assembly, and can boot a
-version of Linux as a guest.  The general-purpose concurrent OS kernel
-with fine-grained locking can boot on a quad-core machine.  For all
+and concurrent OS kernels.  The most realistic one is written in 6500 lines of C and x86 assembly and runs
+on stock x86 multicore machines.
+To our knowledge, this is the first proof of functional correctness of a complete, general-purpose concurrent OS kernel with fine-grained locking.
+For all
 the certified kernels, their abstraction layers and (contextual)
 functional correctness properties are specified and verified in the
 Coq proof assistant.

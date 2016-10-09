@@ -22,6 +22,7 @@ real-world kernels with acceptable effort.
 
 \section{Performance Evaluation} 
 \label{sec:eval:perform}
+
 Although the performance is not the main emphasis of this thesis, we
 have run a number of micro and macro benchmarks to measure the
 overhead of {\cCTOS}
@@ -56,7 +57,7 @@ throughput is measured by the number of transactions per millisecond.
 
 \begin{figure}\centering
 	\hspace{-.2cm}
-	\includegraphics[width=15cm]{figs/locks.pdf}
+	\includegraphics[width=10cm]{figs/locks.pdf}
 	\hspace{-.2cm}
 	\caption{The comparison between slowdown of ticket lock and MCS lock implementations in \cCTOS{}}
 	\label{fig:locks}
@@ -220,6 +221,8 @@ when the guest Linux uses VirtIO, it always sends disk I/O requests of length
 
 
 
+
+
 \input{impl}
 
 \paragraph{Execution Model and Completeness}
@@ -240,6 +243,67 @@ the actual hardware satisfies the high-level specification.
 The verified assembly code is then linked with the rest of the kernel code
 (the bootloader and remaining unverified drivers) to produce the
 actual binary image of the OS. The resulting kernels are practical.
+
+\begin{figure}[t]
+\lstinputlisting [language = C, multicols=2] {source_code/fifoq3.c}
+\caption{Pseudocode of the remove method for FIFOBBQ}
+\label{fig:exp:fifo}
+\end{figure}
+
+\paragraph{Bugs found}
+Formal verification is a great way to
+locate hard-to-find concurrency-related bugs.
+For example,  implementing starvation-free condition variables
+is not trivial and even the popular, most up-to-date OS
+textbook~\cite[Figure~5.14]{ospp11} has gotten it
+wrong~\cite{anderson16}.
+
+A \emph{condition variable} (CV) is a synchronization object that
+enables a thread to wait for a change to be made to a
+shared state (protected by a lock).  Standard Mesa-style
+CVs~\cite{lampson80} do not guarantee starvation-freedom: a thread
+waiting on a CV may not be signaled within a bounded number of
+execution steps. 
+Initially, we implemented a version of CV
+using condition queues as shown by \citet[Figure~5.14]{ospp11}. However, during the verification,
+we have found a bug in the FIFOBBQ implementation shown in that
+textbook: in some cases, their system can get stuck by allowing all
+the signaling and waiting threads to be asleep simultaneously, or the
+system can arrive at a dead end where the threads on the remove queue
+(rmvQ) can no longer be woken up.  We fixed this issue by postponing
+the removal of the CV of a waiting thread from the queue, until the
+waiting thread finishes its work (\cf Figure~\ref{fig:exp:fifo}); the
+remover is now responsible for removing itself from the rmvQ (line~24)
+and waking up the next element in the rmvQ (line~27). Here, \code{peekQ}
+reads the head item of a queue; and \code{my\_cv} returns the CV
+assigned to the current running thread. 
+
+Other than the FIFOBBQ bug,
+we have also found a subtle bug in  
+our initial ticket-lock implementation:   
+the spinning loop body (line 10 in Figure~\ref{fig:exp:ticket_lock})
+was implemented as
+``\lstinline$while($$\intp$\lstinline$L[i].now<t){}$". 
+This still passed all our tests, but  
+during the verification,
+we found that it did not satisfy the atomic specification
+since the ticket field might overflow. For example, 
+if \lstinline$L[i].ticket$ is $(2^{32}-1)$, \code{acq\_lock} will
+cause an overflow (line 9 in  Figure~\ref{fig:exp:ticket_lock}) and
+the returned ticket
+\lstinline$t$ equals $0$. In this case, 
+\lstinline$L[i].now$ is not less than \lstinline$t$ 
+and \code{acq\_lock} returns immediately, which violates 
+the order implied by the ticket. We fixed this bug by 
+changing the loop body to 
+``\lstinline$while($$\intp$\lstinline$L[i].now!=t){}$";
+we completed the proof by showing that the maximum 
+number of concurrent threads is far below $2^{32}$.
+
+
+
+
+
 \ignore{it
 runs on stock x86 hardware and can successfully boot a guest version
 of Linux.}
