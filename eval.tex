@@ -101,21 +101,20 @@ available cores.
 A server's transaction consists of first performing an IPC receive
 from a channel $i$, then executing a payload (certain number of
 `\texttt{nop}' instructions), and finally sending a message to channel
-$i + 1$. Correspondingly, a client sends an IPC message to channel
-$i$, executes a constant payload of 500 cycles, and then receives its
-server's message through channel $i + 1$.  When the client process has
-to wait for a reply from the server, the control is switched to a
-special system process which then immediately yields back to the server
-process. 
+$i + 1$. Correspondingly, a client executes a constant payload of 500
+cycles, sends an IPC message to channel $i$, and then receives its
+server's message through channel $i + 1$.  When the client has to wait
+for a reply from the server, the control is switched to a special
+system process which then immediately yields back to the server
+process.
 
 \begin{figure}\centering
 	\hspace{-.2cm}
-	\includegraphics[width=10cm]{figs/speedup_big_lock.pdf}
+	\includegraphics[width=10cm]{figs/speedup_big_lock2.pdf}
 	\hspace{-.2cm}
 	\caption{Speedup of throughput of \cCTOS{} vs. {\cCTOS-bl} in a client/server benchmark under various server payloads (0-2,000).}
 	\label{fig:speedup_big_lock}
 \end{figure}
-
 
 Figure~\ref{fig:speedup_big_lock} shows this server/client benchmark,
 comparing {\cCTOS} against a big-kernel-lock version of {\cCTOS}
@@ -124,10 +123,10 @@ top-most layer by hand, and replace all fine-grained locks with an
 empty function. This does not introduce bias because the speedup is
 normalized against its own baseline (single core throughput) for each
 kernel version separately. From the figure, we can see that the
-speedup rate for big-kernel-lock is about 1.54x $\sim$ 1.67x with 2
-cores and 1.62x $\sim$ 2.05x with 3 cores. On the other hand, the
+speedup rate for big-kernel-lock is about 1.45x $\sim$ 1.66x with 2
+cores and 1.64x $\sim$ 2.07x with 3 cores. On the other hand, the
 fine-grained locks of {\cCTOS} yield better speedup as the number of
-cores increases (roughly 1.77x $\sim$ 1.85x and 2.63x $\sim$ 2.71x
+cores increases (roughly 1.77x $\sim$ 1.84x and 2.62x $\sim$ 2.71x
 with 2 and 3 cores, respectively). Note that the server/client pairs
 are distributed into different CPUs, and there is no cross core
 communication; therefore, one might expect perfect scaling as the
